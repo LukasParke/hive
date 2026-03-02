@@ -283,7 +283,7 @@ func StartApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	serviceName := "hive-app-" + app.Name
 	svc, err := sc.GetService(r.Context(), serviceName)
@@ -299,7 +299,9 @@ func StartApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	s.UpdateAppStatus(r.Context(), id, "running")
+	if err := s.UpdateAppStatus(r.Context(), id, "running"); err != nil {
+		log.Printf("failed to update app status: %v", err)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "started"})
 }
 
@@ -325,7 +327,7 @@ func ScaleApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	serviceName := "hive-app-" + app.Name
 	svc, err := sc.GetService(r.Context(), serviceName)
@@ -359,7 +361,7 @@ func RollbackApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	serviceName := "hive-app-" + app.Name
 	svc, err := sc.GetService(r.Context(), serviceName)
@@ -371,7 +373,9 @@ func RollbackApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	s.UpdateAppStatus(r.Context(), id, "deploying")
+	if err := s.UpdateAppStatus(r.Context(), id, "deploying"); err != nil {
+		log.Printf("failed to update app status: %v", err)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "rolling back"})
 }
 

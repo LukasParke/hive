@@ -147,7 +147,7 @@ func (d *Dispatcher) sendDiscord(_ context.Context, webhookURL string, event Eve
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("discord returned %d", resp.StatusCode)
 	}
@@ -165,7 +165,7 @@ func (d *Dispatcher) sendSlack(_ context.Context, webhookURL string, event Event
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("slack returned %d", resp.StatusCode)
 	}
@@ -182,7 +182,7 @@ func (d *Dispatcher) sendWebhook(_ context.Context, url string, event Event) err
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook returned %d", resp.StatusCode)
 	}
@@ -216,7 +216,7 @@ func (d *Dispatcher) sendGotify(_ context.Context, url, token string, event Even
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("gotify returned %d", resp.StatusCode)
 	}

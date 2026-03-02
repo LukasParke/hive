@@ -42,7 +42,7 @@ func main() {
 	if cfg.DevMode {
 		logger, _ = zap.NewDevelopment()
 	}
-	defer logger.Sync()
+	defer func() { _ = logger.Sync() }()
 	log := logger.Sugar()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -88,7 +88,7 @@ func runManager(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger)
 		if err != nil {
 			return fmt.Errorf("store init: %w", err)
 		}
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 	}
 
 	ns, err := hivenats.StartEmbedded(cfg, log)
@@ -221,7 +221,7 @@ func loadExistingBackupSchedules(ctx context.Context, db *store.Store, sched *ba
 	}
 
 	// Listen for new schedule events
-	nc.Subscribe("hive.backup.schedule", func(msg *nats.Msg) {
+	if _, err := nc.Subscribe("hive.backup.schedule", func(msg *nats.Msg) {
 		var ev map[string]string
 		if err := json.Unmarshal(msg.Data, &ev); err != nil {
 			return
@@ -231,19 +231,23 @@ func loadExistingBackupSchedules(ctx context.Context, db *store.Store, sched *ba
 				log.Warnf("dynamic add backup schedule: %v", err)
 			}
 		}
-	})
+	}); err != nil {
+		log.Warnf("subscribe hive.backup.schedule: %v", err)
+	}
 }
 
 func startMetricsAggregation(ctx context.Context, nc *nats.Conn, db *store.Store, log *zap.SugaredLogger) {
 	// Subscribe to all agent metric reports
-	nc.Subscribe("hive.metrics.>", func(msg *nats.Msg) {
+	if _, err := nc.Subscribe("hive.metrics.>", func(msg *nats.Msg) {
 		var report agent.NodeMetricsReport
 		if err := json.Unmarshal(msg.Data, &report); err != nil {
 			log.Debugf("metrics decode: %v", err)
 			return
 		}
 		handlers.MetricsCache.Update(&report)
-	})
+	}); err != nil {
+		log.Warnf("subscribe hive.metrics: %v", err)
+	}
 
 	// Periodically write snapshots to DB and purge old data
 	go func() {
@@ -284,7 +288,9 @@ func startMetricsAggregation(ctx context.Context, nc *nats.Conn, db *store.Store
 					Message: fmt.Sprintf("Node **%s**: %s = %.1f (threshold: %s %.1f)",
 						f.NodeID, f.Metric, f.Value, f.Operator, f.Threshold),
 				})
-				db.UpdateAlertThresholdFired(ctx, f.ThresholdID)
+				if err := db.UpdateAlertThresholdFired(ctx, f.ThresholdID); err != nil {
+					log.Warnf("update alert threshold fired: %v", err)
+				}
 			}
 			case <-purgeTicker.C:
 				if db == nil {

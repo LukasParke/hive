@@ -16,7 +16,7 @@ func RegistryStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	exists, _ := sc.ServiceExists(r.Context(), "hive-registry")
 	status := map[string]interface{}{

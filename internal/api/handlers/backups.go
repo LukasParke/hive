@@ -52,7 +52,10 @@ func CreateBackupConfig(nc *nats.Conn) http.HandlerFunc {
 			"config_id": bc.ID,
 			"schedule":  bc.Schedule,
 		})
-		nc.Publish("hive.backup.schedule", scheduleMsg)
+		if err := nc.Publish("hive.backup.schedule", scheduleMsg); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to schedule backup"})
+			return
+		}
 
 		writeJSON(w, http.StatusCreated, bc)
 	}
@@ -83,7 +86,10 @@ func TriggerBackup(nc *nats.Conn) http.HandlerFunc {
 		}
 
 		msg, _ := json.Marshal(map[string]string{"config_id": config.ID})
-		nc.Publish("hive.backup", msg)
+		if err := nc.Publish("hive.backup", msg); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to trigger backup"})
+			return
+		}
 
 		writeJSON(w, http.StatusOK, map[string]string{"status": "triggered"})
 	}
@@ -99,7 +105,10 @@ func RestoreBackup(nc *nats.Conn) http.HandlerFunc {
 			"config_id": configID,
 			"run_id":    runID,
 		})
-		nc.Publish("hive.backup", msg)
+		if err := nc.Publish("hive.backup", msg); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to trigger restore"})
+			return
+		}
 
 		writeJSON(w, http.StatusOK, map[string]string{"status": "restore triggered"})
 	}

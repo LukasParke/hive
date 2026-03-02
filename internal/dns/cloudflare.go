@@ -160,7 +160,7 @@ func (c *cloudflareProvider) ListRecords(ctx context.Context, domain string) ([]
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result cfListResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
