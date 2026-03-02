@@ -164,32 +164,31 @@
 
 		<!-- Memory Section -->
 		<section class="rounded-lg p-5 mb-6" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
-			<h3 class="font-semibold text-lg mb-4">Memory</h3>
-			{@const memPct = pct(latest.mem_used, latest.mem_total)}
+		<h3 class="font-semibold text-lg mb-4">Memory</h3>
 
-			<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-				<div>
-					<p class="text-xs mb-1" style="color: var(--color-text-muted);">Used / Total</p>
-					<p class="text-lg font-mono">{formatBytes(latest.mem_used)} / {formatBytes(latest.mem_total)}</p>
-				</div>
-				<div>
-					<p class="text-xs mb-1" style="color: var(--color-text-muted);">Available</p>
-					<p class="text-lg font-mono">{formatBytes(latest.mem_available)}</p>
-				</div>
-				<div>
-					<p class="text-xs mb-1" style="color: var(--color-text-muted);">Buffers / Cached</p>
-					<p class="text-lg font-mono">{formatBytes(latest.mem_buffers)} / {formatBytes(latest.mem_cached)}</p>
-				</div>
-				<div>
-					<p class="text-xs mb-1" style="color: var(--color-text-muted);">Swap</p>
-					<p class="text-lg font-mono">{formatBytes(latest.swap_used)} / {formatBytes(latest.swap_total)}</p>
-				</div>
+		<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+			<div>
+				<p class="text-xs mb-1" style="color: var(--color-text-muted);">Used / Total</p>
+				<p class="text-lg font-mono">{formatBytes(latest.mem_used)} / {formatBytes(latest.mem_total)}</p>
 			</div>
+			<div>
+				<p class="text-xs mb-1" style="color: var(--color-text-muted);">Available</p>
+				<p class="text-lg font-mono">{formatBytes(latest.mem_available)}</p>
+			</div>
+			<div>
+				<p class="text-xs mb-1" style="color: var(--color-text-muted);">Buffers / Cached</p>
+				<p class="text-lg font-mono">{formatBytes(latest.mem_buffers)} / {formatBytes(latest.mem_cached)}</p>
+			</div>
+			<div>
+				<p class="text-xs mb-1" style="color: var(--color-text-muted);">Swap</p>
+				<p class="text-lg font-mono">{formatBytes(latest.swap_used)} / {formatBytes(latest.swap_total)}</p>
+			</div>
+		</div>
 
-			<div class="w-full rounded-full h-4" style="background-color: var(--color-border);">
-				<div class="h-4 rounded-full transition-all" style="width: {memPct}%; background-color: {barColor(memPct)};"></div>
-			</div>
-			<p class="text-xs mt-1 text-right" style="color: var(--color-text-muted);">{memPct}% used</p>
+		<div class="w-full rounded-full h-4" style="background-color: var(--color-border);">
+			<div class="h-4 rounded-full transition-all" style="width: {pct(latest.mem_used, latest.mem_total)}%; background-color: {barColor(pct(latest.mem_used, latest.mem_total))};"></div>
+		</div>
+		<p class="text-xs mt-1 text-right" style="color: var(--color-text-muted);">{pct(latest.mem_used, latest.mem_total)}% used</p>
 
 			{#if history.length > 1}
 				<div class="mt-4">
