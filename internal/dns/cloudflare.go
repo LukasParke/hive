@@ -92,7 +92,7 @@ func (c *cloudflareProvider) CreateRecord(ctx context.Context, domain, recordTyp
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result cfResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -114,7 +114,7 @@ func (c *cloudflareProvider) UpdateRecord(ctx context.Context, externalID, domai
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result cfResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -135,7 +135,7 @@ func (c *cloudflareProvider) DeleteRecord(ctx context.Context, externalID string
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result cfResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

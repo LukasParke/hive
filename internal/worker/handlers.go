@@ -37,8 +37,11 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 
 	p.publishProgress(appID, "cloning repository...")
 	buildDir := filepath.Join(p.cfg.DataDir, "builds", job["name"])
-	os.MkdirAll(buildDir, 0755)
-	defer os.RemoveAll(buildDir)
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		p.log.Errorf("build: failed to create build dir: %v", err)
+		return
+	}
+	defer func() { _ = os.RemoveAll(buildDir) }()
 
 	repo := job["git_repo"]
 	branch := job["git_branch"]
@@ -123,7 +126,9 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 		"name":          job["name"],
 		"domain":        job["domain"],
 	})
-	p.nc.Publish("hive.deploy", deployJob)
+	if err := p.nc.Publish("hive.deploy", deployJob); err != nil {
+		p.log.Errorf("failed to publish deploy job: %v", err)
+	}
 	p.publishProgress(appID, "build complete, deploying...")
 }
 
@@ -142,7 +147,7 @@ func (p *Pool) handleDeploy(msg *nats.Msg) {
 		p.log.Errorf("deploy: docker client error: %v", err)
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	ctx := context.Background()
 
@@ -284,7 +289,9 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 		if err == nil && len(appVolumes) > 0 {
 			var existingConstraints []string
 			if app, innerErr := p.store.GetApp(ctx, appID); innerErr == nil && len(app.PlacementConstraints) > 0 {
-				json.Unmarshal(app.PlacementConstraints, &existingConstraints)
+				if err := json.Unmarshal(app.PlacementConstraints, &existingConstraints); err != nil {
+					p.log.Warnf("deploy: failed to parse placement constraints: %v", err)
+				}
 			}
 
 			resolvedMounts, addedConstraints, resolveErr := storage.ResolveVolumeMounts(ctx, p.store, appVolumes, existingConstraints)
@@ -304,7 +311,9 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 		if app, err := p.store.GetApp(ctx, appID); err == nil && app != nil {
 			var constraints []string
 			if len(app.PlacementConstraints) > 0 {
-				json.Unmarshal(app.PlacementConstraints, &constraints)
+				if err := json.Unmarshal(app.PlacementConstraints, &constraints); err != nil {
+					p.log.Warnf("deploy: failed to parse placement constraints: %v", err)
+				}
 			}
 			if len(constraints) > 0 {
 				if spec.TaskTemplate.Placement == nil {
@@ -401,7 +410,9 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 	p.publishProgress(appID, "deployment complete")
 	p.finishDeployment(deploymentID, "success", "")
 	if p.store != nil {
-		p.store.UpdateAppStatus(ctx, appID, "running")
+		if err := p.store.UpdateAppStatus(ctx, appID, "running"); err != nil {
+			p.log.Warnf("failed to update app status: %v", err)
+		}
 	}
 	p.notifyDeploySuccess(appID, job["name"])
 }
@@ -542,7 +553,9 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 		vol, err := p.store.GetVolume(ctx, config.VolumeID)
 		if err != nil {
 			p.log.Errorf("backup: load volume %s: %v", config.VolumeID, err)
-			p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, ""); err != nil {
+				p.log.Warnf("failed to update backup run: %v", err)
+			}
 			p.notifyBackupFailure(configID, "", err.Error())
 			return
 		}
@@ -552,7 +565,9 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 		outputPath, err = fileRunner.BackupVolume(ctx, vol.Name, outputDir)
 		if err != nil {
 			p.log.Errorf("backup: volume backup failed: %v", err)
-			p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, ""); err != nil {
+				p.log.Warnf("failed to update backup run: %v", err)
+			}
 			p.notifyBackupFailure(configID, vol.Name, err.Error())
 			return
 		}
@@ -560,7 +575,9 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 		db, err := p.store.GetManagedDatabase(ctx, config.ResourceID)
 		if err != nil {
 			p.log.Errorf("backup: load database %s: %v", config.ResourceID, err)
-			p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, ""); err != nil {
+				p.log.Warnf("failed to update backup run: %v", err)
+			}
 			p.notifyBackupFailure(configID, "", err.Error())
 			return
 		}
@@ -606,9 +623,9 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 						p.log.Warnf("backup: S3 upload failed: %v", err)
 					} else {
 						p.log.Infof("backup: uploaded to %s", targetPath)
-						os.Remove(outputPath)
-					}
-					f.Close()
+					_ = os.Remove(outputPath)
+				}
+				_ = f.Close()
 				}
 			}
 		}
@@ -637,7 +654,9 @@ func (p *Pool) deployStack(ctx context.Context, sc *hiveswarm.Client, job map[st
 	cf, err := deploy.ParseCompose(st.ComposeContent)
 	if err != nil {
 		p.log.Errorf("stack deploy: parse compose: %v", err)
-		p.store.UpdateStack(ctx, &store.Stack{ID: stackID, Name: stackName, ComposeContent: st.ComposeContent, Status: "failed"})
+		if err := p.store.UpdateStack(ctx, &store.Stack{ID: stackID, Name: stackName, ComposeContent: st.ComposeContent, Status: "failed"}); err != nil {
+			p.log.Warnf("failed to update stack status: %v", err)
+		}
 		return
 	}
 
@@ -691,7 +710,9 @@ func (p *Pool) deployStack(ctx context.Context, sc *hiveswarm.Client, job map[st
 		if exists {
 			existing, err := sc.GetService(ctx, svc.Name)
 			if err == nil && existing != nil {
-				sc.UpdateService(ctx, existing.ID, existing.Version, spec)
+				if err := sc.UpdateService(ctx, existing.ID, existing.Version, spec); err != nil {
+				p.log.Warnf("stack deploy: update service %s: %v", svc.Name, err)
+			}
 			}
 		} else {
 			if err := sc.CreateService(ctx, spec); err != nil {
@@ -700,7 +721,9 @@ func (p *Pool) deployStack(ctx context.Context, sc *hiveswarm.Client, job map[st
 		}
 	}
 
-	p.store.UpdateStack(ctx, &store.Stack{ID: stackID, Name: stackName, ComposeContent: st.ComposeContent, Status: "running"})
+	if err := p.store.UpdateStack(ctx, &store.Stack{ID: stackID, Name: stackName, ComposeContent: st.ComposeContent, Status: "running"}); err != nil {
+		p.log.Warnf("failed to update stack status: %v", err)
+	}
 	p.log.Infof("stack deployed: %s (%d services)", stackName, len(services))
 }
 
@@ -762,7 +785,9 @@ func (p *Pool) publishProgress(appID, message string) {
 		"app_id":  appID,
 		"message": message,
 	})
-	p.nc.Publish("hive.progress."+appID, data)
+	if err := p.nc.Publish("hive.progress."+appID, data); err != nil {
+		p.log.Errorf("failed to publish progress: %v", err)
+	}
 }
 
 func (p *Pool) finishDeployment(deploymentID, status, logs string) {
@@ -770,7 +795,9 @@ func (p *Pool) finishDeployment(deploymentID, status, logs string) {
 		return
 	}
 	ctx := context.Background()
-	p.store.UpdateDeploymentStatus(ctx, deploymentID, status, logs)
+	if err := p.store.UpdateDeploymentStatus(ctx, deploymentID, status, logs); err != nil {
+		p.log.Warnf("failed to update deployment status: %v", err)
+	}
 }
 
 func (p *Pool) appendDeploymentLog(deploymentID, logs string) {
@@ -778,7 +805,9 @@ func (p *Pool) appendDeploymentLog(deploymentID, logs string) {
 		return
 	}
 	ctx := context.Background()
-	p.store.AppendDeploymentLogs(ctx, deploymentID, logs)
+	if err := p.store.AppendDeploymentLogs(ctx, deploymentID, logs); err != nil {
+		p.log.Warnf("failed to append deployment logs: %v", err)
+	}
 }
 
 func (p *Pool) notifyDeploySuccess(appID, appName string) {
@@ -887,7 +916,7 @@ func (p *Pool) handleRestore(job map[string]string) {
 			p.notifyRestoreFailure(configID, err.Error())
 			return
 		}
-		defer os.Remove(localPath)
+		defer func() { _ = os.Remove(localPath) }()
 		backupPath = localPath
 	}
 
@@ -1003,6 +1032,10 @@ func (p *Pool) handleMaintenance(msg *nats.Msg) {
 		status = "failed"
 		details = err.Error()
 	}
-	p.store.UpdateMaintenanceRun(ctx, run.ID, status, details)
-	p.store.UpdateMaintenanceTaskLastRun(ctx, taskID, status)
+	if err := p.store.UpdateMaintenanceRun(ctx, run.ID, status, details); err != nil {
+		p.log.Warnf("failed to update maintenance run: %v", err)
+	}
+	if err := p.store.UpdateMaintenanceTaskLastRun(ctx, taskID, status); err != nil {
+		p.log.Warnf("failed to update maintenance task last run: %v", err)
+	}
 }

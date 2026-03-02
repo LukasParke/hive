@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -111,7 +112,9 @@ func DeleteApp(nc *nats.Conn) http.HandlerFunc {
 			"app_id": app.ID,
 			"name":   app.Name,
 		})
-		nc.Publish("hive.deploy", job)
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			log.Printf("failed to publish deploy job: %v", err)
+		}
 
 		if err := s.DeleteApp(r.Context(), id); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -141,7 +144,9 @@ func DeployApp(nc *nats.Conn) http.HandlerFunc {
 			return
 		}
 
-		s.UpdateAppStatus(r.Context(), app.ID, "deploying")
+		if err := s.UpdateAppStatus(r.Context(), app.ID, "deploying"); err != nil {
+			log.Printf("failed to update app status: %v", err)
+		}
 
 		subject := "hive.deploy"
 		if app.DeployType == "git" {
@@ -160,7 +165,9 @@ func DeployApp(nc *nats.Conn) http.HandlerFunc {
 			"name":          app.Name,
 			"domain":        app.Domain,
 		})
-		nc.Publish(subject, job)
+		if err := nc.Publish(subject, job); err != nil {
+			log.Printf("failed to publish %s job: %v", subject, err)
+		}
 
 		writeJSON(w, http.StatusAccepted, deployment)
 	}
@@ -220,8 +227,12 @@ func RestartApp(nc *nats.Conn) http.HandlerFunc {
 			"name":        app.Name,
 			"domain":      app.Domain,
 		})
-		nc.Publish("hive.deploy", job)
-		s.UpdateAppStatus(r.Context(), id, "deploying")
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			log.Printf("failed to publish deploy job: %v", err)
+		}
+		if err := s.UpdateAppStatus(r.Context(), id, "deploying"); err != nil {
+			log.Printf("failed to update app status: %v", err)
+		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "restarting"})
 	}
 }
@@ -240,7 +251,7 @@ func StopApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	serviceName := "hive-app-" + app.Name
 	svc, err := sc.GetService(r.Context(), serviceName)
@@ -252,7 +263,9 @@ func StopApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	s.UpdateAppStatus(r.Context(), id, "stopped")
+	if err := s.UpdateAppStatus(r.Context(), id, "stopped"); err != nil {
+		log.Printf("failed to update app status: %v", err)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "stopped"})
 }
 

@@ -23,7 +23,9 @@ func (br *BackupRunner) BackupDatabase(ctx context.Context, dbType, host, name, 
 	timestamp := time.Now().Format("20060102-150405")
 	filename := fmt.Sprintf("%s-%s-%s.sql", name, dbType, timestamp)
 	outputPath := filepath.Join(outputDir, filename)
-	os.MkdirAll(outputDir, 0755)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return "", fmt.Errorf("create backup dir: %w", err)
+	}
 
 	var cmd *exec.Cmd
 	switch dbType {

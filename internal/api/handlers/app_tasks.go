@@ -48,7 +48,7 @@ func AppTasks(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker client unavailable"})
 		return
 	}
-	defer cli.Close()
+	defer func() { _ = cli.Close() }()
 
 	serviceName := "hive-app-" + app.Name
 	services, err := cli.ServiceList(r.Context(), swarm.ServiceListOptions{
@@ -111,7 +111,7 @@ func AppEvents(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker client unavailable"})
 		return
 	}
-	defer cli.Close()
+	defer func() { _ = cli.Close() }()
 
 	serviceName := "hive-app-" + app.Name
 	f := filters.NewArgs(
@@ -171,7 +171,7 @@ func AppPorts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker client unavailable"})
 		return
 	}
-	defer cli.Close()
+	defer func() { _ = cli.Close() }()
 
 	serviceName := "hive-app-" + app.Name
 	services, err := cli.ServiceList(r.Context(), swarm.ServiceListOptions{

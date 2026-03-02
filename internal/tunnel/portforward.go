@@ -37,7 +37,7 @@ func checkPort(ctx context.Context, port int) bool {
 	if err != nil {
 		return true
 	}
-	listener.Close()
+	_ = listener.Close()
 	return false
 }
 
@@ -49,6 +49,6 @@ func ConnectivityHandler() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"port_80":%v,"port_443":%v,"message":"%s"}`, result.Port80, result.Port443, result.Message)
+		_, _ = fmt.Fprintf(w, `{"port_80":%v,"port_443":%v,"message":"%s"}`, result.Port80, result.Port443, result.Message)
 	}
 }

@@ -20,7 +20,9 @@ func NewGitBuilder(workDir string, log *zap.SugaredLogger) *GitBuilder {
 
 func (g *GitBuilder) CloneAndBuild(repo, branch, dockerfile, imageName string) error {
 	cloneDir := filepath.Join(g.workDir, "build", imageName)
-	os.MkdirAll(cloneDir, 0755)
+	if err := os.MkdirAll(cloneDir, 0755); err != nil {
+		return fmt.Errorf("create clone dir: %w", err)
+	}
 
 	g.log.Infof("cloning %s branch %s", repo, branch)
 	cmd := exec.Command("git", "clone", "--depth=1", "--branch", branch, repo, cloneDir)
@@ -38,6 +40,6 @@ func (g *GitBuilder) CloneAndBuild(repo, branch, dockerfile, imageName string) e
 		return fmt.Errorf("docker build: %w", err)
 	}
 
-	os.RemoveAll(cloneDir)
+	_ = os.RemoveAll(cloneDir)
 	return nil
 }

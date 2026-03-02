@@ -96,7 +96,9 @@ func (b *Bootstrapper) getOrCreatePostgresPassword() (string, error) {
 	}
 	password := hex.EncodeToString(buf)
 
-	os.MkdirAll(b.cfg.DataDir, 0700)
+	if err := os.MkdirAll(b.cfg.DataDir, 0700); err != nil {
+		return "", fmt.Errorf("create data dir: %w", err)
+	}
 	if err := os.WriteFile(pwFile, []byte(password), 0600); err != nil {
 		return "", fmt.Errorf("persist password: %w", err)
 	}
@@ -127,10 +129,10 @@ func (b *Bootstrapper) waitForPostgres(ctx context.Context) error {
 				continue
 			}
 			if err := db.PingContext(ctx); err != nil {
-				db.Close()
+				_ = db.Close()
 				continue
 			}
-			db.Close()
+			_ = db.Close()
 			b.log.Info("postgres is ready")
 			b.cfg.DatabaseURL = dsn
 			return nil

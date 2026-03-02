@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/lholliger/hive/internal/store"
@@ -22,7 +23,9 @@ type HostCapabilities struct {
 func ParseCapabilities(raw []byte) HostCapabilities {
 	var caps HostCapabilities
 	if len(raw) > 0 {
-		json.Unmarshal(raw, &caps)
+		if err := json.Unmarshal(raw, &caps); err != nil {
+			log.Printf("failed to parse host capabilities: %v", err)
+		}
 	}
 	return caps
 }

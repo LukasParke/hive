@@ -25,17 +25,17 @@ func AppLogs(nc *nats.Conn) http.HandlerFunc {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		subject := "hive.progress." + appID
 		sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
-			conn.WriteMessage(websocket.TextMessage, msg.Data)
+			_ = conn.WriteMessage(websocket.TextMessage, msg.Data)
 		})
 		if err != nil {
-			conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"))
+			_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"))
 			return
 		}
-		defer sub.Unsubscribe()
+		defer func() { _ = sub.Unsubscribe() }()
 
 		for {
 			_, _, err := conn.ReadMessage()
@@ -62,28 +62,28 @@ func ContainerLogs() http.HandlerFunc {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		sc, err := swarm.NewClient(nil)
 		if err != nil {
-			conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"docker unavailable"}`))
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"docker unavailable"}`))
 			return
 		}
-		defer sc.Close()
+		defer func() { _ = sc.Close() }()
 
 		serviceName := "hive-app-" + appName
 		svc, err := sc.GetService(r.Context(), serviceName)
 		if err != nil || svc == nil {
-			conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"service not found"}`))
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"service not found"}`))
 			return
 		}
 
 		reader, err := sc.ServiceLogs(r.Context(), svc.ID, tail, true)
 		if err != nil {
-			conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"failed to get logs"}`))
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"error":"failed to get logs"}`))
 			return
 		}
-		defer reader.Close()
+		defer func() { _ = reader.Close() }()
 
 		done := make(chan struct{})
 		go func() {

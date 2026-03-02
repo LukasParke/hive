@@ -15,7 +15,7 @@ func collectDocker(report *NodeMetricsReport) {
 	if err != nil {
 		return
 	}
-	defer cli.Close()
+	defer func() { _ = cli.Close() }()
 
 	ctx := context.Background()
 
