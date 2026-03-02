@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -196,7 +197,9 @@ func GitWebhook(nc *nats.Conn, s *store.Store) http.HandlerFunc {
 						if err := s.CreateDeployment(r.Context(), deployment); err != nil {
 							continue
 						}
-						s.UpdateAppStatus(r.Context(), app.ID, "deploying")
+						if err := s.UpdateAppStatus(r.Context(), app.ID, "deploying"); err != nil {
+							log.Printf("failed to update app status: %v", err)
+						}
 						job, _ := json.Marshal(map[string]string{
 							"action":        "deploy",
 							"app_id":        app.ID,

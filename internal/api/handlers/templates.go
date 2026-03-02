@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -572,7 +573,9 @@ func SyncTemplateSource(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	s.UpdateTemplateSyncTime(r.Context(), sourceID)
+	if err := s.UpdateTemplateSyncTime(r.Context(), sourceID); err != nil {
+		log.Printf("failed to update template sync time: %v", err)
+	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{"synced": true, "imported": imported})
 }

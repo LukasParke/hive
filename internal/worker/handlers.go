@@ -590,7 +590,9 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 		outputPath, err = runner.BackupDatabase(ctx, db.DBType, serviceName, db.Name, db.Name, password, outputDir)
 		if err != nil {
 			p.log.Errorf("backup: run failed: %v", err)
-			p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, run.ID, "failed", 0, ""); err != nil {
+				p.log.Errorf("backup: update run status: %v", err)
+			}
 			p.notifyBackupFailure(configID, db.Name, err.Error())
 			return
 		}
@@ -631,7 +633,9 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 		}
 	}
 
-	p.store.UpdateBackupRun(ctx, run.ID, "success", size, targetPath)
+	if err := p.store.UpdateBackupRun(ctx, run.ID, "success", size, targetPath); err != nil {
+		p.log.Errorf("backup: update run status: %v", err)
+	}
 	p.log.Infof("backup complete: config=%s path=%s size=%d", configID, targetPath, size)
 	p.notifyBackupSuccess(configID, backupName, targetPath, size)
 }
