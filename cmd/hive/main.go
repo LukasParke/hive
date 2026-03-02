@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -51,6 +53,14 @@ func main() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
+	// Launcher mode: deploy infrastructure + hive-manager service, then exit
+	if cfg.Role == config.RoleManager && !cfg.ManagedService && !cfg.DevMode {
+		if err := runLauncher(ctx, cfg, log); err != nil {
+			log.Fatalf("launcher failed: %v", err)
+		}
+		return
+	}
+
 	switch cfg.Role {
 	case config.RoleManager:
 		if err := runManager(ctx, cfg, log); err != nil {
@@ -73,12 +83,41 @@ func main() {
 	cancel()
 }
 
+func runLauncher(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) error {
+	log.Info("starting hive in launcher mode (will deploy as Swarm service)")
+
+	bs := bootstrap.New(cfg, log)
+	if err := bs.RunLauncher(ctx); err != nil {
+		return fmt.Errorf("launcher bootstrap failed: %w", err)
+	}
+
+	log.Info("hive-manager Swarm service is running -- launcher exiting")
+	return nil
+}
+
 func runManager(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) error {
 	log.Info("starting hive in manager mode")
 
 	bs := bootstrap.New(cfg, log)
-	if err := bs.Run(ctx); err != nil {
-		return fmt.Errorf("bootstrap failed: %w", err)
+	if cfg.DevMode {
+		if err := bs.Run(ctx); err != nil {
+			return fmt.Errorf("bootstrap failed: %w", err)
+		}
+	} else {
+		if err := bs.RunService(ctx); err != nil {
+			return fmt.Errorf("service bootstrap failed: %w", err)
+		}
+	}
+
+	uiCmd, err := startSvelteKit(cfg, log)
+	if err != nil {
+		return fmt.Errorf("sveltekit: %w", err)
+	}
+	if uiCmd != nil {
+		defer func() {
+			_ = uiCmd.Process.Signal(syscall.SIGTERM)
+			_ = uiCmd.Wait()
+		}()
 	}
 
 	var db *store.Store
@@ -142,10 +181,8 @@ func runManager(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger)
 		}
 	}()
 
-	// Subscribe to agent metrics via NATS
 	startMetricsAggregation(ctx, nc, db, log)
 
-	// Subscribe to Ceph health reports via NATS
 	cephAgg := hiveceph.NewHealthAggregator(nc, db, log)
 	cephAgg.Start(ctx)
 
@@ -204,6 +241,48 @@ func runAgent(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) e
 
 	log.Infof("hive agent ready, reporting every %s", interval)
 	return nil
+}
+
+func startSvelteKit(cfg *config.Config, log *zap.SugaredLogger) (*exec.Cmd, error) {
+	if cfg.DevMode {
+		log.Info("dev mode: skipping SvelteKit child process (run 'make ui-dev' separately)")
+		return nil, nil
+	}
+
+	entrypoint := cfg.UIDir + "/index.js"
+	if _, err := os.Stat(entrypoint); err != nil {
+		return nil, fmt.Errorf("SvelteKit build not found at %s: %w", entrypoint, err)
+	}
+
+	cmd := exec.Command("node", entrypoint)
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("PORT=%d", cfg.UIPort),
+		fmt.Sprintf("ORIGIN=http://127.0.0.1:%d", cfg.UIPort),
+		"DATABASE_URL="+cfg.DatabaseURL,
+		"HOST=127.0.0.1",
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("start SvelteKit: %w", err)
+	}
+	log.Infof("SvelteKit child process started (pid %d) on port %d", cmd.Process.Pid, cfg.UIPort)
+
+	readyURL := fmt.Sprintf("http://127.0.0.1:%d/api/auth/get-session", cfg.UIPort)
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(readyURL)
+		if err == nil {
+			_ = resp.Body.Close()
+			log.Info("SvelteKit is ready")
+			return cmd, nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	_ = cmd.Process.Kill()
+	return nil, fmt.Errorf("SvelteKit did not become ready within 30s")
 }
 
 func loadExistingBackupSchedules(ctx context.Context, db *store.Store, sched *backup.Scheduler, nc *nats.Conn, log *zap.SugaredLogger) {

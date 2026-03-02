@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
@@ -321,23 +324,47 @@ func (s *Server) buildRouter() chi.Router {
 	// Webhook endpoint (no auth required)
 	r.Post("/api/v1/webhooks/{sourceId}", handlers.GitWebhook(s.nc, s.store))
 
+	// Reverse proxy everything else to SvelteKit (UI pages, static assets, /api/auth/*)
+	uiTarget, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", s.cfg.UIPort))
+	uiProxy := httputil.NewSingleHostReverseProxy(uiTarget)
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		uiProxy.ServeHTTP(w, r)
+	})
+
 	return r
 }
 
 func (s *Server) corsMiddleware() func(http.Handler) http.Handler {
+	allowed := make(map[string]bool)
+	if s.cfg.AllowedOrigins != "" {
+		for _, o := range splitOrigins(s.cfg.AllowedOrigins) {
+			allowed[o] = true
+		}
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
-			if s.cfg.AllowedOrigins != "" {
-				origin = s.cfg.AllowedOrigins
+
+			var matched string
+			if len(allowed) > 0 {
+				if allowed[origin] {
+					matched = origin
+				}
+			} else {
+				if origin != "" {
+					matched = origin
+				} else {
+					matched = fmt.Sprintf("http://localhost:%d", s.cfg.APIPort)
+				}
 			}
-			if origin == "" {
-				origin = fmt.Sprintf("http://localhost:%d", s.cfg.APIPort)
+
+			if matched != "" {
+				w.Header().Set("Access-Control-Allow-Origin", matched)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusNoContent)
 				return
@@ -345,6 +372,17 @@ func (s *Server) corsMiddleware() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func splitOrigins(s string) []string {
+	var origins []string
+	for _, part := range strings.Split(s, ",") {
+		o := strings.TrimSpace(part)
+		if o != "" {
+			origins = append(origins, o)
+		}
+	}
+	return origins
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

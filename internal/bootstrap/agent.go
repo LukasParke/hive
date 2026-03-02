@@ -3,7 +3,6 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
@@ -23,12 +22,9 @@ func (b *Bootstrapper) ensureAgent(ctx context.Context) error {
 
 	b.log.Info("deploying hive monitoring agent as global service")
 
-	hiveImage := os.Getenv("HIVE_IMAGE")
-	if hiveImage == "" {
-		hiveImage = "ghcr.io/lholliger/hive:latest"
-	}
+	hiveImage := b.cfg.HiveImage
 
-	natsURL := fmt.Sprintf("nats://hive-nats:%d", b.cfg.NATSPort)
+	natsURL := fmt.Sprintf("nats://hive-manager:%d", b.cfg.NATSPort)
 	agentInterval := fmt.Sprintf("%d", b.cfg.AgentInterval)
 	if agentInterval == "0" {
 		agentInterval = "10"

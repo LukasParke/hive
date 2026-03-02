@@ -14,8 +14,8 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /hive ./cmd/hive
 
-### Stage 3: Runtime (Go binary only -- Node.js is not needed at runtime)
-FROM debian:bookworm-slim
+### Stage 3: Runtime (Go + Node.js for SvelteKit/BetterAuth)
+FROM node:22-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git ca-certificates curl && \

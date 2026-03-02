@@ -18,7 +18,7 @@ type Config struct {
 	DevMode  bool
 	DataDir  string
 	APIPort  int
-	UIPort   int // dev only: SvelteKit dev server port
+	UIPort   int // SvelteKit server port (internal, proxied by Go)
 	UIDir    string // pre-built frontend assets directory
 	NATSPort int
 
@@ -55,6 +55,12 @@ type Config struct {
 
 	// Webhook base URL for git provider callbacks (e.g. https://hive.example.com)
 	WebhookBaseURL string
+
+	// When true, Hive is running as a Swarm-managed service (not the initial launcher)
+	ManagedService bool
+
+	// Docker image reference for self-deployment and agent deployment
+	HiveImage string
 }
 
 func Load() *Config {
@@ -80,6 +86,8 @@ func Load() *Config {
 		AgentInterval:   getEnvInt("HIVE_AGENT_INTERVAL", 10),
 		AllowedOrigins:  getEnv("HIVE_ALLOWED_ORIGINS", ""),
 		WebhookBaseURL:  getEnv("HIVE_WEBHOOK_BASE_URL", "http://localhost:8080"),
+		ManagedService:  getEnv("HIVE_MANAGED", "") == "true",
+		HiveImage:       getEnv("HIVE_IMAGE", "ghcr.io/lholliger/hive:latest"),
 	}
 	return cfg
 }
