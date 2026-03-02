@@ -1,0 +1,17 @@
+kind: Template
+name: freshrss
+description: Self-hosted RSS feed aggregator
+category: productivity
+icon: https://freshrss.org/freshrss.svg
+image: freshrss/freshrss:latest
+ports:
+  - "80"
+volumes:
+  - /var/www/FreshRSS/data
+env:
+  TZ: Etc/UTC
+homepage_labels:
+  homepage.group: Productivity
+  homepage.name: FreshRSS
+  homepage.icon: freshrss
+  homepage.href: "https://{{domain}}"

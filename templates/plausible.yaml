@@ -1,0 +1,18 @@
+kind: App
+name: plausible
+description: Privacy-friendly web analytics
+category: analytics
+icon: https://plausible.io/images/icon/plausible_logo.png
+image: ghcr.io/plausible/community-edition:latest
+ports:
+  - "8000:8000"
+volumes:
+  - "plausible-data:/var/lib/plausible"
+env:
+  BASE_URL: "https://plausible.example.com"
+  SECRET_KEY_BASE: "change-me"
+domain: ""
+replicas: 1
+depends_on:
+  - type: postgres
+    version: "16"

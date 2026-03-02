@@ -1,0 +1,25 @@
+kind: Template
+name: vikunja
+description: Open-source to-do and project management application
+category: productivity
+icon: https://vikunja.io/images/vikunja-icon.svg
+image: vikunja/vikunja:latest
+ports:
+  - "3456"
+volumes:
+  - /app/vikunja/files
+depends_on:
+  - type: postgres
+    version: "15"
+env:
+  TZ: Etc/UTC
+  VIKUNJA_DATABASE_TYPE: postgres
+  VIKUNJA_DATABASE_HOST: postgres
+  VIKUNJA_DATABASE_DATABASE: vikunja
+  VIKUNJA_DATABASE_USER: vikunja
+  VIKUNJA_DATABASE_PASSWORD: changeme
+homepage_labels:
+  homepage.group: Productivity
+  homepage.name: Vikunja
+  homepage.icon: vikunja
+  homepage.href: "https://{{domain}}"

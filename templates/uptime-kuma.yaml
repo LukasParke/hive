@@ -1,0 +1,13 @@
+kind: App
+name: uptime-kuma
+description: Self-hosted monitoring tool
+category: monitoring
+icon: https://uptime.kuma.pet/img/icon.svg
+image: louislam/uptime-kuma:latest
+ports:
+  - "3001:3001"
+volumes:
+  - "uptime-kuma-data:/app/data"
+env: {}
+domain: ""
+replicas: 1

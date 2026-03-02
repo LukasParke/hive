@@ -1,0 +1,1 @@
+ALTER TABLE git_source ADD COLUMN IF NOT EXISTS webhook_ids JSONB NOT NULL DEFAULT '{}';

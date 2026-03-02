@@ -1,0 +1,23 @@
+kind: Template
+name: lidarr
+description: Music collection manager for Usenet and BitTorrent users
+category: media
+icon: https://raw.githubusercontent.com/Lidarr/Lidarr/develop/Logo/128.png
+image: lscr.io/linuxserver/lidarr:latest
+ports:
+  - "8686"
+volumes:
+  - /config
+nas_volumes:
+  - name: music
+    suggested_path: /music
+    description: Music library
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Lidarr
+  homepage.icon: lidarr
+  homepage.href: "https://{{domain}}"

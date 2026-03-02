@@ -1,0 +1,19 @@
+kind: Template
+name: tautulli
+description: Monitoring and tracking for Plex Media Server
+category: media
+icon: https://tautulli.com/images/logo.png
+image: lscr.io/linuxserver/tautulli:latest
+ports:
+  - "8181"
+volumes:
+  - /config
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Tautulli
+  homepage.icon: tautulli
+  homepage.href: "https://{{domain}}"

@@ -1,0 +1,19 @@
+kind: Template
+name: prowlarr
+description: Indexer manager for Sonarr, Radarr, Lidarr, and Readarr
+category: media
+icon: https://raw.githubusercontent.com/Prowlarr/Prowlarr/develop/Logo/128.png
+image: lscr.io/linuxserver/prowlarr:latest
+ports:
+  - "9696"
+volumes:
+  - /config
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Prowlarr
+  homepage.icon: prowlarr
+  homepage.href: "https://{{domain}}"

@@ -1,0 +1,23 @@
+kind: Template
+name: miniflux
+description: Minimalist and opinionated RSS feed reader
+category: productivity
+icon: https://miniflux.app/images/logo.svg
+image: miniflux/miniflux:latest
+ports:
+  - "8080"
+depends_on:
+  - type: postgres
+    version: "15"
+env:
+  TZ: Etc/UTC
+  DATABASE_URL: postgres://miniflux:secret@postgres/miniflux?sslmode=disable
+  RUN_MIGRATIONS: "1"
+  CREATE_ADMIN: "1"
+  ADMIN_USERNAME: admin
+  ADMIN_PASSWORD: changeme
+homepage_labels:
+  homepage.group: Productivity
+  homepage.name: Miniflux
+  homepage.icon: miniflux
+  homepage.href: "https://{{domain}}"

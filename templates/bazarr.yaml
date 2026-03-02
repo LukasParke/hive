@@ -1,0 +1,19 @@
+kind: Template
+name: bazarr
+description: Companion to Sonarr and Radarr for managing subtitles
+category: media
+icon: https://raw.githubusercontent.com/morpheus65535/bazarr/master/frontend/src/assets/icon.png
+image: lscr.io/linuxserver/bazarr:latest
+ports:
+  - "6767"
+volumes:
+  - /config
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Bazarr
+  homepage.icon: bazarr
+  homepage.href: "https://{{domain}}"

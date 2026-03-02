@@ -1,0 +1,19 @@
+kind: Template
+name: homepage
+description: Customizable application dashboard with widgets
+category: dashboard
+icon: https://raw.githubusercontent.com/gethomepage/homepage/main/images/homepage.svg
+image: ghcr.io/gethomepage/homepage:latest
+ports:
+  - "3000"
+volumes:
+  - /app/config
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Dashboard
+  homepage.name: Homepage
+  homepage.icon: homepage
+  homepage.href: "https://{{domain}}"

@@ -1,0 +1,21 @@
+kind: Template
+name: mealie
+description: Self-hosted recipe manager and meal planner
+category: productivity
+icon: https://raw.githubusercontent.com/mealie-recipes/mealie/main/frontend/static/img/icons/android-chrome-192x192.png
+image: ghcr.io/mealie-recipes/mealie:latest
+ports:
+  - "9000"
+volumes:
+  - /app/data
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+  MAX_WORKERS: "1"
+  WEB_CONCURRENCY: "1"
+homepage_labels:
+  homepage.group: Productivity
+  homepage.name: Mealie
+  homepage.icon: mealie
+  homepage.href: "https://{{domain}}"

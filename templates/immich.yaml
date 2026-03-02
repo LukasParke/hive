@@ -1,0 +1,42 @@
+kind: Template
+name: immich
+description: Self-hosted photo and video backup solution
+category: media
+icon: https://github.com/immich-app/immich/blob/main/docs/docs/public/immich-logo.svg
+image: ghcr.io/immich-app/immich-server:release
+ports:
+  - "2283"
+volumes:
+  - /usr/src/app/upload
+stack: true
+services:
+  - name: server
+    image: ghcr.io/immich-app/immich-server:release
+    ports:
+      - "2283"
+    env:
+      TZ: Etc/UTC
+      DB_HOSTNAME: postgres
+      DB_DATABASE_NAME: immich
+      DB_USERNAME: postgres
+      REDIS_HOSTNAME: redis
+    volumes:
+      - /usr/src/app/upload
+  - name: machine-learning
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    env:
+      TZ: Etc/UTC
+  - name: redis
+    image: valkey:latest
+  - name: postgres
+    image: tensorchord/pgvecto-rs:pg16-v0.2.0
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: immich
+    volumes:
+      - /var/lib/postgresql/data
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Immich
+  homepage.icon: immich
+  homepage.href: "https://{{domain}}"

@@ -1,0 +1,23 @@
+kind: Template
+name: calibre-web
+description: Web interface for browsing and reading ebooks from Calibre library
+category: media
+icon: https://github.com/janeczku/calibre-web/raw/master/cps/static/img/logo.png
+image: lscr.io/linuxserver/calibre-web:latest
+ports:
+  - "8083"
+volumes:
+  - /config
+nas_volumes:
+  - name: books
+    suggested_path: /books
+    description: Calibre library / books
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Calibre-Web
+  homepage.icon: calibre
+  homepage.href: "https://{{domain}}"

@@ -1,0 +1,17 @@
+kind: Template
+name: actual-budget
+description: A local-first personal finance app
+category: finance
+icon: https://actualbudget.com/favicon.ico
+image: actualbudget/actual-server:latest
+ports:
+  - "5006"
+volumes:
+  - /data
+env:
+  TZ: Etc/UTC
+homepage_labels:
+  homepage.group: Finance
+  homepage.name: Actual Budget
+  homepage.icon: actualbudget
+  homepage.href: "https://{{domain}}"

@@ -1,0 +1,15 @@
+kind: Template
+name: whoogle
+description: Self-hosted, ad-free, privacy-respecting meta search engine
+category: search
+icon: https://raw.githubusercontent.com/benbusby/whoogle-search/main/app/static/img/logo.png
+image: benbusby/whoogle-search:latest
+ports:
+  - "5000"
+env:
+  TZ: Etc/UTC
+homepage_labels:
+  homepage.group: Search
+  homepage.name: Whoogle
+  homepage.icon: search
+  homepage.href: "https://{{domain}}"

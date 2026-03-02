@@ -1,0 +1,23 @@
+kind: Template
+name: unifi-controller
+description: Ubiquiti UniFi Network Application for managing UniFi devices
+category: networking
+icon: https://ui.com/favicon.ico
+image: lscr.io/linuxserver/unifi-network-application:latest
+ports:
+  - "8443"
+volumes:
+  - /config
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+  MONGO_USER: unifi
+  MONGO_PASS: unifi
+  MONGO_HOST: localhost
+  MEMORY_LIMIT: "1024"
+homepage_labels:
+  homepage.group: Networking
+  homepage.name: UniFi Controller
+  homepage.icon: unifi
+  homepage.href: "https://{{domain}}"

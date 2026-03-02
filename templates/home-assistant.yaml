@@ -1,0 +1,19 @@
+kind: Template
+name: home-assistant
+description: Open source home automation that puts local control and privacy first
+category: automation
+icon: https://www.home-assistant.io/images/home-assistant-logo.svg
+image: ghcr.io/home-assistant/home-assistant:stable
+ports:
+  - "8123"
+volumes:
+  - /config
+env:
+  TZ: Etc/UTC
+homepage_labels:
+  homepage.group: Automation
+  homepage.name: Home Assistant
+  homepage.icon: home-assistant
+  homepage.href: "https://{{domain}}"
+traefik_labels:
+  traefik.http.middlewares.home-assistant-headers.headers.customResponseHeaders.X-Frame-Options: SAMEORIGIN

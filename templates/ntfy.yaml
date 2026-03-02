@@ -1,0 +1,20 @@
+kind: Template
+name: ntfy
+description: Simple HTTP-based pub-sub notification service
+category: notifications
+icon: https://docs.ntfy.sh/img/ntfy.png
+image: binwiederhier/ntfy:latest
+ports:
+  - "80"
+volumes:
+  - /var/cache/ntfy
+  - /etc/ntfy
+env:
+  TZ: Etc/UTC
+  NTFY_BASE_URL: ""
+  NTFY_CACHE_FILE: /var/cache/ntfy/cache.db
+homepage_labels:
+  homepage.group: Notifications
+  homepage.name: ntfy
+  homepage.icon: bell
+  homepage.href: "https://{{domain}}"

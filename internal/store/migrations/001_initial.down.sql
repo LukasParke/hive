@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS notification_channel;
+DROP TABLE IF EXISTS catalog_template;
+DROP TABLE IF EXISTS audit_log;
+DROP TABLE IF EXISTS backup_run;
+DROP TABLE IF EXISTS backup_config;
+DROP TABLE IF EXISTS git_source;
+DROP TABLE IF EXISTS domain;
+DROP TABLE IF EXISTS managed_database;
+DROP TABLE IF EXISTS deployment;
+DROP TABLE IF EXISTS app;
+DROP TABLE IF EXISTS project;

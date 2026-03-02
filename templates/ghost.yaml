@@ -1,0 +1,18 @@
+kind: Template
+name: ghost
+description: Professional publishing platform for creating websites and blogs
+category: publishing
+icon: https://ghost.org/images/icons/icon.svg
+image: ghost:5-alpine
+ports:
+  - "2368"
+volumes:
+  - /var/lib/ghost/content
+env:
+  NODE_ENV: production
+  url: ""
+homepage_labels:
+  homepage.group: Publishing
+  homepage.name: Ghost
+  homepage.icon: ghost
+  homepage.href: "https://{{domain}}"

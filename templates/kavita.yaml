@@ -1,0 +1,24 @@
+kind: Template
+name: kavita
+description: Fast, feature-rich, cross-platform reading server for comics, manga, and books
+category: media
+icon: https://www.kavitareader.com/img/logo.svg
+image: jvmilazz0/kavita:latest
+ports:
+  - "5000"
+volumes:
+  - /kavita/config
+nas_volumes:
+  - name: books
+    suggested_path: /books
+    description: Books and comics library
+  - name: manga
+    suggested_path: /manga
+    description: Manga library
+env:
+  TZ: Etc/UTC
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Kavita
+  homepage.icon: kavita
+  homepage.href: "https://{{domain}}"

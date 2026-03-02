@@ -1,0 +1,23 @@
+kind: Template
+name: navidrome
+description: Modern music server and streamer compatible with Subsonic
+category: media
+icon: https://www.navidrome.org/images/logo.svg
+image: deluan/navidrome:latest
+ports:
+  - "4533"
+volumes:
+  - /data
+nas_volumes:
+  - name: music
+    suggested_path: /music
+    description: Music library
+env:
+  TZ: Etc/UTC
+  ND_SCANSCHEDULE: 1h
+  ND_LOGLEVEL: info
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Navidrome
+  homepage.icon: navidrome
+  homepage.href: "https://{{domain}}"

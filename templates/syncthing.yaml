@@ -1,0 +1,20 @@
+kind: Template
+name: syncthing
+description: Continuous file synchronization between devices
+category: productivity
+icon: https://syncthing.net/images/syncthing-logo.svg
+image: lscr.io/linuxserver/syncthing:latest
+ports:
+  - "8384"
+volumes:
+  - /config
+  - /data
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Productivity
+  homepage.name: Syncthing
+  homepage.icon: syncthing
+  homepage.href: "https://{{domain}}"

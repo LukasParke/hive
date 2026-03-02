@@ -1,0 +1,25 @@
+kind: Template
+name: plex
+description: Media server for movies, TV shows, and music
+category: media
+icon: https://www.plex.tv/wp-content/uploads/2018/05/plex-logo-e1527750822778.png
+image: plr.cx/plex/plex-media-server:latest
+ports:
+  - "32400"
+volumes:
+  - /config
+nas_volumes:
+  - name: media
+    suggested_path: /media
+    description: Media library (movies, TV, music)
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Plex
+  homepage.icon: plex
+  homepage.href: "https://{{domain}}"
+traefik_labels:
+  traefik.http.middlewares.plex-headers.headers.customResponseHeaders.X-Frame-Options: SAMEORIGIN

@@ -1,0 +1,26 @@
+kind: Template
+name: jellyfin
+description: Free and open source media server
+category: media
+icon: https://jellyfin.org/images/logo.svg
+image: jellyfin/jellyfin:latest
+ports:
+  - "8096"
+volumes:
+  - /config
+  - /cache
+nas_volumes:
+  - name: media
+    suggested_path: /media
+    description: Media library (movies, TV, music)
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Jellyfin
+  homepage.icon: jellyfin
+  homepage.href: "https://{{domain}}"
+traefik_labels:
+  traefik.http.middlewares.jellyfin-headers.headers.customResponseHeaders.X-Frame-Options: SAMEORIGIN

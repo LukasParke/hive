@@ -1,0 +1,25 @@
+kind: Template
+name: wikijs
+description: Modern and powerful wiki software built on Node.js
+category: productivity
+icon: https://js.wiki/img/logo.svg
+image: ghcr.io/requarks/wiki:2
+ports:
+  - "3000"
+volumes:
+  - /wiki/data
+depends_on:
+  - type: postgres
+    version: "15"
+env:
+  DB_TYPE: postgres
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USER: wikijs
+  DB_PASS: wikijsrocks
+  DB_NAME: wiki
+homepage_labels:
+  homepage.group: Productivity
+  homepage.name: Wiki.js
+  homepage.icon: wikijs
+  homepage.href: "https://{{domain}}"

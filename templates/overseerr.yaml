@@ -1,0 +1,19 @@
+kind: Template
+name: overseerr
+description: Request management and media discovery for Plex
+category: media
+icon: https://raw.githubusercontent.com/sct/overseerr/develop/frontend/src/assets/images/logo.svg
+image: lscr.io/linuxserver/overseerr:latest
+ports:
+  - "5055"
+volumes:
+  - /config
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Overseerr
+  homepage.icon: overseerr
+  homepage.href: "https://{{domain}}"

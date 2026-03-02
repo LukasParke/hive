@@ -1,0 +1,14 @@
+kind: App
+name: grafana
+description: Observability and monitoring dashboards
+category: monitoring
+icon: https://grafana.com/static/img/menu/grafana2.svg
+image: grafana/grafana:latest
+ports:
+  - "3000:3000"
+volumes:
+  - "grafana-data:/var/lib/grafana"
+env:
+  GF_SECURITY_ADMIN_PASSWORD: "admin"
+domain: ""
+replicas: 1

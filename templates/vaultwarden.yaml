@@ -1,0 +1,14 @@
+kind: App
+name: vaultwarden
+description: Lightweight Bitwarden-compatible password manager
+category: security
+icon: https://raw.githubusercontent.com/dani-garcia/vaultwarden/main/resources/vaultwarden-icon.svg
+image: vaultwarden/server:latest
+ports:
+  - "80:80"
+volumes:
+  - "vaultwarden-data:/data"
+env:
+  SIGNUPS_ALLOWED: "true"
+domain: ""
+replicas: 1

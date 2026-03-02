@@ -1,0 +1,14 @@
+kind: App
+name: portainer
+description: Container management UI
+category: infrastructure
+icon: https://www.portainer.io/hubfs/portainer-logo-black.svg
+image: portainer/portainer-ce:latest
+ports:
+  - "9443:9443"
+volumes:
+  - "portainer-data:/data"
+  - "/var/run/docker.sock:/var/run/docker.sock"
+env: {}
+domain: ""
+replicas: 1

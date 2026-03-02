@@ -1,0 +1,17 @@
+kind: app
+name: test-app
+description: A test application
+category: testing
+icon: https://example.com/icon.png
+image: nginx:latest
+ports:
+  - "80:80"
+volumes:
+  - "/data:/data"
+env:
+  TEST_VAR: "hello"
+domain: test.local
+replicas: 2
+depends_on:
+  - type: postgres
+    version: "16"

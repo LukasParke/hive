@@ -1,0 +1,20 @@
+kind: Template
+name: code-server
+description: VS Code in the browser for remote development
+category: development
+icon: https://code-server.dev/favicon.ico
+image: lscr.io/linuxserver/code-server:latest
+ports:
+  - "8443"
+volumes:
+  - /config
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+  DOCKER_HOST: ""
+homepage_labels:
+  homepage.group: Development
+  homepage.name: Code Server
+  homepage.icon: vscode
+  homepage.href: "https://{{domain}}"

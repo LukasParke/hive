@@ -1,0 +1,15 @@
+kind: App
+name: gitea
+description: Lightweight self-hosted Git service
+category: development
+icon: https://gitea.io/images/gitea.png
+image: gitea/gitea:latest
+ports:
+  - "3000:3000"
+  - "2222:22"
+volumes:
+  - "gitea-data:/data"
+env:
+  GITEA__database__DB_TYPE: sqlite3
+domain: ""
+replicas: 1

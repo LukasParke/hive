@@ -1,0 +1,23 @@
+kind: Template
+name: transmission
+description: Fast and lightweight BitTorrent client
+category: downloads
+icon: https://transmissionbt.com/images/transmission-icon.svg
+image: lscr.io/linuxserver/transmission:latest
+ports:
+  - "9091"
+volumes:
+  - /config
+nas_volumes:
+  - name: downloads
+    suggested_path: /downloads
+    description: Download directory
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Downloads
+  homepage.name: Transmission
+  homepage.icon: transmission
+  homepage.href: "https://{{domain}}"

@@ -1,0 +1,14 @@
+kind: App
+name: n8n
+description: Workflow automation tool
+category: automation
+icon: https://n8n.io/favicon.ico
+image: n8nio/n8n:latest
+ports:
+  - "5678:5678"
+volumes:
+  - "n8n-data:/home/node/.n8n"
+env:
+  N8N_HOST: "0.0.0.0"
+domain: ""
+replicas: 1

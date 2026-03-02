@@ -1,0 +1,19 @@
+kind: Template
+name: paperless-ngx
+description: Document management system to archive and organize documents
+category: productivity
+icon: https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/main/src-ui/src/assets/icons/icon-192x192.png
+image: ghcr.io/paperless-ngx/paperless-ngx:latest
+ports:
+  - "8000"
+volumes:
+  - /usr/src/paperless/data
+  - /usr/src/paperless/media
+env:
+  TZ: Etc/UTC
+  PAPERLESS_REDIS: redis://redis:6379
+homepage_labels:
+  homepage.group: Productivity
+  homepage.name: Paperless NGX
+  homepage.icon: paperless
+  homepage.href: "https://{{domain}}"

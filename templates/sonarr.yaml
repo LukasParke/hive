@@ -1,0 +1,26 @@
+kind: Template
+name: sonarr
+description: PVR for Usenet and BitTorrent users, manages TV shows
+category: media
+icon: https://raw.githubusercontent.com/Sonarr/Sonarr/develop/Logo/128.png
+image: lscr.io/linuxserver/sonarr:latest
+ports:
+  - "8989"
+volumes:
+  - /config
+nas_volumes:
+  - name: tv
+    suggested_path: /tv
+    description: TV shows library
+  - name: downloads
+    suggested_path: /downloads
+    description: Download directory
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Sonarr
+  homepage.icon: sonarr
+  homepage.href: "https://{{domain}}"

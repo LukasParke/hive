@@ -1,0 +1,27 @@
+kind: Template
+name: audiobookshelf
+description: Self-hosted audiobook and podcast server
+category: media
+icon: https://raw.githubusercontent.com/advplyr/audiobookshelf/main/public/icon.svg
+image: ghcr.io/advplyr/audiobookshelf:latest
+ports:
+  - "80"
+volumes:
+  - /config
+  - /metadata
+nas_volumes:
+  - name: audiobooks
+    suggested_path: /audiobooks
+    description: Audiobooks library
+  - name: podcasts
+    suggested_path: /podcasts
+    description: Podcasts directory
+env:
+  TZ: Etc/UTC
+  PUID: "1000"
+  PGID: "1000"
+homepage_labels:
+  homepage.group: Media
+  homepage.name: Audiobookshelf
+  homepage.icon: audiobookshelf
+  homepage.href: "https://{{domain}}"

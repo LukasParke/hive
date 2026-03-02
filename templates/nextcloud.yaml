@@ -1,0 +1,18 @@
+kind: App
+name: nextcloud
+description: Self-hosted file sync and share
+category: productivity
+icon: https://nextcloud.com/wp-content/themes/flavor/assets/img/common/nextcloud-logo.svg
+image: nextcloud:stable
+ports:
+  - "80:80"
+volumes:
+  - "nextcloud-data:/var/www/html"
+env: {}
+domain: ""
+replicas: 1
+depends_on:
+  - type: postgres
+    version: "16"
+  - type: redis
+    version: "7"
