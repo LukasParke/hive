@@ -34,7 +34,7 @@ func TestCreateAppHandler(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
 	var resp map[string]interface{}
-	json.NewDecoder(rr.Body).Decode(&resp)
+	_ = json.NewDecoder(rr.Body).Decode(&resp)
 	assert.Equal(t, "my-app", resp["name"])
 }
 

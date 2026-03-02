@@ -221,7 +221,9 @@ func DeleteCustomCertificate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	proxy.RemoveCertificateFiles("/data/traefik", certID)
+	if err := proxy.RemoveCertificateFiles("/data/traefik", certID); err != nil {
+		log.Printf("remove certificate files: %v", err)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"deleted": certID})
 }
 

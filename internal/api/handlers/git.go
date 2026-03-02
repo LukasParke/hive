@@ -212,7 +212,9 @@ func GitWebhook(nc *nats.Conn, s *store.Store) http.HandlerFunc {
 							"name":          app.Name,
 							"domain":        app.Domain,
 						})
-						nc.Publish("hive.build", job)
+						if err := nc.Publish("hive.build", job); err != nil {
+							log.Printf("failed to publish build job: %v", err)
+						}
 						queued++
 					}
 				}
@@ -223,7 +225,9 @@ func GitWebhook(nc *nats.Conn, s *store.Store) http.HandlerFunc {
 			job, _ := json.Marshal(map[string]string{
 				"action": "webhook", "source_id": sourceID, "repo": cloneURL, "ref": payload.Ref, "commit": payload.HeadCommit.ID,
 			})
-			nc.Publish("hive.build", job)
+			if err := nc.Publish("hive.build", job); err != nil {
+				log.Printf("failed to publish build job: %v", err)
+			}
 			queued = 1
 		}
 

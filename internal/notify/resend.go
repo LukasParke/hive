@@ -35,7 +35,7 @@ func (d *Dispatcher) sendResend(_ context.Context, config map[string]string, eve
 	if err != nil {
 		return fmt.Errorf("resend: send: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("resend returned %d", resp.StatusCode)

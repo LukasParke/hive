@@ -34,7 +34,7 @@ func CreateSecret(nc *nats.Conn) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker client: " + err.Error()})
 			return
 		}
-		defer sc.Close()
+		defer func() { _ = sc.Close() }()
 
 		labels := map[string]string{
 			"hive.project_id": projectID,
@@ -90,7 +90,7 @@ func DeleteSecret(w http.ResponseWriter, r *http.Request) {
 		sc, err := swarm.NewClient(nil)
 		if err == nil {
 			_ = sc.RemoveSecret(r.Context(), secret.DockerSecretID)
-			sc.Close()
+			_ = sc.Close()
 		}
 	}
 

@@ -15,7 +15,7 @@ func ListNodes(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	nodes, err := sc.ListNodes(r.Context())
 	if err != nil {
@@ -46,7 +46,7 @@ func GetNode(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	node, err := sc.GetNode(r.Context(), nodeID)
 	if err != nil {
@@ -76,7 +76,7 @@ func UpdateNodeLabels(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker unavailable"})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	if err := sc.UpdateNodeLabels(r.Context(), nodeID, body.Labels); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})

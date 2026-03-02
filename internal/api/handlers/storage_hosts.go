@@ -215,7 +215,7 @@ func applyStorageNodeLabel(r *http.Request, nodeID, label string) {
 	if err != nil {
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	parts := splitLabelKeyValue(label)
 	if parts[0] != "" {

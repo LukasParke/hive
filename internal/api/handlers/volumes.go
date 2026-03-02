@@ -84,7 +84,7 @@ func CreateVolume(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "docker client: " + err.Error()})
 		return
 	}
-	defer sc.Close()
+	defer func() { _ = sc.Close() }()
 
 	labels := map[string]string{
 		"hive.project_id": projectID,
@@ -198,7 +198,7 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request) {
 	sc, sErr := swarm.NewClient(nil)
 	if sErr == nil {
 		_ = sc.RemoveVolume(r.Context(), vol.Name, false)
-		sc.Close()
+		_ = sc.Close()
 	}
 
 	if err := s.DeleteVolume(r.Context(), volumeID); err != nil {

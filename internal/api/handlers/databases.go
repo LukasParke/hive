@@ -50,7 +50,10 @@ func CreateDatabase(nc *nats.Conn) http.HandlerFunc {
 			"version": db.Version,
 			"name":    db.Name,
 		})
-		nc.Publish("hive.deploy", job)
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+			return
+		}
 
 		writeJSON(w, http.StatusCreated, db)
 	}

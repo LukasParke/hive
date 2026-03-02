@@ -44,7 +44,10 @@ func CreateStack(nc *nats.Conn) http.HandlerFunc {
 			"stack_id": st.ID,
 			"name":     st.Name,
 		})
-		nc.Publish("hive.deploy", job)
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+			return
+		}
 
 		writeJSON(w, http.StatusCreated, st)
 	}
@@ -109,7 +112,10 @@ func UpdateStack(nc *nats.Conn) http.HandlerFunc {
 			"stack_id": st.ID,
 			"name":     st.Name,
 		})
-		nc.Publish("hive.deploy", job)
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+			return
+		}
 
 		writeJSON(w, http.StatusOK, st)
 	}
@@ -131,7 +137,10 @@ func DeleteStack(nc *nats.Conn) http.HandlerFunc {
 			"stack_id": st.ID,
 			"name":     st.Name,
 		})
-		nc.Publish("hive.deploy", job)
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+			return
+		}
 
 		if err := s.DeleteStack(r.Context(), stackID); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})

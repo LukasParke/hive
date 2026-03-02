@@ -249,7 +249,7 @@ func ExportEnvVars(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename=".env"`)
 	w.WriteHeader(http.StatusOK)
-	w.Write(b.Bytes())
+	_, _ = w.Write(b.Bytes())
 }
 
 func needsQuotes(s string) bool {

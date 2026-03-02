@@ -324,7 +324,9 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 
 			var homepageLabels map[string]string
 			if len(app.HomepageLabels) > 0 {
-				json.Unmarshal(app.HomepageLabels, &homepageLabels)
+				if err := json.Unmarshal(app.HomepageLabels, &homepageLabels); err != nil {
+					p.log.Warnf("unmarshal homepage labels: %v", err)
+				}
 			}
 			for k, v := range homepageLabels {
 				labels[k] = v
@@ -332,7 +334,9 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 
 			var extraLabels map[string]string
 			if len(app.ExtraLabels) > 0 {
-				json.Unmarshal(app.ExtraLabels, &extraLabels)
+				if err := json.Unmarshal(app.ExtraLabels, &extraLabels); err != nil {
+					p.log.Warnf("unmarshal extra labels: %v", err)
+				}
 			}
 			for k, v := range extraLabels {
 				labels[k] = v
@@ -896,7 +900,10 @@ func (p *Pool) handleRestore(job map[string]string) {
 	isS3 := len(backupPath) > 5 && backupPath[:5] == "s3://"
 	if isS3 {
 		localPath := filepath.Join(p.cfg.DataDir, "restores", filepath.Base(backupPath))
-		os.MkdirAll(filepath.Dir(localPath), 0755)
+		if err := os.MkdirAll(filepath.Dir(localPath), 0755); err != nil {
+			p.log.Errorf("restore: create dir: %v", err)
+			return
+		}
 
 		s3Cfg := backup.S3Config{
 			Endpoint:  os.Getenv("HIVE_S3_ENDPOINT"),
@@ -908,7 +915,9 @@ func (p *Pool) handleRestore(job map[string]string) {
 		downloader, err := backup.NewS3Downloader(s3Cfg, p.log)
 		if err != nil {
 			p.log.Errorf("restore: create S3 downloader: %v", err)
-			p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, ""); err != nil {
+				p.log.Errorf("restore: update run status: %v", err)
+			}
 			p.notifyRestoreFailure(configID, err.Error())
 			return
 		}
@@ -916,7 +925,9 @@ func (p *Pool) handleRestore(job map[string]string) {
 		s3Key := strings.TrimPrefix(backupPath, "s3://"+config.S3Bucket+"/")
 		if err := downloader.Download(ctx, config.S3Bucket, s3Key, localPath); err != nil {
 			p.log.Errorf("restore: S3 download failed: %v", err)
-			p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, ""); err != nil {
+				p.log.Errorf("restore: update run status: %v", err)
+			}
 			p.notifyRestoreFailure(configID, err.Error())
 			return
 		}
@@ -931,13 +942,17 @@ func (p *Pool) handleRestore(job map[string]string) {
 		vol, err := p.store.GetVolume(ctx, config.VolumeID)
 		if err != nil {
 			p.log.Errorf("restore: load volume %s: %v", config.VolumeID, err)
-			p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, ""); err != nil {
+				p.log.Errorf("restore: update run status: %v", err)
+			}
 			p.notifyRestoreFailure(configID, err.Error())
 			return
 		}
 		if err := runner.RestoreVolume(ctx, vol.Name, backupPath); err != nil {
 			p.log.Errorf("restore: volume restore failed: %v", err)
-			p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, ""); err != nil {
+				p.log.Errorf("restore: update run status: %v", err)
+			}
 			p.notifyRestoreFailure(configID, err.Error())
 			return
 		}
@@ -945,7 +960,9 @@ func (p *Pool) handleRestore(job map[string]string) {
 		db, err := p.store.GetManagedDatabase(ctx, config.ResourceID)
 		if err != nil {
 			p.log.Errorf("restore: load database %s: %v", config.ResourceID, err)
-			p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, ""); err != nil {
+				p.log.Errorf("restore: update run status: %v", err)
+			}
 			p.notifyRestoreFailure(configID, err.Error())
 			return
 		}
@@ -953,13 +970,17 @@ func (p *Pool) handleRestore(job map[string]string) {
 		password := fmt.Sprintf("hive-%s-pass", db.Name)
 		if err := runner.RestoreDatabase(ctx, db.DBType, serviceName, db.Name, db.Name, password, backupPath); err != nil {
 			p.log.Errorf("restore: database restore failed: %v", err)
-			p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, "")
+			if err := p.store.UpdateBackupRun(ctx, restoreRun.ID, "restore_failed", 0, ""); err != nil {
+				p.log.Errorf("restore: update run status: %v", err)
+			}
 			p.notifyRestoreFailure(configID, err.Error())
 			return
 		}
 	}
 
-	p.store.UpdateBackupRun(ctx, restoreRun.ID, "restored", 0, run.TargetPath)
+	if err := p.store.UpdateBackupRun(ctx, restoreRun.ID, "restored", 0, run.TargetPath); err != nil {
+		p.log.Errorf("restore: update run status: %v", err)
+	}
 	p.log.Infof("restore complete: config=%s from run=%s", configID, runID)
 	p.notifyRestoreSuccess(configID, run.TargetPath)
 }

@@ -211,7 +211,10 @@ func deployBuiltinTemplate(w http.ResponseWriter, r *http.Request, nc *nats.Conn
 		"deployment_id": dep.ID,
 		"env":           string(envJSON),
 	})
-	nc.Publish("hive.deploy", job)
+	if err := nc.Publish("hive.deploy", job); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+		return
+	}
 
 	writeJSON(w, http.StatusAccepted, app)
 }
@@ -279,7 +282,10 @@ func deployCustomTemplate(w http.ResponseWriter, r *http.Request, nc *nats.Conn,
 			"stack_id": st.ID,
 			"name":     st.Name,
 		})
-		nc.Publish("hive.deploy", job)
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+			return
+		}
 		writeJSON(w, http.StatusAccepted, map[string]interface{}{"stack": st})
 		return
 	}
@@ -302,7 +308,10 @@ func deployCustomTemplate(w http.ResponseWriter, r *http.Request, nc *nats.Conn,
 		"deployment_id": dep.ID,
 		"env":           string(envJSON),
 	})
-	nc.Publish("hive.deploy", job)
+	if err := nc.Publish("hive.deploy", job); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+		return
+	}
 
 	writeJSON(w, http.StatusAccepted, app)
 }
@@ -502,7 +511,7 @@ func SyncTemplateSource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create temp dir"})
 		return
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	cloneDir := filepath.Join(tmpDir, "repo")
 	cmd := exec.Command("git", "clone", "--depth", "1", ts.URL, cloneDir)
@@ -513,7 +522,7 @@ func SyncTemplateSource(w http.ResponseWriter, r *http.Request) {
 
 	// Walk and parse YAML files
 	imported := 0
-	filepath.Walk(cloneDir, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(cloneDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -571,7 +580,9 @@ func SyncTemplateSource(w http.ResponseWriter, r *http.Request) {
 		}
 		imported++
 		return nil
-	})
+	}); err != nil {
+		log.Printf("walk template dir: %v", err)
+	}
 
 	if err := s.UpdateTemplateSyncTime(r.Context(), sourceID); err != nil {
 		log.Printf("failed to update template sync time: %v", err)

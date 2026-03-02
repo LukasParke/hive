@@ -125,7 +125,10 @@ func DeployCatalogApp(nc *nats.Conn) http.HandlerFunc {
 			"deployment_id": dep.ID,
 			"env":           string(envJSON),
 		})
-		nc.Publish("hive.deploy", job)
+		if err := nc.Publish("hive.deploy", job); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish deploy job"})
+			return
+		}
 
 		writeJSON(w, http.StatusAccepted, app)
 	}

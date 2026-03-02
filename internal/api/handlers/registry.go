@@ -26,11 +26,11 @@ func RegistryStatus(w http.ResponseWriter, r *http.Request) {
 	if exists {
 		resp, err := http.Get("http://127.0.0.1:5000/v2/_catalog")
 		if err == nil {
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			var catalog struct {
 				Repositories []string `json:"repositories"`
 			}
-			json.NewDecoder(resp.Body).Decode(&catalog)
+			_ = json.NewDecoder(resp.Body).Decode(&catalog)
 			status["image_count"] = len(catalog.Repositories)
 		}
 	}
@@ -44,12 +44,12 @@ func RegistryImages(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "registry unavailable"})
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var catalog struct {
 		Repositories []string `json:"repositories"`
 	}
-	json.NewDecoder(resp.Body).Decode(&catalog)
+	_ = json.NewDecoder(resp.Body).Decode(&catalog)
 
 	type ImageInfo struct {
 		Name string   `json:"name"`
@@ -65,8 +65,8 @@ func RegistryImages(w http.ResponseWriter, r *http.Request) {
 		var tagList struct {
 			Tags []string `json:"tags"`
 		}
-		json.NewDecoder(tagsResp.Body).Decode(&tagList)
-		tagsResp.Body.Close()
+		_ = json.NewDecoder(tagsResp.Body).Decode(&tagList)
+		_ = tagsResp.Body.Close()
 		images = append(images, ImageInfo{Name: repo, Tags: tagList.Tags})
 	}
 
@@ -85,7 +85,7 @@ func RegistryDeleteImage(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not get manifest"})
 		return
 	}
-	digestResp.Body.Close()
+	_ = digestResp.Body.Close()
 
 	digest := digestResp.Header.Get("Docker-Content-Digest")
 	if digest == "" {
@@ -99,7 +99,7 @@ func RegistryDeleteImage(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	delResp.Body.Close()
+	_ = delResp.Body.Close()
 
 	writeJSON(w, http.StatusOK, map[string]string{"deleted": name + ":" + tag})
 }

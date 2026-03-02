@@ -215,6 +215,8 @@ func providerFromSource(token string, gs *store.GitSource) git.Provider {
 
 func genWebhookSecret() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }

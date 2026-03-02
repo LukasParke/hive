@@ -63,7 +63,7 @@ func validateSession(ctx context.Context, authBaseURL, token string) (*SessionDa
 	if err != nil {
 		return nil, fmt.Errorf("auth request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("auth returned status %d", resp.StatusCode)
