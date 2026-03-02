@@ -135,10 +135,6 @@ func runManager(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger)
 		}
 	}
 
-	if err := startUI(cfg, log); err != nil {
-		log.Warnf("failed to start UI subprocess: %v", err)
-	}
-
 	server := api.NewServer(cfg, nc, db, log)
 	go func() {
 		if err := server.Start(); err != nil {
@@ -207,15 +203,6 @@ func runAgent(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) e
 	go cephHealth.Run(ctx)
 
 	log.Infof("hive agent ready, reporting every %s", interval)
-	return nil
-}
-
-func startUI(cfg *config.Config, log *zap.SugaredLogger) error {
-	if cfg.UIDir == "" {
-		log.Info("no UI directory configured, skipping UI subprocess")
-		return nil
-	}
-	log.Infof("UI will be served via Traefik from SvelteKit on :%d", cfg.UIPort)
 	return nil
 }
 

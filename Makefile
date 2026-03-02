@@ -39,6 +39,7 @@ docker-run:
 		-p 8080:8080 \
 		hive:latest
 
+# Frontend dev targets (requires Node.js 22+, not needed for production)
 ui-dev:
 	cd ui && npm run dev
 

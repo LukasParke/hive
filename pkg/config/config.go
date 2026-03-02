@@ -18,8 +18,8 @@ type Config struct {
 	DevMode  bool
 	DataDir  string
 	APIPort  int
-	UIPort   int
-	UIDir    string
+	UIPort   int // dev only: SvelteKit dev server port
+	UIDir    string // pre-built frontend assets directory
 	NATSPort int
 
 	// Postgres (set after bootstrap or by env for external DB)
@@ -28,7 +28,7 @@ type Config struct {
 	// Manager NATS address (used by workers)
 	NATSManagerURL string
 
-	// BetterAuth base URL (SvelteKit auth server)
+	// BetterAuth base URL for session validation
 	AuthBaseURL string
 
 	// Docker socket path

@@ -14,8 +14,8 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /hive ./cmd/hive
 
-### Stage 3: Runtime
-FROM node:22-slim
+### Stage 3: Runtime (Go binary only -- Node.js is not needed at runtime)
+FROM debian:bookworm-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git ca-certificates curl && \
@@ -32,7 +32,6 @@ ENV HIVE_ROLE=manager
 ENV HIVE_DATA_DIR=/data
 ENV HIVE_UI_DIR=/app/ui
 ENV HIVE_API_PORT=8080
-ENV HIVE_UI_PORT=3000
 
 VOLUME /data
 EXPOSE 80 443 8080

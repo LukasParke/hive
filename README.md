@@ -32,23 +32,23 @@ Then visit `http://<your-ip>:8080` to complete setup.
 
 ## Architecture
 
+The Hive container runs a single Go binary. The SvelteKit frontend is compiled at Docker build time and served as pre-built assets -- Node.js is **not** required at runtime.
+
 ```
 ┌────────────────────────────────────────┐
 │           Hive Container               │
 │                                        │
-│  ┌──────────┐  ┌───────────────────┐   │
-│  │ Go API   │  │ SvelteKit + Auth  │   │
-│  │ :8080    │  │ :3000             │   │
-│  └────┬─────┘  └─────────┬─────────┘   │
-│       │                  │             │
-│  ┌────┴──────────────────┴─────┐       │
-│  │      Embedded NATS          │       │
-│  │      (JetStream)            │       │
-│  └────┬────────────────────────┘       │
+│  ┌──────────────────────────────────┐  │
+│  │  Go Binary (PID 1)              │  │
+│  │  ├─ HTTP API :8080              │  │
+│  │  ├─ Embedded NATS (JetStream)   │  │
+│  │  └─ Worker Goroutine Pool       │  │
+│  └────┬─────────────────────────────┘  │
 │       │                                │
-│  ┌────┴─────┐                          │
-│  │ Workers  │                          │
-│  └──────────┘                          │
+│  ┌────┴─────┐  ┌────────────────────┐  │
+│  │ Pre-built│  │ Catalog Templates  │  │
+│  │ UI assets│  │ (YAML)            │  │
+│  └──────────┘  └────────────────────┘  │
 └───────┬────────────────────────────────┘
         │ Docker SDK
         ▼
@@ -58,6 +58,7 @@ Then visit `http://<your-ip>:8080` to complete setup.
 │  - Postgres     │
 │  - Traefik      │
 │  - Registry     │
+│  - hive-agent   │
 │  - Your Apps    │
 │  - Your DBs     │
 └─────────────────┘
@@ -68,22 +69,17 @@ Then visit `http://<your-ip>:8080` to complete setup.
 ### Prerequisites
 
 - Go 1.23+
-- Node.js 22+
 - Docker with Swarm mode
+- Node.js 22+ *(frontend development only)*
 
 ### Setup
 
 ```bash
-# Build Go backend
-make build
-
-# Install UI dependencies
-cd ui && npm install
-
-# Run Go API in dev mode
+# Build and run Go API in dev mode
 make run
 
-# Run SvelteKit in dev mode (separate terminal)
+# (Optional) Run SvelteKit frontend in dev mode (separate terminal)
+cd ui && npm install
 make ui-dev
 ```
 
@@ -108,7 +104,7 @@ hive/
 ├── pkg/
 │   ├── config/         # Configuration
 │   └── encryption/     # AES-GCM encryption
-├── ui/                 # SvelteKit frontend
+├── ui/                 # SvelteKit frontend (compiled at build time)
 ├── templates/          # Catalog app templates
 ├── Dockerfile          # Multi-stage build
 └── Makefile
@@ -131,10 +127,10 @@ Hive automatically detects the new node and:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HIVE_ROLE` | `manager` | `manager` or `worker` |
+| `HIVE_ROLE` | `manager` | `manager`, `worker`, or `agent` |
 | `HIVE_DATA_DIR` | `/data` | Persistent data directory |
 | `HIVE_API_PORT` | `8080` | Go API port |
-| `HIVE_UI_PORT` | `3000` | SvelteKit port |
+| `HIVE_UI_DIR` | `/app/ui` | Pre-built frontend assets directory |
 | `HIVE_NATS_PORT` | `4222` | NATS port (multi-node) |
 | `HIVE_DEV` | `` | Enable dev mode |
 | `HIVE_ENCRYPTION_KEY` | auto | 64-char hex AES-256 key |
