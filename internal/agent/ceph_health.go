@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -210,20 +209,3 @@ type cephPoolStatJSON struct {
 	Objects   int    `json:"objects"`
 }
 
-// extractFSID reads the FSID from /etc/ceph/ceph.conf
-func extractFSID() string {
-	data, err := os.ReadFile(cephConfPath)
-	if err != nil {
-		return ""
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "fsid") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				return strings.TrimSpace(parts[1])
-			}
-		}
-	}
-	return ""
-}

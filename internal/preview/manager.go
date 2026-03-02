@@ -53,7 +53,9 @@ func (m *Manager) Create(ctx context.Context, app *store.App, branch string, prN
 		"preview_id":    pd.ID,
 	})
 	if m.nc != nil {
-		m.nc.Publish("hive.build", job)
+		if err := m.nc.Publish("hive.build", job); err != nil {
+			m.log.Warnf("publish build job: %v", err)
+		}
 	}
 
 	m.log.Infof("preview: created %s for app %s branch %s", serviceName, app.Name, branch)
@@ -72,7 +74,9 @@ func (m *Manager) Destroy(ctx context.Context, previewID string) error {
 			"name":   pd.ServiceName,
 			"app_id": pd.AppID,
 		})
-		m.nc.Publish("hive.deploy", job)
+		if err := m.nc.Publish("hive.deploy", job); err != nil {
+			m.log.Warnf("publish deploy job: %v", err)
+		}
 		m.log.Infof("preview: removing service %s", pd.ServiceName)
 	}
 

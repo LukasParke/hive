@@ -53,7 +53,7 @@ func NewCephExecutor(nc *nats.Conn, nodeID string, log *zap.SugaredLogger) *Ceph
 
 func (ce *CephExecutor) Start(ctx context.Context) {
 	subject := fmt.Sprintf("hive.ceph.cmd.%s", ce.nodeID)
-	ce.nc.Subscribe(subject, func(msg *nats.Msg) {
+	if _, err := ce.nc.Subscribe(subject, func(msg *nats.Msg) {
 		var req CephCommandRequest
 		if err := json.Unmarshal(msg.Data, &req); err != nil {
 			ce.reply(msg, CephCommandResponse{Error: "invalid request: " + err.Error()})
@@ -62,14 +62,23 @@ func (ce *CephExecutor) Start(ctx context.Context) {
 		ce.log.Infof("ceph command received: %s", req.Command)
 		resp := ce.execute(ctx, req)
 		ce.reply(msg, resp)
-	})
+	}); err != nil {
+		ce.log.Errorf("failed to subscribe to %s: %v", subject, err)
+		return
+	}
 	ce.log.Infof("ceph executor listening on %s", subject)
 }
 
 func (ce *CephExecutor) reply(msg *nats.Msg, resp CephCommandResponse) {
-	data, _ := json.Marshal(resp)
+	data, err := json.Marshal(resp)
+	if err != nil {
+		ce.log.Errorf("marshal ceph response: %v", err)
+		return
+	}
 	if msg.Reply != "" {
-		msg.Respond(data)
+		if err := msg.Respond(data); err != nil {
+			ce.log.Errorf("respond to ceph command: %v", err)
+		}
 	}
 }
 
@@ -84,8 +93,14 @@ func (ce *CephExecutor) publishProgress(clusterID, step, message string) {
 		"message":    message,
 		"timestamp":  fmt.Sprintf("%d", time.Now().Unix()),
 	}
-	data, _ := json.Marshal(ev)
-	ce.nc.Publish(fmt.Sprintf("hive.ceph.progress.%s", clusterID), data)
+	data, err := json.Marshal(ev)
+	if err != nil {
+		ce.log.Errorf("marshal progress event: %v", err)
+		return
+	}
+	if err := ce.nc.Publish(fmt.Sprintf("hive.ceph.progress.%s", clusterID), data); err != nil {
+		ce.log.Errorf("publish ceph progress: %v", err)
+	}
 }
 
 func (ce *CephExecutor) execute(ctx context.Context, req CephCommandRequest) CephCommandResponse {
@@ -176,7 +191,9 @@ func (ce *CephExecutor) installCephadm(ctx context.Context, req CephCommandReque
 		return CephCommandResponse{Error: "failed to install cephadm: " + err.Error()}
 	}
 
-	os.Chmod(cephadmBinary, 0755)
+	if err := os.Chmod(cephadmBinary, 0755); err != nil {
+		return CephCommandResponse{Error: "chmod cephadm: " + err.Error()}
+	}
 	ce.publishProgress(req.ClusterID, "install_cephadm", "cephadm installed successfully")
 
 	out, _ := runCmd(ctx, defaultTimeout, cephadmBinary, "version")
@@ -191,7 +208,9 @@ func (ce *CephExecutor) bootstrap(ctx context.Context, req CephCommandRequest) C
 
 	ce.publishProgress(req.ClusterID, "bootstrap", fmt.Sprintf("bootstrapping Ceph cluster on %s with mon-ip %s", ce.nodeID, monIP))
 
-	os.MkdirAll(cephConfDir, 0755)
+	if err := os.MkdirAll(cephConfDir, 0755); err != nil {
+		return CephCommandResponse{Error: "mkdir ceph conf: " + err.Error()}
+	}
 
 	args := []string{
 		"--docker", "bootstrap",
@@ -323,15 +342,19 @@ func (ce *CephExecutor) createPool(ctx context.Context, req CephCommandRequest) 
 	if appName == "" {
 		appName = "rbd"
 	}
-	runCephadmShell(ctx, defaultTimeout,
+	if _, err := runCephadmShell(ctx, defaultTimeout,
 		"shell", "--", "ceph", "osd", "pool", "application", "enable", name, appName,
-	)
+	); err != nil {
+		ce.log.Warnf("pool application enable: %v", err)
+	}
 
 	size := req.Args["size"]
 	if size != "" {
-		runCephadmShell(ctx, defaultTimeout,
+		if _, err := runCephadmShell(ctx, defaultTimeout,
 			"shell", "--", "ceph", "osd", "pool", "set", name, "size", size,
-		)
+		); err != nil {
+			ce.log.Warnf("pool set size: %v", err)
+		}
 	}
 
 	return CephCommandResponse{Success: true, Output: out}
@@ -425,10 +448,14 @@ func (ce *CephExecutor) destroy(ctx context.Context, req CephCommandRequest) Cep
 	}
 
 	if fsid != "" {
-		runCmd(ctx, defaultTimeout, cephadmBinary, "--docker", "rm-cluster", "--fsid", fsid, "--force")
+		if _, err := runCmd(ctx, defaultTimeout, cephadmBinary, "--docker", "rm-cluster", "--fsid", fsid, "--force"); err != nil {
+			ce.log.Warnf("rm-cluster: %v", err)
+		}
 	}
 
-	os.RemoveAll(cephConfDir)
+	if err := os.RemoveAll(cephConfDir); err != nil {
+		ce.log.Warnf("remove ceph conf dir: %v", err)
+	}
 
 	ce.publishProgress(req.ClusterID, "destroy", "Ceph removed from this node")
 	return CephCommandResponse{Success: true, Output: "ceph removed from node"}
@@ -473,18 +500,20 @@ func downloadFile(ctx context.Context, dest, url string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 	}
 
-	os.MkdirAll(filepath.Dir(dest), 0755)
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
 	f, err := os.Create(dest)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	_, err = io.Copy(f, resp.Body)
 	return err

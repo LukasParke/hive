@@ -169,10 +169,12 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 		}
 
 		o.publishProgress(cluster.ID, "install", fmt.Sprintf("Installing cephadm on %s", node.Hostname))
-		o.sendCommand(ctx, node.NodeID, agent.CephCommandRequest{
+		if _, err := o.sendCommand(ctx, node.NodeID, agent.CephCommandRequest{
 			Command:   "install_cephadm",
 			ClusterID: cluster.ID,
-		}, natsTimeout)
+		}, natsTimeout); err != nil {
+			o.log.Warnf("install cephadm on %s: %v", node.Hostname, err)
+		}
 
 		o.publishProgress(cluster.ID, "add_host", fmt.Sprintf("Adding host %s to cluster", node.Hostname))
 		resp, err = o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
@@ -204,7 +206,9 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 		if osdRecord.DeviceType == "" {
 			osdRecord.DeviceType = "hdd"
 		}
-		o.store.CreateCephOSD(ctx, osdRecord)
+		if err := o.store.CreateCephOSD(ctx, osdRecord); err != nil {
+			o.log.Warnf("create OSD record: %v", err)
+		}
 
 		resp, err = o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
 			Command:   "add_osd",
@@ -216,15 +220,19 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 		}, natsTimeout)
 		if err != nil || !resp.Success {
 			o.log.Warnf("add OSD %s:%s failed: %s", osd.Hostname, osd.DevicePath, errorMsg(err, resp))
-			o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "failed", nil)
+			if err := o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "failed", nil); err != nil {
+				o.log.Warnf("update OSD status to failed: %v", err)
+			}
 			continue
 		}
-		o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "active", nil)
+		if err := o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "active", nil); err != nil {
+			o.log.Warnf("update OSD status to active: %v", err)
+		}
 	}
 
 	// Step 7: Set converged memory tuning
 	o.publishProgress(cluster.ID, "configure", "Applying converged cluster tuning")
-	o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
+	if _, err := o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
 		Command:   "set_config",
 		ClusterID: cluster.ID,
 		Args: map[string]string{
@@ -232,11 +240,13 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 			"key":     "mgr/cephadm/autotune_memory_target_ratio",
 			"value":   "0.2",
 		},
-	}, 30*time.Second)
+	}, 30*time.Second); err != nil {
+		o.log.Warnf("set memory tuning: %v", err)
+	}
 
 	// Step 8: Set replication size
 	if req.ReplicationSize > 0 && req.ReplicationSize < 3 {
-		o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
+		if _, err := o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
 			Command:   "set_config",
 			ClusterID: cluster.ID,
 			Args: map[string]string{
@@ -244,7 +254,9 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 				"key":     "osd_pool_default_size",
 				"value":   fmt.Sprintf("%d", req.ReplicationSize),
 			},
-		}, 30*time.Second)
+		}, 30*time.Second); err != nil {
+			o.log.Warnf("set replication size: %v", err)
+		}
 	}
 
 	// Step 9: Create CephFS if requested
@@ -262,7 +274,7 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 
 	// Step 10: Create default RBD pool
 	o.publishProgress(cluster.ID, "create_pool", "Creating default RBD pool")
-	o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
+	if _, err := o.sendCommand(ctx, req.BootstrapNodeID, agent.CephCommandRequest{
 		Command:   "create_pool",
 		ClusterID: cluster.ID,
 		Args: map[string]string{
@@ -270,7 +282,9 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 			"application": "rbd",
 			"size":        fmt.Sprintf("%d", req.ReplicationSize),
 		},
-	}, natsTimeout)
+	}, natsTimeout); err != nil {
+		o.log.Warnf("create default RBD pool: %v", err)
+	}
 
 	poolRecord := &store.CephPool{
 		ClusterID:   cluster.ID,
@@ -280,7 +294,9 @@ func (o *Orchestrator) runDeployment(ctx context.Context, cluster *store.CephClu
 		Type:        "replicated",
 		Application: "rbd",
 	}
-	o.store.CreateCephPool(ctx, poolRecord)
+	if err := o.store.CreateCephPool(ctx, poolRecord); err != nil {
+		o.log.Warnf("create pool record: %v", err)
+	}
 
 	// Step 11: Auto-register StorageHost
 	o.publishProgress(cluster.ID, "register", "Registering Ceph as a storage host")
@@ -315,7 +331,9 @@ func (o *Orchestrator) DestroyCluster(ctx context.Context, clusterID string) err
 		return fmt.Errorf("get cluster: %w", err)
 	}
 
-	o.store.UpdateCephClusterStatus(ctx, clusterID, "destroying")
+	if err := o.store.UpdateCephClusterStatus(ctx, clusterID, "destroying"); err != nil {
+		o.log.Warnf("update cluster status to destroying: %v", err)
+	}
 
 	osds, _ := o.store.ListCephOSDs(ctx, clusterID)
 	nodeIDs := map[string]bool{cluster.BootstrapNodeID: true}
@@ -324,15 +342,19 @@ func (o *Orchestrator) DestroyCluster(ctx context.Context, clusterID string) err
 	}
 
 	for nodeID := range nodeIDs {
-		o.sendCommand(ctx, nodeID, agent.CephCommandRequest{
+		if _, err := o.sendCommand(ctx, nodeID, agent.CephCommandRequest{
 			Command:   "destroy",
 			ClusterID: clusterID,
 			Args:      map[string]string{"fsid": cluster.FSID},
-		}, natsTimeout)
+		}, natsTimeout); err != nil {
+			o.log.Warnf("destroy ceph on node %s: %v", nodeID, err)
+		}
 	}
 
 	if cluster.StorageHostID != "" {
-		o.store.DeleteStorageHost(ctx, cluster.StorageHostID)
+		if err := o.store.DeleteStorageHost(ctx, cluster.StorageHostID); err != nil {
+			o.log.Warnf("delete storage host: %v", err)
+		}
 	}
 
 	return o.store.DeleteCephCluster(ctx, clusterID)
@@ -369,11 +391,15 @@ func (o *Orchestrator) AddOSD(ctx context.Context, clusterID string, sel OSDSele
 		},
 	}, natsTimeout)
 	if err != nil || !resp.Success {
-		o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "failed", nil)
+		if sErr := o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "failed", nil); sErr != nil {
+			o.log.Warnf("update OSD status to failed: %v", sErr)
+		}
 		return osdRecord, fmt.Errorf("add OSD failed: %s", errorMsg(err, resp))
 	}
 
-	o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "active", nil)
+	if sErr := o.store.UpdateCephOSDStatus(ctx, osdRecord.ID, "active", nil); sErr != nil {
+		o.log.Warnf("update OSD status to active: %v", sErr)
+	}
 	return osdRecord, nil
 }
 
@@ -400,11 +426,13 @@ func (o *Orchestrator) RemoveOSD(ctx context.Context, clusterID, osdRecordID str
 	}
 
 	if target.OsdID != nil {
-		o.sendCommand(ctx, cluster.BootstrapNodeID, agent.CephCommandRequest{
+		if _, err := o.sendCommand(ctx, cluster.BootstrapNodeID, agent.CephCommandRequest{
 			Command:   "remove_osd",
 			ClusterID: clusterID,
 			Args:      map[string]string{"osd_id": fmt.Sprintf("%d", *target.OsdID)},
-		}, natsTimeout)
+		}, natsTimeout); err != nil {
+			o.log.Warnf("remove OSD %d: %v", *target.OsdID, err)
+		}
 	}
 
 	return o.store.DeleteCephOSD(ctx, osdRecordID)
@@ -473,14 +501,22 @@ func (o *Orchestrator) publishProgress(clusterID, step, message string) {
 		"message":    message,
 		"timestamp":  fmt.Sprintf("%d", time.Now().Unix()),
 	}
-	data, _ := json.Marshal(ev)
-	o.nc.Publish(fmt.Sprintf("hive.ceph.progress.%s", clusterID), data)
+	data, err := json.Marshal(ev)
+	if err != nil {
+		o.log.Errorf("marshal progress: %v", err)
+		return
+	}
+	if err := o.nc.Publish(fmt.Sprintf("hive.ceph.progress.%s", clusterID), data); err != nil {
+		o.log.Errorf("publish progress: %v", err)
+	}
 }
 
 func (o *Orchestrator) failCluster(ctx context.Context, clusterID, message string) {
 	o.log.Errorf("ceph deploy failed: %s", message)
 	o.publishProgress(clusterID, "error", message)
-	o.store.UpdateCephClusterStatus(ctx, clusterID, "error")
+	if err := o.store.UpdateCephClusterStatus(ctx, clusterID, "error"); err != nil {
+		o.log.Errorf("update cluster status to error: %v", err)
+	}
 }
 
 func findNode(nodes []NodeSelection, nodeID string) *NodeSelection {

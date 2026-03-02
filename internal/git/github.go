@@ -58,7 +58,7 @@ func (p *GitHubProvider) ListRepos(ctx context.Context) ([]Repository, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != http.StatusOK {
 			b, _ := io.ReadAll(resp.Body)
 			return nil, fmt.Errorf("github api: %s: %s", resp.Status, string(b))
@@ -100,7 +100,7 @@ func (p *GitHubProvider) ListBranches(ctx context.Context, repo string) ([]Branc
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("github api: %s: %s", resp.Status, string(b))
@@ -120,7 +120,7 @@ func (p *GitHubProvider) ListBranches(ctx context.Context, repo string) ([]Branc
 			DefaultBranch string `json:"default_branch"`
 		}
 		_ = json.NewDecoder(repoResp.Body).Decode(&repoObj)
-		repoResp.Body.Close()
+		_ = repoResp.Body.Close()
 		if repoObj.DefaultBranch != "" {
 			defaultBranch = repoObj.DefaultBranch
 		}
@@ -152,7 +152,7 @@ func (p *GitHubProvider) CreateWebhook(ctx context.Context, repo, callbackURL, s
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("github api: %s: %s", resp.Status, string(b))
@@ -172,7 +172,7 @@ func (p *GitHubProvider) DeleteWebhook(ctx context.Context, repo, webhookID stri
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
 		b, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("github api: %s: %s", resp.Status, string(b))
@@ -192,7 +192,7 @@ func (p *GitHubProvider) PostCommitStatus(ctx context.Context, repo, sha string,
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("github api: %s: %s", resp.Status, string(b))
@@ -206,7 +206,7 @@ func (p *GitHubProvider) DetectBuildType(ctx context.Context, repo, branch strin
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusOK {
 		return "dockerfile", nil
 	}

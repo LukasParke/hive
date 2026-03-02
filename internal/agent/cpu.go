@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -177,5 +176,4 @@ func collectCPUTemp(report *NodeMetricsReport) {
 			return
 		}
 	}
-	_ = fmt.Sprintf("no CPU temp sensor found")
 }

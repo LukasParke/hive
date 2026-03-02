@@ -69,7 +69,7 @@ func (s *Store) ListProjects(ctx context.Context, orgID string) ([]Project, erro
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var projects []Project
 	for rows.Next() {
@@ -168,7 +168,7 @@ func (s *Store) ListAppsByGitRepo(ctx context.Context, cloneURL string) ([]App, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var apps []App
 	for rows.Next() {
@@ -199,7 +199,7 @@ func (s *Store) ListApps(ctx context.Context, projectID string) ([]App, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var apps []App
 	for rows.Next() {
@@ -270,7 +270,7 @@ func (s *Store) ListDeployments(ctx context.Context, appID string) ([]Deployment
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var deployments []Deployment
 	for rows.Next() {
@@ -331,7 +331,7 @@ func (s *Store) ListGitSources(ctx context.Context, orgID string) ([]GitSource, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var sources []GitSource
 	for rows.Next() {
@@ -441,7 +441,7 @@ func (s *Store) ListManagedDatabases(ctx context.Context, projectID string) ([]M
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var dbs []ManagedDatabase
 	for rows.Next() {
@@ -484,7 +484,7 @@ func (s *Store) ListBackupConfigs(ctx context.Context) ([]BackupConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var configs []BackupConfig
 	for rows.Next() {
@@ -545,7 +545,7 @@ func (s *Store) ListAuditLogs(ctx context.Context, orgID string, limit int) ([]A
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var logs []AuditLog
 	for rows.Next() {
@@ -574,7 +574,7 @@ func (s *Store) ListSecrets(ctx context.Context, projectID string) ([]Secret, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var secrets []Secret
 	for rows.Next() {
 		var sec Secret
@@ -622,7 +622,7 @@ func (s *Store) ListAppSecrets(ctx context.Context, appID string) ([]AppSecret, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var result []AppSecret
 	for rows.Next() {
 		var as AppSecret
@@ -654,7 +654,7 @@ func (s *Store) ListVolumes(ctx context.Context, projectID string) ([]Volume, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var vols []Volume
 	for rows.Next() {
 		var v Volume
@@ -711,7 +711,7 @@ func (s *Store) ListAppVolumes(ctx context.Context, appID string) ([]AppVolume, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var result []AppVolume
 	for rows.Next() {
 		var av AppVolume
@@ -739,7 +739,7 @@ func (s *Store) ListNotificationChannels(ctx context.Context, orgID string) ([]N
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var channels []NotificationChannel
 	for rows.Next() {
 		var ch NotificationChannel
@@ -774,7 +774,7 @@ func (s *Store) ListAllNotificationChannels(ctx context.Context) ([]Notification
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var channels []NotificationChannel
 	for rows.Next() {
 		var ch NotificationChannel
@@ -806,7 +806,7 @@ func (s *Store) ListNotificationEvents(ctx context.Context, orgID string, limit 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var events []NotificationEvent
 	for rows.Next() {
 		var ne NotificationEvent
@@ -839,7 +839,7 @@ func (s *Store) ListBackupRuns(ctx context.Context, configID string) ([]BackupRu
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var runs []BackupRun
 	for rows.Next() {
 		var br BackupRun
@@ -887,7 +887,7 @@ func (s *Store) ListProxyRoutes(ctx context.Context, projectID string) ([]ProxyR
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var routes []ProxyRoute
 	for rows.Next() {
 		var r ProxyRoute
@@ -932,7 +932,7 @@ func (s *Store) ListAllProxyRoutes(ctx context.Context) ([]ProxyRoute, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var routes []ProxyRoute
 	for rows.Next() {
 		var r ProxyRoute
@@ -962,7 +962,7 @@ func (s *Store) ListCustomCertificates(ctx context.Context, projectID string) ([
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var certs []CustomCertificate
 	for rows.Next() {
 		var c CustomCertificate
@@ -1026,7 +1026,7 @@ func (s *Store) ListStacks(ctx context.Context, projectID string) ([]Stack, erro
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var stacks []Stack
 	for rows.Next() {
 		var st Stack
@@ -1069,7 +1069,7 @@ func (s *Store) ListAlertThresholds(ctx context.Context, orgID string) ([]AlertT
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var thresholds []AlertThreshold
 	for rows.Next() {
 		var at AlertThreshold
@@ -1114,7 +1114,7 @@ func (s *Store) ListAllAlertThresholds(ctx context.Context) ([]AlertThreshold, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var thresholds []AlertThreshold
 	for rows.Next() {
 		var at AlertThreshold
@@ -1180,7 +1180,7 @@ func (s *Store) ListStorageHosts(ctx context.Context) ([]StorageHost, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var hosts []StorageHost
 	for rows.Next() {
 		var h StorageHost
@@ -1240,7 +1240,7 @@ func (s *Store) GetLatestMetricsSnapshots(ctx context.Context) ([]NodeMetricsSna
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var snaps []NodeMetricsSnapshot
 	for rows.Next() {
 		var snap NodeMetricsSnapshot
@@ -1260,7 +1260,7 @@ func (s *Store) GetNodeMetricsHistory(ctx context.Context, nodeID string, since 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var snaps []NodeMetricsSnapshot
 	for rows.Next() {
 		var snap NodeMetricsSnapshot
@@ -1302,7 +1302,7 @@ func (s *Store) ListDNSProviders(ctx context.Context, orgID string) ([]DNSProvid
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var providers []DNSProvider
 	for rows.Next() {
 		var p DNSProvider
@@ -1361,7 +1361,7 @@ func (s *Store) ListDNSRecords(ctx context.Context, providerID string) ([]DNSRec
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var records []DNSRecord
 	for rows.Next() {
 		var rec DNSRecord
@@ -1398,7 +1398,7 @@ func (s *Store) UpsertDNSRecord(ctx context.Context, r *DNSRecord) error {
 	if err != nil {
 		return err
 	}
-	defer existing.Close()
+	defer func() { _ = existing.Close() }()
 
 	if existing.Next() {
 		var id string
@@ -1448,7 +1448,7 @@ func (s *Store) ListOrgRoles(ctx context.Context, orgID string) ([]OrgRole, erro
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var roles []OrgRole
 	for rows.Next() {
 		var or OrgRole
@@ -1492,7 +1492,7 @@ func (s *Store) ListMaintenanceTasks(ctx context.Context, orgID string) ([]Maint
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var tasks []MaintenanceTask
 	for rows.Next() {
 		var mt MaintenanceTask
@@ -1550,7 +1550,7 @@ func (s *Store) ListMaintenanceRuns(ctx context.Context, taskID string) ([]Maint
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var runs []MaintenanceRun
 	for rows.Next() {
 		var mr MaintenanceRun
@@ -1604,7 +1604,7 @@ func (s *Store) ListAuditLogsFiltered(ctx context.Context, orgID, userID, action
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var logs []AuditLog
 	for rows.Next() {
 		var al AuditLog
@@ -1623,7 +1623,7 @@ func (s *Store) GetAuditLogStats(ctx context.Context, orgID string) (map[string]
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	stats := make(map[string]int)
 	for rows.Next() {
 		var action string
@@ -1653,7 +1653,7 @@ func (s *Store) ListPreviewDeployments(ctx context.Context, appID string) ([]Pre
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var previews []PreviewDeployment
 	for rows.Next() {
@@ -1706,7 +1706,7 @@ func (s *Store) ListServiceLinks(ctx context.Context, appID string) ([]ServiceLi
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var links []ServiceLink
 	for rows.Next() {
@@ -1742,14 +1742,14 @@ func (s *Store) InsertLogEntries(ctx context.Context, entries []LogEntry) error 
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO log_entry (app_id, service_name, node_id, stream, message, level, timestamp)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	for i := range entries {
 		_, err := stmt.ExecContext(ctx,
 			entries[i].AppID, entries[i].ServiceName, entries[i].NodeID, entries[i].Stream,
@@ -1797,7 +1797,7 @@ func (s *Store) QueryLogEntries(ctx context.Context, appID string, since, until 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var entries []LogEntry
 	for rows.Next() {
 		var le LogEntry
@@ -1836,7 +1836,7 @@ func (s *Store) ListLogForwardConfigs(ctx context.Context, orgID string) ([]LogF
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var configs []LogForwardConfig
 	for rows.Next() {
 		var lfc LogForwardConfig
@@ -1870,7 +1870,7 @@ func (s *Store) ListAppEnvVars(ctx context.Context, appID string) ([]AppEnvVar, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var vars []AppEnvVar
 	for rows.Next() {
@@ -1957,7 +1957,7 @@ func (s *Store) ListTemplateSources(ctx context.Context, orgID string) ([]Templa
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var list []TemplateSource
 	for rows.Next() {
@@ -2001,7 +2001,7 @@ func (s *Store) ListCustomTemplates(ctx context.Context, orgID string) ([]Custom
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var list []CustomTemplate
 	for rows.Next() {
@@ -2081,7 +2081,7 @@ func (s *Store) ListAppsByTemplate(ctx context.Context, templateName string) ([]
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var apps []App
 	for rows.Next() {
@@ -2151,7 +2151,7 @@ func (s *Store) ListCephClusters(ctx context.Context) ([]CephCluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var clusters []CephCluster
 	for rows.Next() {
 		var c CephCluster
@@ -2205,7 +2205,7 @@ func (s *Store) ListCephOSDs(ctx context.Context, clusterID string) ([]CephOSD, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var osds []CephOSD
 	for rows.Next() {
 		var o CephOSD
@@ -2245,7 +2245,7 @@ func (s *Store) ListCephPools(ctx context.Context, clusterID string) ([]CephPool
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var pools []CephPool
 	for rows.Next() {
 		var p CephPool

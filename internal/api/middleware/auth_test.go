@@ -52,7 +52,7 @@ func TestAuthMiddlewareValidSession(t *testing.T) {
 		cookie := r.Header.Get("Cookie")
 		assert.Contains(t, cookie, "better-auth.session_token=valid-token")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(sessionData)
+		_ = json.NewEncoder(w).Encode(sessionData)
 	}))
 	defer authServer.Close()
 
@@ -79,7 +79,7 @@ func TestAuthMiddlewareValidSession(t *testing.T) {
 func TestAuthMiddlewareEmptyUserID(t *testing.T) {
 	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(SessionData{})
+		_ = json.NewEncoder(w).Encode(SessionData{})
 	}))
 	defer authServer.Close()
 

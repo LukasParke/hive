@@ -21,7 +21,9 @@ func init() {
 	encryptionKey, err = hex.DecodeString(key)
 	if err != nil || len(encryptionKey) != 32 {
 		encryptionKey = make([]byte, 32)
-		rand.Read(encryptionKey)
+		if _, err := rand.Read(encryptionKey); err != nil {
+			panic("failed to generate encryption key: " + err.Error())
+		}
 	}
 }
 

@@ -106,10 +106,6 @@ func GetTemplate(w http.ResponseWriter, r *http.Request) {
 		TemplateListItem: catalogToListItem(tmpl.Name, "", tmpl, "builtin"),
 		ComposeContent:   "", // built-in single apps don't use compose_content
 	}
-	if tmpl.IsStack {
-		// Built-in stacks might have compose info in a different structure
-		// For now leave empty
-	}
 	writeJSON(w, http.StatusOK, detail)
 }
 

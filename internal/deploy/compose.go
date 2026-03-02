@@ -39,11 +39,6 @@ func (cd *ComposeDeployer) Deploy(ctx context.Context, stackName string, service
 			labels = proxy.MergeLabels(labels, traefikLabels)
 		}
 
-		var env []string
-		for k, v := range svc.Env {
-			env = append(env, fmt.Sprintf("%s=%s", k, v))
-		}
-
 		req := DeployRequest{
 			Name:   fmt.Sprintf("%s-%s", stackName, svc.Name),
 			Image:  svc.Image,

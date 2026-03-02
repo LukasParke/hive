@@ -83,8 +83,8 @@ func TestLoadFromDirInvalid(t *testing.T) {
 
 func TestLoadFromDirSkipsNonYAML(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "readme.md"), []byte("# hello"), 0644)
-	os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("notes"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "readme.md"), []byte("# hello"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("notes"), 0644)
 
 	c, err := LoadFromDir(dir)
 	require.NoError(t, err)

@@ -66,13 +66,13 @@ func (d *S3Downloader) Download(ctx context.Context, bucket, objectName, destPat
 	if err != nil {
 		return fmt.Errorf("s3 get %s/%s: %w", bucket, objectName, err)
 	}
-	defer obj.Close()
+	defer func() { _ = obj.Close() }()
 
 	f, err := os.Create(destPath)
 	if err != nil {
 		return fmt.Errorf("create dest file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := io.Copy(f, obj); err != nil {
 		return fmt.Errorf("s3 download %s/%s: %w", bucket, objectName, err)

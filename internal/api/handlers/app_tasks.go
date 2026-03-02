@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
@@ -132,12 +131,10 @@ func AppEvents(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		for msg := range msgCh {
 			action := string(msg.Action)
-			if action == "" {
-				action = msg.Status
-			}
+			imgName := msg.Actor.Attributes["image"]
 			result = append(result, ServiceEvt{
 				Action:  action,
-				Message: msg.From + " " + msg.Status,
+				Message: imgName + " " + action,
 				Time:    time.Unix(0, msg.TimeNano),
 			})
 		}
@@ -189,7 +186,7 @@ func AppPorts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	svc := services[0]
-	svcDetail, _, err := cli.ServiceInspectWithRaw(r.Context(), svc.ID, types.ServiceInspectOptions{})
+	svcDetail, _, err := cli.ServiceInspectWithRaw(r.Context(), svc.ID, swarm.ServiceInspectOptions{})
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return

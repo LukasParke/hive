@@ -14,7 +14,7 @@ func clearEnv(t *testing.T) {
 		"HIVE_UI_PORT", "HIVE_UI_DIR", "HIVE_NATS_PORT", "DATABASE_URL",
 		"HIVE_NATS_URL", "HIVE_AUTH_URL", "DOCKER_HOST",
 	} {
-		os.Unsetenv(key)
+		_ = os.Unsetenv(key)
 	}
 }
 

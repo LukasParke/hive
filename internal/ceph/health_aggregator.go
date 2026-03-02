@@ -56,14 +56,17 @@ func NewHealthAggregator(nc *nats.Conn, s *store.Store, log *zap.SugaredLogger) 
 }
 
 func (ha *HealthAggregator) Start(ctx context.Context) {
-	ha.nc.Subscribe("hive.ceph.health.>", func(msg *nats.Msg) {
+	if _, err := ha.nc.Subscribe("hive.ceph.health.>", func(msg *nats.Msg) {
 		var report agent.CephHealthReport
 		if err := json.Unmarshal(msg.Data, &report); err != nil {
 			ha.log.Debugf("ceph health decode: %v", err)
 			return
 		}
 		ha.processReport(ctx, &report)
-	})
+	}); err != nil {
+		ha.log.Errorf("failed to subscribe to ceph health: %v", err)
+		return
+	}
 
 	ha.log.Info("ceph health aggregation started (NATS subscription on hive.ceph.health.>)")
 }
@@ -85,7 +88,9 @@ func (ha *HealthAggregator) processReport(ctx context.Context, report *agent.Cep
 
 	newStatus := cephHealthToStatus(report.Health)
 	if cluster.Status != newStatus && cluster.Status != "bootstrapping" && cluster.Status != "expanding" && cluster.Status != "destroying" {
-		ha.store.UpdateCephClusterStatus(ctx, cluster.ID, newStatus)
+		if err := ha.store.UpdateCephClusterStatus(ctx, cluster.ID, newStatus); err != nil {
+			ha.log.Warnf("update ceph cluster status: %v", err)
+		}
 	}
 
 	if report.Health != "HEALTH_OK" && ha.store != nil {

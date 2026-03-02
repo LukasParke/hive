@@ -35,8 +35,12 @@ func WriteCertificateFiles(configDir string, cert *store.CustomCertificate) erro
 
 func RemoveCertificateFiles(configDir, certID string) error {
 	certDir := filepath.Join(configDir, "certs")
-	os.Remove(filepath.Join(certDir, certID+".crt"))
-	os.Remove(filepath.Join(certDir, certID+".key"))
+	if err := os.Remove(filepath.Join(certDir, certID+".crt")); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove cert file: %w", err)
+	}
+	if err := os.Remove(filepath.Join(certDir, certID+".key")); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove key file: %w", err)
+	}
 	return nil
 }
 

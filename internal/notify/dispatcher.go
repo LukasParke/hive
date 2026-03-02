@@ -95,7 +95,9 @@ func (d *Dispatcher) Send(ctx context.Context, event Event) {
 			Message:   event.Message,
 			Status:    status,
 		}
-		d.store.CreateNotificationEvent(ctx, ne)
+		if err := d.store.CreateNotificationEvent(ctx, ne); err != nil {
+			d.log.Warnf("create notification event: %v", err)
+		}
 	}
 }
 

@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
@@ -114,11 +113,3 @@ func (b *Bootstrapper) ensureTraefik(ctx context.Context) error {
 	return b.swarm.CreateService(ctx, spec)
 }
 
-func (b *Bootstrapper) traefikLabels(serviceName, domain string, port int) map[string]string {
-	return map[string]string{
-		"traefik.enable": "true",
-		fmt.Sprintf("traefik.http.routers.%s.rule", serviceName):              fmt.Sprintf("Host(`%s`)", domain),
-		fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName):  "letsencrypt",
-		fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName): fmt.Sprintf("%d", port),
-	}
-}
