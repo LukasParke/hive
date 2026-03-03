@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/mount"
@@ -26,6 +27,34 @@ const (
 	postgresSecretName    = "hive-pg-password"
 )
 
+func (b *Bootstrapper) ensurePostgresSecret(ctx context.Context) error {
+	secrets, err := b.swarm.ListSecrets(ctx, "hive.managed=true")
+	if err != nil {
+		return fmt.Errorf("list secrets: %w", err)
+	}
+	for _, s := range secrets {
+		if s.Spec.Name == postgresSecretName {
+			b.pgSecretID = s.ID
+			b.log.Infof("postgres secret already exists (id=%s)", s.ID)
+			return nil
+		}
+	}
+
+	password, err := b.getOrCreatePostgresPassword()
+	if err != nil {
+		return fmt.Errorf("postgres password: %w", err)
+	}
+
+	id, err := b.swarm.CreateSecret(ctx, postgresSecretName, []byte(password), map[string]string{
+		"hive.component": "postgres",
+	})
+	if err != nil {
+		return fmt.Errorf("create secret: %w", err)
+	}
+	b.pgSecretID = id
+	return nil
+}
+
 func (b *Bootstrapper) ensurePostgres(ctx context.Context) error {
 	exists, err := b.swarm.ServiceExists(ctx, postgresServiceName)
 	if err != nil {
@@ -37,11 +66,6 @@ func (b *Bootstrapper) ensurePostgres(ctx context.Context) error {
 	}
 
 	b.log.Info("deploying postgres service")
-
-	password, err := b.getOrCreatePostgresPassword()
-	if err != nil {
-		return fmt.Errorf("postgres password: %w", err)
-	}
 
 	replicas := uint64(1)
 	spec := swarm.ServiceSpec{
@@ -56,10 +80,18 @@ func (b *Bootstrapper) ensurePostgres(ctx context.Context) error {
 			ContainerSpec: &swarm.ContainerSpec{
 				Image: postgresImage,
 				Env: []string{
-					fmt.Sprintf("POSTGRES_DB=%s", postgresDB),
-					fmt.Sprintf("POSTGRES_USER=%s", postgresUser),
-					fmt.Sprintf("POSTGRES_PASSWORD=%s", password),
+					"POSTGRES_DB=" + postgresDB,
+					"POSTGRES_USER=" + postgresUser,
+					"POSTGRES_PASSWORD_FILE=/run/secrets/" + postgresSecretName,
 				},
+				Secrets: []*swarm.SecretReference{{
+					SecretID:   b.pgSecretID,
+					SecretName: postgresSecretName,
+					File: &swarm.SecretReferenceFileTarget{
+						Name: postgresSecretName,
+						UID:  "0", GID: "0", Mode: 0400,
+					},
+				}},
 				Mounts: []mount.Mount{
 					{
 						Type:   mount.TypeVolume,
@@ -140,8 +172,16 @@ func (b *Bootstrapper) waitForPostgres(ctx context.Context) error {
 	}
 }
 
+func (b *Bootstrapper) postgresPassword() (string, error) {
+	secretPath := "/run/secrets/" + postgresSecretName
+	if data, err := os.ReadFile(secretPath); err == nil && len(data) > 0 {
+		return strings.TrimSpace(string(data)), nil
+	}
+	return b.getOrCreatePostgresPassword()
+}
+
 func (b *Bootstrapper) postgresURL() (string, error) {
-	password, err := b.getOrCreatePostgresPassword()
+	password, err := b.postgresPassword()
 	if err != nil {
 		return "", fmt.Errorf("failed to get postgres password: %w", err)
 	}

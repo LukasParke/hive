@@ -4,19 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
 
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 
 	"github.com/lholliger/hive/internal/agent"
 	"github.com/lholliger/hive/internal/alert"
 	"github.com/lholliger/hive/internal/api"
 	"github.com/lholliger/hive/internal/api/handlers"
+	"github.com/lholliger/hive/internal/auth"
 	"github.com/lholliger/hive/internal/backup"
 	"github.com/lholliger/hive/internal/bootstrap"
 	hiveceph "github.com/lholliger/hive/internal/ceph"
@@ -35,15 +35,11 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// Support "hive agent" as a sub-command to override the role
 	if len(os.Args) > 1 && os.Args[1] == "agent" {
 		cfg.Role = config.RoleAgent
 	}
 
-	logger, _ := zap.NewProduction()
-	if cfg.DevMode {
-		logger, _ = zap.NewDevelopment()
-	}
+	logger, _ := buildLogger(cfg)
 	defer func() { _ = logger.Sync() }()
 	log := logger.Sugar()
 
@@ -53,13 +49,18 @@ func main() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// Launcher mode: deploy infrastructure + hive-manager service, then exit
 	if cfg.Role == config.RoleManager && !cfg.ManagedService && !cfg.DevMode {
 		if err := runLauncher(ctx, cfg, log); err != nil {
 			log.Fatalf("launcher failed: %v", err)
 		}
 		return
 	}
+
+	go func() {
+		sig := <-sigCh
+		log.Infof("received signal %v, shutting down", sig)
+		cancel()
+	}()
 
 	switch cfg.Role {
 	case config.RoleManager:
@@ -77,10 +78,6 @@ func main() {
 	default:
 		log.Fatalf("unknown role: %s", cfg.Role)
 	}
-
-	sig := <-sigCh
-	log.Infof("received signal %v, shutting down", sig)
-	cancel()
 }
 
 func runLauncher(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) error {
@@ -95,50 +92,65 @@ func runLauncher(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger
 	return nil
 }
 
+func logPhase(log *zap.SugaredLogger, name string, fn func() error) error {
+	log.Infow("startup phase starting", "phase", name)
+	start := time.Now()
+	if err := fn(); err != nil {
+		log.Errorw("startup phase failed", "phase", name, "error", err, "elapsed_ms", time.Since(start).Milliseconds())
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	log.Infow("startup phase complete", "phase", name, "elapsed_ms", time.Since(start).Milliseconds())
+	return nil
+}
+
 func runManager(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) error {
 	log.Info("starting hive in manager mode")
 
-	bs := bootstrap.New(cfg, log)
-	if cfg.DevMode {
-		if err := bs.Run(ctx); err != nil {
-			return fmt.Errorf("bootstrap failed: %w", err)
+	if err := logPhase(log, "bootstrap", func() error {
+		bs := bootstrap.New(cfg, log)
+		if cfg.DevMode {
+			return bs.Run(ctx)
 		}
-	} else {
-		if err := bs.RunService(ctx); err != nil {
-			return fmt.Errorf("service bootstrap failed: %w", err)
-		}
-	}
-
-	uiCmd, err := startSvelteKit(cfg, log)
-	if err != nil {
-		return fmt.Errorf("sveltekit: %w", err)
-	}
-	if uiCmd != nil {
-		defer func() {
-			_ = uiCmd.Process.Signal(syscall.SIGTERM)
-			_ = uiCmd.Wait()
-		}()
+		return bs.RunService(ctx)
+	}); err != nil {
+		return err
 	}
 
 	var db *store.Store
 	if cfg.DatabaseURL != "" {
-		var err error
-		db, err = store.New(cfg.DatabaseURL)
-		if err != nil {
-			return fmt.Errorf("store init: %w", err)
+		if err := logPhase(log, "store_init", func() error {
+			var err error
+			db, err = store.New(cfg.DatabaseURL)
+			return err
+		}); err != nil {
+			return err
 		}
 		defer func() { _ = db.Close() }()
 	}
 
-	ns, err := hivenats.StartEmbedded(cfg, log)
-	if err != nil {
-		return fmt.Errorf("nats start failed: %w", err)
+	var authSvc *auth.Service
+	if db != nil {
+		authSvc = auth.NewService(db.DB(), log)
+		log.Info("Go-native auth service initialized")
+	}
+
+	var ns *natsserver.Server
+	if err := logPhase(log, "nats_start", func() error {
+		var err error
+		ns, err = hivenats.StartEmbedded(cfg, log)
+		return err
+	}); err != nil {
+		return err
 	}
 	defer ns.Shutdown()
 
-	nc, err := hivenats.Connect(ns, cfg)
-	if err != nil {
-		return fmt.Errorf("nats connect failed: %w", err)
+	var nc *nats.Conn
+	if err := logPhase(log, "nats_connect", func() error {
+		var err error
+		nc, err = hivenats.Connect(ns, cfg)
+		return err
+	}); err != nil {
+		return err
 	}
 	defer nc.Close()
 
@@ -174,7 +186,7 @@ func runManager(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger)
 		}
 	}
 
-	server := api.NewServer(cfg, nc, db, log)
+	server := api.NewServer(cfg, nc, db, log, authSvc)
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Errorf("api server error: %v", err)
@@ -187,6 +199,9 @@ func runManager(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger)
 	cephAgg.Start(ctx)
 
 	log.Infof("hive manager ready on :%d", cfg.APIPort)
+
+	<-ctx.Done()
+	log.Info("shutting down hive manager")
 	return nil
 }
 
@@ -203,6 +218,9 @@ func runWorker(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) 
 	pool.Start(ctx)
 
 	log.Info("hive worker ready")
+
+	<-ctx.Done()
+	log.Info("shutting down hive worker")
 	return nil
 }
 
@@ -240,49 +258,32 @@ func runAgent(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) e
 	go cephHealth.Run(ctx)
 
 	log.Infof("hive agent ready, reporting every %s", interval)
+
+	<-ctx.Done()
+	log.Info("shutting down hive agent")
 	return nil
 }
 
-func startSvelteKit(cfg *config.Config, log *zap.SugaredLogger) (*exec.Cmd, error) {
+func buildLogger(cfg *config.Config) (*zap.Logger, error) {
+	var zapCfg zap.Config
 	if cfg.DevMode {
-		log.Info("dev mode: skipping SvelteKit child process (run 'make ui-dev' separately)")
-		return nil, nil
+		zapCfg = zap.NewDevelopmentConfig()
+	} else {
+		zapCfg = zap.NewProductionConfig()
 	}
 
-	entrypoint := cfg.UIDir + "/index.js"
-	if _, err := os.Stat(entrypoint); err != nil {
-		return nil, fmt.Errorf("SvelteKit build not found at %s: %w", entrypoint, err)
+	switch cfg.LogLevel {
+	case "debug":
+		zapCfg.Level.SetLevel(zap.DebugLevel)
+	case "warn":
+		zapCfg.Level.SetLevel(zap.WarnLevel)
+	case "error":
+		zapCfg.Level.SetLevel(zap.ErrorLevel)
+	default:
+		zapCfg.Level.SetLevel(zap.InfoLevel)
 	}
 
-	cmd := exec.Command("node", entrypoint)
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("PORT=%d", cfg.UIPort),
-		fmt.Sprintf("ORIGIN=http://127.0.0.1:%d", cfg.UIPort),
-		"DATABASE_URL="+cfg.DatabaseURL,
-		"HOST=127.0.0.1",
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start SvelteKit: %w", err)
-	}
-	log.Infof("SvelteKit child process started (pid %d) on port %d", cmd.Process.Pid, cfg.UIPort)
-
-	readyURL := fmt.Sprintf("http://127.0.0.1:%d/api/auth/get-session", cfg.UIPort)
-	deadline := time.Now().Add(30 * time.Second)
-	for time.Now().Before(deadline) {
-		resp, err := http.Get(readyURL)
-		if err == nil {
-			_ = resp.Body.Close()
-			log.Info("SvelteKit is ready")
-			return cmd, nil
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	_ = cmd.Process.Kill()
-	return nil, fmt.Errorf("SvelteKit did not become ready within 30s")
+	return zapCfg.Build()
 }
 
 func loadExistingBackupSchedules(ctx context.Context, db *store.Store, sched *backup.Scheduler, nc *nats.Conn, log *zap.SugaredLogger) {
@@ -299,7 +300,6 @@ func loadExistingBackupSchedules(ctx context.Context, db *store.Store, sched *ba
 		}
 	}
 
-	// Listen for new schedule events
 	if _, err := nc.Subscribe("hive.backup.schedule", func(msg *nats.Msg) {
 		var ev map[string]string
 		if err := json.Unmarshal(msg.Data, &ev); err != nil {
@@ -316,7 +316,6 @@ func loadExistingBackupSchedules(ctx context.Context, db *store.Store, sched *ba
 }
 
 func startMetricsAggregation(ctx context.Context, nc *nats.Conn, db *store.Store, log *zap.SugaredLogger) {
-	// Subscribe to all agent metric reports
 	if _, err := nc.Subscribe("hive.metrics.>", func(msg *nats.Msg) {
 		var report agent.NodeMetricsReport
 		if err := json.Unmarshal(msg.Data, &report); err != nil {
@@ -328,7 +327,6 @@ func startMetricsAggregation(ctx context.Context, nc *nats.Conn, db *store.Store
 		log.Warnf("subscribe hive.metrics: %v", err)
 	}
 
-	// Periodically write snapshots to DB and purge old data
 	go func() {
 		snapshotTicker := time.NewTicker(60 * time.Second)
 		purgeTicker := time.NewTicker(1 * time.Hour)
@@ -382,7 +380,7 @@ func startMetricsAggregation(ctx context.Context, nc *nats.Conn, db *store.Store
 					log.Infof("purged %d old metrics snapshots", deleted)
 				}
 			case <-staleTicker.C:
-				staleInterval := 30 * time.Second // 3x the default 10s interval
+				staleInterval := 30 * time.Second
 				staleNodes := handlers.MetricsCache.StaleNodes(staleInterval)
 				for _, nodeID := range staleNodes {
 					log.Warnf("stale node detected (no metrics): %s", nodeID)

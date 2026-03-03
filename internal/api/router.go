@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +15,7 @@ import (
 	"github.com/lholliger/hive/internal/api/handlers"
 	"github.com/lholliger/hive/internal/api/middleware"
 	"github.com/lholliger/hive/internal/api/ws"
+	"github.com/lholliger/hive/internal/auth"
 	"github.com/lholliger/hive/internal/rbac"
 	"github.com/lholliger/hive/internal/store"
 	"github.com/lholliger/hive/pkg/config"
@@ -23,15 +24,16 @@ import (
 )
 
 type Server struct {
-	cfg    *config.Config
-	nc     *nats.Conn
-	store  *store.Store
-	log    *zap.SugaredLogger
-	router chi.Router
+	cfg     *config.Config
+	nc      *nats.Conn
+	store   *store.Store
+	log     *zap.SugaredLogger
+	router  chi.Router
+	authSvc *auth.Service
 }
 
-func NewServer(cfg *config.Config, nc *nats.Conn, s *store.Store, log *zap.SugaredLogger) *Server {
-	srv := &Server{cfg: cfg, nc: nc, store: s, log: log}
+func NewServer(cfg *config.Config, nc *nats.Conn, s *store.Store, log *zap.SugaredLogger, authSvc *auth.Service) *Server {
+	srv := &Server{cfg: cfg, nc: nc, store: s, log: log, authSvc: authSvc}
 	srv.router = srv.buildRouter()
 	return srv
 }
@@ -54,8 +56,12 @@ func (s *Server) buildRouter() chi.Router {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	if s.authSvc != nil {
+		r.Mount("/api/auth", s.authSvc.Router())
+	}
+
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(middleware.Auth(s.cfg.AuthBaseURL))
+		r.Use(middleware.Auth(s.authSvc))
 		if s.store != nil {
 			r.Use(middleware.StoreMiddleware(s.store))
 			r.Use(middleware.AuditLogger(s.store))
@@ -324,12 +330,24 @@ func (s *Server) buildRouter() chi.Router {
 	// Webhook endpoint (no auth required)
 	r.Post("/api/v1/webhooks/{sourceId}", handlers.GitWebhook(s.nc, s.store))
 
-	// Reverse proxy everything else to SvelteKit (UI pages, static assets, /api/auth/*)
-	uiTarget, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", s.cfg.UIPort))
-	uiProxy := httputil.NewSingleHostReverseProxy(uiTarget)
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		uiProxy.ServeHTTP(w, r)
-	})
+	// Serve static UI files with SPA fallback
+	if s.cfg.UIDir != "" {
+		staticDir := s.cfg.UIDir
+		fileServer := http.FileServer(http.Dir(staticDir))
+		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+			// Don't serve index.html for API routes
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				http.NotFound(w, r)
+				return
+			}
+			path := filepath.Join(staticDir, r.URL.Path)
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				http.ServeFile(w, r, filepath.Join(staticDir, "index.html"))
+				return
+			}
+			fileServer.ServeHTTP(w, r)
+		})
+	}
 
 	return r
 }

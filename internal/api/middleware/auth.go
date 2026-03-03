@@ -2,10 +2,9 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
+
+	"github.com/lholliger/hive/internal/auth"
 )
 
 type contextKey string
@@ -29,56 +28,36 @@ type SessionData struct {
 	} `json:"session"`
 }
 
-func Auth(authBaseURL string) func(http.Handler) http.Handler {
+func Auth(authSvc *auth.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			sessionCookie, err := r.Cookie("better-auth.session_token")
+			sessionCookie, err := r.Cookie(auth.CookieName)
 			if err != nil {
 				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
 
-			session, err := validateSession(r.Context(), authBaseURL, sessionCookie.Value)
+			sess, user, err := authSvc.ValidateSession(r.Context(), sessionCookie.Value)
 			if err != nil {
 				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), UserContextKey, &session.User)
-			ctx = context.WithValue(ctx, SessionContextKey, session)
+			sd := &SessionData{
+				User: SessionUser{
+					ID:    user.ID,
+					Email: user.Email,
+					Name:  user.Name,
+				},
+			}
+			sd.Session.ID = sess.ID
+			sd.Session.OrgID = sess.ActiveOrg
+
+			ctx := context.WithValue(r.Context(), UserContextKey, &sd.User)
+			ctx = context.WithValue(ctx, SessionContextKey, sd)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
-}
-
-func validateSession(ctx context.Context, authBaseURL, token string) (*SessionData, error) {
-	url := strings.TrimRight(authBaseURL, "/") + "/api/auth/get-session"
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Cookie", fmt.Sprintf("better-auth.session_token=%s", token))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("auth request failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("auth returned status %d", resp.StatusCode)
-	}
-
-	var session SessionData
-	if err := json.NewDecoder(resp.Body).Decode(&session); err != nil {
-		return nil, fmt.Errorf("decode session: %w", err)
-	}
-
-	if session.User.ID == "" {
-		return nil, fmt.Errorf("invalid session: no user ID")
-	}
-
-	return &session, nil
 }
 
 func GetUser(ctx context.Context) *SessionUser {

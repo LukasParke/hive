@@ -1,4 +1,4 @@
-### Stage 1: Build SvelteKit frontend
+### Stage 1: Build SvelteKit frontend (static)
 FROM node:22-slim AS ui-builder
 WORKDIR /app/ui
 COPY ui/package.json ui/package-lock.json ./
@@ -14,8 +14,8 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /hive ./cmd/hive
 
-### Stage 3: Runtime (Go + Node.js for SvelteKit/BetterAuth)
-FROM node:22-slim
+### Stage 3: Runtime (Go only -- no Node.js)
+FROM debian:bookworm-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git ca-certificates curl && \

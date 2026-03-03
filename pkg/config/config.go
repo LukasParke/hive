@@ -14,12 +14,11 @@ const (
 )
 
 type Config struct {
-	Role     Role
-	DevMode  bool
-	DataDir  string
-	APIPort  int
-	UIPort   int // SvelteKit server port (internal, proxied by Go)
-	UIDir    string // pre-built frontend assets directory
+	Role    Role
+	DevMode bool
+	DataDir string
+	APIPort int
+	UIDir   string // pre-built static frontend assets directory
 	NATSPort int
 
 	// Postgres (set after bootstrap or by env for external DB)
@@ -28,9 +27,6 @@ type Config struct {
 	// Manager NATS address (used by workers)
 	NATSManagerURL string
 
-	// BetterAuth base URL for session validation
-	AuthBaseURL string
-
 	// Docker socket path
 	DockerSocket string
 
@@ -38,10 +34,10 @@ type Config struct {
 	MultiNode bool
 
 	// Cloudflare integration
-	CFAPIToken   string
+	CFAPIToken    string
 	CFTunnelToken string
-	CFZoneID     string
-	IngressMode  string // "port_forward", "cloudflare_tunnel", "both"
+	CFZoneID      string
+	IngressMode   string // "port_forward", "cloudflare_tunnel", "both"
 
 	// Registry
 	RegistryDomain   string
@@ -61,33 +57,35 @@ type Config struct {
 
 	// Docker image reference for self-deployment and agent deployment
 	HiveImage string
+
+	// Log level override: debug, info, warn, error (default: info, dev mode forces debug)
+	LogLevel string
 }
 
 func Load() *Config {
 	cfg := &Config{
-		Role:           Role(getEnv("HIVE_ROLE", "manager")),
-		DevMode:        getEnv("HIVE_DEV", "") != "",
-		DataDir:        getEnv("HIVE_DATA_DIR", "/data"),
-		APIPort:        getEnvInt("HIVE_API_PORT", 8080),
-		UIPort:         getEnvInt("HIVE_UI_PORT", 3000),
-		UIDir:          getEnv("HIVE_UI_DIR", "/app/ui"),
-		NATSPort:       getEnvInt("HIVE_NATS_PORT", 4222),
-		DatabaseURL:    getEnv("DATABASE_URL", ""),
-		NATSManagerURL: getEnv("HIVE_NATS_URL", ""),
-		AuthBaseURL:    getEnv("HIVE_AUTH_URL", "http://127.0.0.1:3000"),
-		DockerSocket:    getEnv("DOCKER_HOST", "unix:///var/run/docker.sock"),
-		MultiNode:       false,
-		CFAPIToken:      getEnv("HIVE_CF_API_TOKEN", ""),
-		CFTunnelToken:   getEnv("HIVE_CF_TUNNEL_TOKEN", ""),
-		CFZoneID:        getEnv("HIVE_CF_ZONE_ID", ""),
-		IngressMode:     getEnv("HIVE_INGRESS_MODE", "port_forward"),
+		Role:             Role(getEnv("HIVE_ROLE", "manager")),
+		DevMode:          getEnv("HIVE_DEV", "") != "",
+		DataDir:          getEnv("HIVE_DATA_DIR", "/data"),
+		APIPort:          getEnvInt("HIVE_API_PORT", 8080),
+		UIDir:            getEnv("HIVE_UI_DIR", "/app/ui"),
+		NATSPort:         getEnvInt("HIVE_NATS_PORT", 4222),
+		DatabaseURL:      getEnv("DATABASE_URL", ""),
+		NATSManagerURL:   getEnv("HIVE_NATS_URL", ""),
+		DockerSocket:     getEnv("DOCKER_HOST", "unix:///var/run/docker.sock"),
+		MultiNode:        false,
+		CFAPIToken:       getEnv("HIVE_CF_API_TOKEN", ""),
+		CFTunnelToken:    getEnv("HIVE_CF_TUNNEL_TOKEN", ""),
+		CFZoneID:         getEnv("HIVE_CF_ZONE_ID", ""),
+		IngressMode:      getEnv("HIVE_INGRESS_MODE", "port_forward"),
 		RegistryDomain:   getEnv("HIVE_REGISTRY_DOMAIN", "registry.hive.local"),
 		RegistryInsecure: getEnv("HIVE_REGISTRY_INSECURE", "true") == "true",
-		AgentInterval:   getEnvInt("HIVE_AGENT_INTERVAL", 10),
-		AllowedOrigins:  getEnv("HIVE_ALLOWED_ORIGINS", ""),
-		WebhookBaseURL:  getEnv("HIVE_WEBHOOK_BASE_URL", "http://localhost:8080"),
-		ManagedService:  getEnv("HIVE_MANAGED", "") == "true",
-		HiveImage:       getEnv("HIVE_IMAGE", "ghcr.io/lholliger/hive:latest"),
+		AgentInterval:    getEnvInt("HIVE_AGENT_INTERVAL", 10),
+		AllowedOrigins:   getEnv("HIVE_ALLOWED_ORIGINS", ""),
+		WebhookBaseURL:   getEnv("HIVE_WEBHOOK_BASE_URL", "http://localhost:8080"),
+		ManagedService:   getEnv("HIVE_MANAGED", "") == "true",
+		HiveImage:        getEnv("HIVE_IMAGE", "127.0.0.1:5000/hive:latest"),
+		LogLevel:         getEnv("HIVE_LOG_LEVEL", "info"),
 	}
 	return cfg
 }

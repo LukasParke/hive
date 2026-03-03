@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
@@ -42,10 +43,19 @@ func (b *Bootstrapper) ensureManager(ctx context.Context) error {
 					"HIVE_MANAGED=true",
 					"HIVE_ROLE=manager",
 					"HIVE_IMAGE=" + b.cfg.HiveImage,
+					"HIVE_LOG_LEVEL=" + b.cfg.LogLevel,
 					fmt.Sprintf("HIVE_API_PORT=%d", b.cfg.APIPort),
 					fmt.Sprintf("HIVE_NATS_PORT=%d", b.cfg.NATSPort),
 					fmt.Sprintf("HIVE_AGENT_INTERVAL=%d", b.cfg.AgentInterval),
 				},
+				Secrets: []*swarm.SecretReference{{
+					SecretID:   b.pgSecretID,
+					SecretName: postgresSecretName,
+					File: &swarm.SecretReferenceFileTarget{
+						Name: postgresSecretName,
+						UID:  "0", GID: "0", Mode: 0400,
+					},
+				}},
 				Mounts: []mount.Mount{
 					{
 						Type:   mount.TypeBind,
@@ -64,6 +74,12 @@ func (b *Bootstrapper) ensureManager(ctx context.Context) error {
 			},
 			Placement: &swarm.Placement{
 				Constraints: []string{"node.role == manager"},
+			},
+			RestartPolicy: &swarm.RestartPolicy{
+				Condition:   swarm.RestartPolicyConditionOnFailure,
+				Delay:       durationPtr(10 * time.Second),
+				MaxAttempts: uint64Ptr(5),
+				Window:      durationPtr(2 * time.Minute),
 			},
 		},
 		Mode: swarm.ServiceMode{
@@ -89,3 +105,6 @@ func (b *Bootstrapper) ensureManager(ctx context.Context) error {
 
 	return b.swarm.CreateService(ctx, spec)
 }
+
+func durationPtr(d time.Duration) *time.Duration { return &d }
+func uint64Ptr(v uint64) *uint64                 { return &v }

@@ -1,4 +1,4 @@
-.PHONY: build run dev test clean docker ui-dev ui-build
+.PHONY: build run dev test clean docker docker-clean ui-dev ui-build logs logs-postgres status
 
 BINARY=hive
 GO_FILES=$(shell find . -name '*.go' -not -path './ui/*')
@@ -29,6 +29,21 @@ clean:
 docker:
 	docker build -t hive:latest .
 
+docker-clean:
+	docker build --no-cache -t hive:latest .
+
+deploy: docker
+	docker tag hive:latest 127.0.0.1:5000/hive:latest
+	docker push 127.0.0.1:5000/hive:latest
+	docker service update --force --image 127.0.0.1:5000/hive:latest hive-manager
+	docker service update --force --image 127.0.0.1:5000/hive:latest hive-agent
+
+deploy-clean: docker-clean
+	docker tag hive:latest 127.0.0.1:5000/hive:latest
+	docker push 127.0.0.1:5000/hive:latest
+	docker service update --force --image 127.0.0.1:5000/hive:latest hive-manager
+	docker service update --force --image 127.0.0.1:5000/hive:latest hive-agent
+
 docker-run:
 	docker run -d \
 		--name hive \
@@ -54,3 +69,17 @@ migrate-up:
 
 migrate-down:
 	migrate -path internal/store/migrations -database "$(DATABASE_URL)" down 1
+
+# Troubleshooting targets (require Docker Swarm)
+logs:
+	docker service logs -f --tail 100 hive-manager
+
+logs-postgres:
+	docker service logs -f --tail 100 hive-postgres
+
+status:
+	@echo "=== Hive Services ==="
+	docker service ls --filter label=hive.managed=true
+	@echo ""
+	@echo "=== hive-manager Tasks ==="
+	docker service ps hive-manager --no-trunc
