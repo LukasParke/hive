@@ -1,0 +1,53 @@
+kind: Template
+name: passbolt
+description: Passbolt is an open source credential platform for modern teams. A versatile, battle-tested solution to manage and collaborate on passwords, accesses, and secrets. All in one.
+category: security
+tags:
+    - password-manager
+    - security
+    - team-collaboration
+    - encryption
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/passbolt.svg
+version: latest-ce
+links:
+    docs: https://www.passbolt.com/docs/
+    github: https://github.com/passbolt/passbolt_api
+    website: https://www.passbolt.com/
+image: mariadb:11
+stack: true
+services:
+    - name: mariadb
+      image: mariadb:11
+      env:
+        MARIADB_DATABASE: ""
+        MARIADB_PASSWORD: ""
+        MARIADB_ROOT_PASSWORD: ""
+        MARIADB_USER: ""
+      volumes:
+        - passbolt_mariadb_data:/var/lib/mysql
+    - name: passbolt
+      image: passbolt/passbolt:latest-ce
+      env:
+        APP_FULL_BASE_URL: ""
+        DATASOURCES_DEFAULT_DATABASE: ""
+        DATASOURCES_DEFAULT_HOST: ""
+        DATASOURCES_DEFAULT_PASSWORD: ""
+        DATASOURCES_DEFAULT_PORT: ""
+        DATASOURCES_DEFAULT_USERNAME: ""
+        EMAIL_DEFAULT_FROM: ""
+        EMAIL_TRANSPORT_DEFAULT_HOST: ""
+        EMAIL_TRANSPORT_DEFAULT_PASSWORD: ""
+        EMAIL_TRANSPORT_DEFAULT_PORT: ""
+        EMAIL_TRANSPORT_DEFAULT_TLS: ""
+        EMAIL_TRANSPORT_DEFAULT_USERNAME: ""
+        PASSBOLT_PLUGINS_JWT_AUTHENTICATION_ENABLED: ""
+      volumes:
+        - gpg_volume:/etc/passbolt/gpg
+        - jwt_volume:/etc/passbolt/jwt
+      command:
+        - /usr/bin/wait-for.sh
+        - -t
+        - "0"
+        - ${PASSBOLT_DB_HOST}:${PASSBOLT_DB_PORT}
+        - --
+        - /docker-entrypoint.sh

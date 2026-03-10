@@ -1,0 +1,44 @@
+kind: Template
+name: notifuse
+description: Open-source newsletter and notification platform that empowers teams to create, send, and track communications at scale.
+category: communication
+tags:
+    - newsletter
+    - email
+    - communication
+    - notifications
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/notifuse.svg
+version: latest
+links:
+    docs: https://docs.notifuse.com/
+    github: https://github.com/notifuse/notifuse
+    website: https://notifuse.com/
+image: postgres:17-alpine
+stack: true
+services:
+    - name: db
+      image: postgres:17-alpine
+      env:
+        POSTGRES_DB: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+      volumes:
+        - db_data:/var/lib/postgresql/data
+    - name: notifuse
+      image: notifuse/notifuse:latest
+      env:
+        API_ENDPOINT: ""
+        DB_HOST: db
+        DB_NAME: postgres
+        DB_PASSWORD: postgres
+        DB_PORT: "5432"
+        DB_PREFIX: notifuse
+        DB_SSLMODE: disable
+        DB_USER: postgres
+        ENVIRONMENT: production
+        ROOT_EMAIL: ""
+        SECRET_KEY: ""
+        SERVER_HOST: 0.0.0.0
+        SERVER_PORT: "8080"
+      volumes:
+        - notifuse_data:/app/data

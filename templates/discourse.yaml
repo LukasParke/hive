@@ -1,0 +1,60 @@
+kind: Template
+name: discourse
+description: Discourse is a modern forum software for your community. Use it as a mailing list, discussion forum, or long-form chat room.
+category: communication
+tags:
+    - forum
+    - community
+    - discussion
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/discourse.svg
+version: 3.5.0
+links:
+    docs: https://meta.discourse.org/
+    github: https://github.com/discourse/discourse
+    website: https://www.discourse.org/
+image: docker.io/bitnamilegacy/discourse:3.5.0
+stack: true
+services:
+    - name: discourse-app
+      image: docker.io/bitnamilegacy/discourse:3.5.0
+      env:
+        DISCOURSE_DATABASE_HOST: discourse-db
+        DISCOURSE_DATABASE_NAME: bitnami_discourse
+        DISCOURSE_DATABASE_PASSWORD: ""
+        DISCOURSE_DATABASE_PORT_NUMBER: "5432"
+        DISCOURSE_DATABASE_USER: bn_discourse
+        DISCOURSE_HOST: ""
+        DISCOURSE_REDIS_HOST: discourse-redis
+        DISCOURSE_REDIS_PASSWORD: ""
+        DISCOURSE_REDIS_PORT_NUMBER: "6379"
+      volumes:
+        - discourse-data:/bitnami/discourse
+    - name: discourse-db
+      image: docker.io/bitnami/postgresql:17
+      env:
+        POSTGRESQL_DATABASE: bitnami_discourse
+        POSTGRESQL_PASSWORD: ""
+        POSTGRESQL_USERNAME: bn_discourse
+      volumes:
+        - discourse-postgresql-data:/bitnami/postgresql
+    - name: discourse-redis
+      image: docker.io/bitnami/redis:7.4
+      env:
+        REDIS_PASSWORD: ""
+      volumes:
+        - discourse-redis-data:/bitnami/redis
+    - name: discourse-sidekiq
+      image: docker.io/bitnamilegacy/discourse:3.5.0
+      env:
+        DISCOURSE_DATABASE_HOST: discourse-db
+        DISCOURSE_DATABASE_NAME: bitnami_discourse
+        DISCOURSE_DATABASE_PASSWORD: ""
+        DISCOURSE_DATABASE_PORT_NUMBER: "5432"
+        DISCOURSE_DATABASE_USER: bn_discourse
+        DISCOURSE_HOST: ""
+        DISCOURSE_REDIS_HOST: discourse-redis
+        DISCOURSE_REDIS_PASSWORD: ""
+        DISCOURSE_REDIS_PORT_NUMBER: "6379"
+      volumes:
+        - discourse-sidekiq-data:/bitnami/discourse
+      command: /opt/bitnami/scripts/discourse-sidekiq/run.sh

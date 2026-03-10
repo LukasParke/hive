@@ -1,0 +1,15 @@
+kind: Template
+name: appsmith
+description: Appsmith is a free and open source platform for building internal tools and applications.
+category: cms
+tags:
+    - cms
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/appsmith.svg
+version: v1.94
+links:
+    docs: https://docs.appsmith.com/
+    github: https://github.com/appsmithorg/appsmith
+    website: https://appsmith.com/
+image: appsmith/appsmith-ee:v1.94
+volumes:
+    - appsmith-data:/appsmith-stacks

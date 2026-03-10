@@ -2,7 +2,7 @@ kind: Template
 name: navidrome
 description: Modern music server and streamer compatible with Subsonic
 category: media
-icon: https://www.navidrome.org/images/logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/navidrome.svg
 image: deluan/navidrome:latest
 ports:
   - "4533"

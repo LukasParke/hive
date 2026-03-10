@@ -1,0 +1,35 @@
+kind: Template
+name: langflow
+description: 'Langflow is a low-code app builder for RAG and multi-agent AI applications. It''s Python-based and agnostic to any model, API, or database. '
+category: ai
+tags:
+    - ai
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/langflow.svg
+version: 1.1.1
+links:
+    docs: https://docs.langflow.org/
+    github: https://github.com/langflow-ai/langflow/tree/main
+    website: https://www.langflow.org/
+image: langflowai/langflow:v1.1.1
+ports:
+    - "7860"
+stack: true
+services:
+    - name: langflow
+      image: langflowai/langflow:v1.1.1
+      ports:
+        - "7860"
+      env:
+        LANGFLOW_DATABASE_URL: postgresql://:@postgres-langflow:5432/langflow
+      volumes:
+        - langflow-data:/app/langflow
+    - name: postgres-langflow
+      image: postgres:16
+      ports:
+        - "5432"
+      env:
+        POSTGRES_DB: langflow
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - langflow-postgres:/var/lib/postgresql/data

@@ -1,0 +1,33 @@
+kind: Template
+name: lavalink
+description: Lavalink is an open source standalone audio sending node based on Lavaplayer.
+category: voice
+tags:
+    - voice
+    - discord
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/lavalink.svg
+version: 4.1.1
+links:
+    docs: https://lavalink.dev/getting-started/index.html
+    github: https://github.com/lavalink-devs/Lavalink
+    website: https://lavalink.dev/
+image: ghcr.io/lavalink-devs/lavalink:4
+ports:
+    - ${SERVER_PORT}
+stack: true
+services:
+    - name: fix-perms
+      image: busybox:1.36
+      command: |
+        sh -c "mkdir -p /opt/Lavalink/plugins &&
+               chmod -R 0777 /opt/Lavalink/plugins || true &&
+               chown -R 1000:1000 /opt/Lavalink/plugins || true &&
+               echo perms-fixed && sleep 1"
+    - name: lavalink
+      image: ghcr.io/lavalink-devs/lavalink:4
+      ports:
+        - ${SERVER_PORT}
+      env:
+        _JAVA_OPTIONS: -Xmx6G
+        LAVALINK_SERVER_PASSWORD: youshallnotpass
+        SERVER_PORT: "2333"

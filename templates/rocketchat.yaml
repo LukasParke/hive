@@ -1,0 +1,38 @@
+kind: Template
+name: rocketchat
+description: Rocket.Chat is a free and open-source web chat platform that allows you to build and manage your own chat applications.
+category: communication
+tags:
+    - chat
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rocketchat.svg
+version: 6.9.2
+links:
+    docs: https://rocket.chat/docs/
+    github: https://github.com/RocketChat/Rocket.Chat
+    website: https://rocket.chat/
+image: docker.io/bitnami/mongodb:5.0
+stack: true
+services:
+    - name: mongodb
+      image: docker.io/bitnami/mongodb:5.0
+      env:
+        ALLOW_EMPTY_PASSWORD: "yes"
+        MONGODB_ADVERTISED_HOSTNAME: mongodb
+        MONGODB_ENABLE_JOURNAL: "true"
+        MONGODB_INITIAL_PRIMARY_HOST: mongodb
+        MONGODB_INITIAL_PRIMARY_PORT_NUMBER: "27017"
+        MONGODB_PORT_NUMBER: "27017"
+        MONGODB_REPLICA_SET_MODE: primary
+        MONGODB_REPLICA_SET_NAME: rs0
+      volumes:
+        - mongodb_data:/bitnami/mongodb
+    - name: rocketchat
+      image: registry.rocket.chat/rocketchat/rocket.chat:6.9.2
+      env:
+        DEPLOY_METHOD: docker
+        DEPLOY_PLATFORM: <nil>
+        MONGO_OPLOG_URL: mongodb://mongodb:27017/local?replicaSet=rs0
+        MONGO_URL: mongodb://mongodb:27017/rocketchat?replicaSet=rs0
+        PORT: ""
+        REG_TOKEN: <nil>
+        ROOT_URL: http://}

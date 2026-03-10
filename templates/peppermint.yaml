@@ -1,0 +1,32 @@
+kind: Template
+name: peppermint
+description: Peppermint is a modern, open-source API development platform that helps you build, test and document your APIs.
+category: development
+tags:
+    - api
+    - development
+    - documentation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/peppermint.svg
+version: latest
+links:
+    docs: https://docs.peppermint.sh/
+    github: https://github.com/Peppermint-Lab/peppermint
+    website: https://peppermint.sh/
+image: pepperlabs/peppermint:latest
+stack: true
+services:
+    - name: peppermint-app
+      image: pepperlabs/peppermint:latest
+      env:
+        DB_HOST: peppermint-postgres
+        DB_PASSWORD: ""
+        DB_USERNAME: peppermint
+        SECRET: ""
+    - name: peppermint-postgres
+      image: postgres:latest
+      env:
+        POSTGRES_DB: peppermint
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: peppermint
+      volumes:
+        - peppermint-postgres-data:/var/lib/postgresql/data

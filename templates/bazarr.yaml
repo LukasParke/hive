@@ -2,7 +2,7 @@ kind: Template
 name: bazarr
 description: Companion to Sonarr and Radarr for managing subtitles
 category: media
-icon: https://raw.githubusercontent.com/morpheus65535/bazarr/master/frontend/src/assets/icon.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/bazarr.svg
 image: lscr.io/linuxserver/bazarr:latest
 ports:
   - "6767"

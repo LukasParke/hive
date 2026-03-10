@@ -1,0 +1,23 @@
+kind: Template
+name: baikal
+description: Baikal is a lightweight, self-hosted CalDAV and CardDAV server that enables users to manage calendars and contacts efficiently. It provides a simple and effective solution for syncing and sharing events, tasks, and address books across multiple devices.
+category: productivity
+tags:
+    - calendar
+    - contacts
+    - caldav
+    - carddav
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/baikal.svg
+version: nginx-php8.2
+links:
+    docs: https://sabre.io/baikal/install/
+    github: https://sabre.io/baikal/
+    website: https://sabre.io/baikal/
+image: ckulka/baikal:nginx-php8.2
+ports:
+    - "80"
+volumes:
+    - config:/var/www/baikal/config
+    - data:/var/www/baikal/Specific
+env:
+    TZ: UTC

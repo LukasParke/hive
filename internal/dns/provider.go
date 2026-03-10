@@ -10,7 +10,7 @@ var registry = map[string]func(map[string]string) (Provider, error){}
 // Provider defines the interface for DNS providers (Cloudflare, Route53, etc.)
 type Provider interface {
 	CreateRecord(ctx context.Context, domain, recordType, value string, proxied bool) (externalID string, err error)
-	UpdateRecord(ctx context.Context, externalID, domain, value string) error
+	UpdateRecord(ctx context.Context, externalID, domain, recordType, value string, proxied bool) error
 	DeleteRecord(ctx context.Context, externalID string) error
 	ListRecords(ctx context.Context, domain string) ([]Record, error)
 }

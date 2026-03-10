@@ -1,0 +1,51 @@
+kind: Template
+name: habitica
+description: Habitica is a free habit and productivity app that treats your real life like a game. With in-game rewards and punishments to motivate you and a strong social network to inspire you, Habitica can help you achieve your goals to become healthy and hard-working.
+category: productivity
+tags:
+    - productivity
+    - gamification
+    - habits
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/habitica.svg
+version: latest
+links:
+    docs: https://habitica.fandom.com/wiki/Setting_up_Habitica_Locally
+    github: https://github.com/HabitRPG/habitica
+    website: https://habitica.com/
+image: docker.io/awinterstein/habitica-client:latest
+ports:
+    - "80"
+stack: true
+services:
+    - name: client
+      image: docker.io/awinterstein/habitica-client:latest
+      ports:
+        - "80"
+    - name: mongo
+      image: docker.io/mongo:latest
+      env:
+        MONGO_HABITICA_PASSWORD: ""
+        MONGO_HABITICA_USER: ""
+        MONGO_INITDB_ROOT_PASSWORD: ""
+        MONGO_INITDB_ROOT_USERNAME: ""
+        MONGO_KEYFILE_CONTENT: ""
+      volumes:
+        - habitica-mongo-data:/data/db
+      command: |
+        bash -c "
+          echo \"${MONGO_KEYFILE_CONTENT}\" > /etc/mongo-keyfile &&
+          chown 999:999 /etc/mongo-keyfile &&
+          chmod 400 /etc/mongo-keyfile &&
+          exec docker-entrypoint.sh mongod --replSet rs --bind_ip_all --port 27017 --keyFile /etc/mongo-keyfile
+        "
+    - name: server
+      image: docker.io/awinterstein/habitica-server:latest
+      env:
+        ADMIN_EMAIL: ""
+        EMAIL_SERVER_AUTH_PASSWORD: ""
+        EMAIL_SERVER_AUTH_USER: ""
+        EMAIL_SERVER_PORT: ""
+        EMAIL_SERVER_URL: ""
+        INVITE_ONLY: ""
+        NODE_DB_URI: mongodb://:@mongo/habitica?authSource=habitica

@@ -46,6 +46,11 @@ func (c *Client) RemoveService(ctx context.Context, serviceID string) error {
 	return c.docker.ServiceRemove(ctx, serviceID)
 }
 
+func (c *Client) UpdateServiceSpec(ctx context.Context, serviceID string, version swarm.Version, spec swarm.ServiceSpec) error {
+	_, err := c.docker.ServiceUpdate(ctx, serviceID, version, spec, swarm.ServiceUpdateOptions{})
+	return err
+}
+
 func (c *Client) GetService(ctx context.Context, name string) (*swarm.Service, error) {
 	services, err := c.docker.ServiceList(ctx, swarm.ServiceListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", name)),
@@ -103,4 +108,10 @@ func (c *Client) RollbackService(ctx context.Context, serviceID string) error {
 		return fmt.Errorf("rollback service: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) ServiceTasks(ctx context.Context, serviceID string) ([]swarm.Task, error) {
+	return c.docker.TaskList(ctx, swarm.TaskListOptions{
+		Filters: filters.NewArgs(filters.Arg("service", serviceID)),
+	})
 }

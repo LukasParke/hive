@@ -1,0 +1,50 @@
+kind: Template
+name: flagsmith
+description: Flagsmith is an open-source feature flagging and remote config service.
+category: feature-flag
+tags:
+    - feature-flag
+    - feature-management
+    - feature-toggle
+    - remote-configuration
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/flagsmith.svg
+version: 2.177.1
+links:
+    docs: https://docs.flagsmith.com/
+    github: https://github.com/Flagsmith/flagsmith
+    website: https://www.flagsmith.com/
+image: docker.flagsmith.com/flagsmith/flagsmith:2.177.1
+ports:
+    - "8000"
+stack: true
+services:
+    - name: flagsmith
+      image: docker.flagsmith.com/flagsmith/flagsmith:2.177.1
+      ports:
+        - "8000"
+      env:
+        DATABASE_URL: postgresql://postgres:@postgres:5432/flagsmith
+        DJANGO_ALLOWED_HOSTS: '*'
+        DJANGO_SECRET_KEY: ""
+        ENVIRONMENT: production
+        FLAGSMITH_DOMAIN: localhost:8000
+        PROMETHEUS_ENABLED: "true"
+        TASK_RUN_METHOD: TASK_PROCESSOR
+        USE_POSTGRES_FOR_ANALYTICS: "true"
+    - name: flagsmith-task-processor
+      image: docker.flagsmith.com/flagsmith/flagsmith:2.177.1
+      ports:
+        - "8000"
+      env:
+        DATABASE_URL: postgresql://postgres:@postgres:5432/flagsmith
+        DJANGO_ALLOWED_HOSTS: '*'
+        PROMETHEUS_ENABLED: "true"
+        USE_POSTGRES_FOR_ANALYTICS: "true"
+      command: run-task-processor
+    - name: postgres
+      image: postgres:15.5-alpine
+      env:
+        POSTGRES_DB: flagsmith
+        POSTGRES_PASSWORD: ""
+      volumes:
+        - pgdata:/var/lib/postgresql/data

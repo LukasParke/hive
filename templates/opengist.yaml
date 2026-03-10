@@ -1,0 +1,25 @@
+kind: Template
+name: opengist
+description: OpenGist is a self-hosted pastebin alternative.
+category: development
+tags:
+    - pastebin
+    - code
+    - snippets
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/opengist.svg
+version: "1"
+links:
+    docs: https://github.com/thomiceli/opengist
+    github: https://github.com/thomiceli/opengist
+    website: https://github.com/thomiceli/opengist
+image: ghcr.io/thomiceli/opengist:1
+ports:
+    - "6157"
+    - "2222"
+volumes:
+    - opengist-data:/opengist
+env:
+    GID: ""
+    OG_LOG_LEVEL: ""
+    UID: ""

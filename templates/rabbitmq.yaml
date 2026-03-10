@@ -1,0 +1,24 @@
+kind: Template
+name: rabbitmq
+description: RabbitMQ is an open source multi-protocol messaging broker.
+category: message-broker
+tags:
+    - message-broker
+    - queue
+    - rabbitmq
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rabbitmq.svg
+version: 4.1-management
+links:
+    docs: https://www.rabbitmq.com/documentation.html
+    github: https://github.com/rabbitmq/rabbitmq-server
+    website: https://www.rabbitmq.com/
+image: rabbitmq:4.1-management
+ports:
+    - "15672"
+    - "5672"
+volumes:
+    - rabbitmq-data:/var/lib/rabbitmq
+env:
+    RABBITMQ_DEFAULT_PASS: ""
+    RABBITMQ_DEFAULT_USER: ""
+    RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: '-rabbit log_levels [{connection,error},{default,error}] disk_free_limit '

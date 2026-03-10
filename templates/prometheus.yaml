@@ -1,0 +1,17 @@
+kind: Template
+name: prometheus
+description: Prometheus is an open-source monitoring and alerting toolkit designed for reliability and scalability.
+category: monitoring
+tags:
+    - monitoring
+    - alerting
+    - metrics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/prometheus.svg
+version: latest
+links:
+    docs: https://prometheus.io/docs/introduction/overview/
+    github: https://github.com/prometheus/prometheus
+    website: https://prometheus.io/
+image: prom/prometheus:latest
+volumes:
+    - prometheus-data:/prometheus

@@ -1,0 +1,22 @@
+kind: Template
+name: alltube
+description: AllTube Download is an application designed to facilitate the downloading of videos from YouTube and other video sites. It provides an HTML GUI for youtube-dl with video conversion capabilities and JSON API support.
+category: media
+tags:
+    - media
+    - video
+    - downloader
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/alltube.svg
+version: latest
+links:
+    docs: https://github.com/Rudloff/alltube/wiki
+    github: https://github.com/Rudloff/alltube
+    website: https://github.com/Rudloff/alltube
+image: dnomd343/alltube:latest
+ports:
+    - "80"
+env:
+    CONVERT: ""
+    REMUX: ""
+    STREAM: ""
+    TITLE: ""

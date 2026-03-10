@@ -1,0 +1,27 @@
+kind: Template
+name: autobase
+description: Autobase for PostgreSQL® is an open-source alternative to cloud-managed databases (self-hosted DBaaS).
+category: databases
+tags:
+    - database
+    - postgres
+    - automation
+    - self-hosted
+    - dbaas
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/autobase.svg
+version: 2.5.2
+links:
+    docs: https://autobase.tech/docs
+    github: https://github.com/vitabaks/autobase
+    website: https://autobase.tech/
+image: autobase/console:2.5.2
+ports:
+    - "80"
+    - "8080"
+volumes:
+    - console_postgres:/var/lib/postgresql
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /tmp/ansible:/tmp/ansible
+env:
+    PG_CONSOLE_API_URL: ""
+    PG_CONSOLE_AUTHORIZATION_TOKEN: ""

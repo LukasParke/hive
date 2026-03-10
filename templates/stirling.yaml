@@ -1,0 +1,25 @@
+kind: Template
+name: stirling
+description: A locally hosted one-stop shop for all your PDF needs
+category: pdf
+tags:
+    - pdf
+    - tools
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/stirling-pdf.svg
+version: 0.30.1
+links:
+    docs: https://docs.stirlingpdf.com/
+    github: https://github.com/Stirling-Tools/Stirling-PDF
+    website: https://www.stirlingpdf.com/
+image: docker.stirlingpdf.com/stirlingtools/stirling-pdf:latest
+ports:
+    - "8080"
+volumes:
+    - stirling_pdf_trainingdata:/usr/share/tessdata
+    - stirling_pdf_extraconfigs:/configs
+    - stirling_pdf_customfiles:/customFiles/
+    - stirling_pdf_logs:/logs/
+    - stirling_pdf_pipeline:/pipeline/
+env:
+    DOCKER_ENABLE_SECURITY: "false"
+    LANGS: en_GB

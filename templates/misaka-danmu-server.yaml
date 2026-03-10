@@ -1,0 +1,32 @@
+kind: Template
+name: misaka-danmu-server
+description: A self-hosted danmaku (bullet comments) server for live streaming and video platforms.
+category: media
+tags:
+    - streaming
+    - danmaku
+    - live
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/misaka-danmu-server.svg
+version: latest
+links:
+    docs: https://github.com/l429609201/misaka_danmu_server#readme
+    github: https://github.com/l429609201/misaka_danmu_server
+    website: https://github.com/l429609201/misaka_danmu_server
+image: l429609201/misaka_danmu_server:latest
+stack: true
+services:
+    - name: danmu-app
+      image: l429609201/misaka_danmu_server:latest
+      env:
+        PGID: "1000"
+        PUID: "1000"
+        TZ: Asia/Shanghai
+        UMASK: "0022"
+      volumes:
+        - danmu-config:/app/config
+    - name: postgres
+      image: postgres:18
+      env:
+        TZ: Asia/Shanghai
+      volumes:
+        - postgres-data:/var/lib/postgresql

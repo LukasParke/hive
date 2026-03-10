@@ -1,0 +1,41 @@
+kind: Template
+name: flowise
+description: Flowise is an open-source UI visual tool to build and run LLM-powered applications.
+category: automation
+tags:
+    - AI
+    - LLM
+    - workflow
+    - automation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/flowise.svg
+version: latest
+links:
+    docs: https://docs.flowiseai.com/
+    github: https://github.com/FlowiseAI/Flowise
+    website: https://flowiseai.com/
+image: flowiseai/flowise:latest
+stack: true
+services:
+    - name: flowise
+      image: flowiseai/flowise:latest
+      env:
+        DATABASE_PATH: /root/.flowise
+        EXPRESS_SESSION_SECRET: ""
+        JWT_AUTH_TOKEN_SECRET: ""
+        JWT_REFRESH_TOKEN_SECRET: ""
+        PORT: "3000"
+        REDIS_URL: redis://redis:6379
+      volumes:
+        - flowise_data:/root/.flowise
+    - name: flowise-worker
+      image: flowiseai/flowise-worker:latest
+      env:
+        DATABASE_PATH: /root/.flowise
+        REDIS_URL: redis://redis:6379
+        WORKER_PORT: "5566"
+      volumes:
+        - flowise_data:/root/.flowise
+    - name: redis
+      image: redis:alpine
+      volumes:
+        - redis_data:/data

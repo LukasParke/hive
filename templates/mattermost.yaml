@@ -1,0 +1,29 @@
+kind: Template
+name: mattermost
+description: A single point of collaboration. Designed specifically for digital operations.
+category: communication
+tags:
+    - chat
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mattermost.svg
+version: 10.6.1
+links:
+    docs: https://docs.mattermost.com/
+    github: https://github.com/mattermost/mattermost
+    website: https://mattermost.com/
+image: mattermost/mattermost-team-edition:10.6.1
+stack: true
+services:
+    - name: mattermost
+      image: mattermost/mattermost-team-edition:10.6.1
+      volumes:
+        - mattermostconf:/mattermost/config:rw
+        - mattermostdata:/mattermost/data:rw
+        - mattermostlogs:/mattermost/logs:rw
+        - mattermostplugsin:/mattermost/plugins:rw
+        - mattermostclientplugins:/mattermost/client/plugins:rw
+        - mattermostBleveIndexes:/mattermost/bleve-indexes:rw
+    - name: postgres
+      image: postgres:17
+      volumes:
+        - mattermostDbData:/var/lib/postgresql/data

@@ -1,0 +1,19 @@
+kind: Template
+name: gotenberg
+description: Gotenberg is a Docker-powered stateless API for PDF files.
+category: api
+tags:
+    - api
+    - backend
+    - pdf
+    - tools
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/gotenberg.svg
+version: latest
+links:
+    docs: https://gotenberg.dev/docs/getting-started/introduction
+    github: https://github.com/gotenberg/gotenberg
+    website: https://gotenberg.dev
+image: gotenberg/gotenberg:latest
+env:
+    GOTENBERG_API_BASIC_AUTH_PASSWORD: ""
+    GOTENBERG_API_BASIC_AUTH_USERNAME: ""

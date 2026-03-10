@@ -1,0 +1,23 @@
+kind: Template
+name: vault
+description: 'Vault is a tool for securely accessing secrets. A secret is anything that you want to tightly control access to, such as API keys, passwords, certificates, and more. Vault provides a unified interface to any secret, while providing tight access control and recording a detailed audit log. To sign in: In the Vault UI, select ''Token'' as the authentication method (not GitHub), then enter the root token from the VAULT_DEV_ROOT_TOKEN_ID environment variable (auto-generated).'
+category: security
+tags:
+    - security
+    - secrets
+    - devops
+    - infrastructure
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/vault.svg
+version: latest
+links:
+    docs: https://developer.hashicorp.com/vault/docs
+    github: https://github.com/hashicorp/vault
+    website: https://www.vaultproject.io/
+image: hashicorp/vault:latest
+ports:
+    - "8200"
+volumes:
+    - vault-data:/vault/file
+env:
+    VAULT_DEV_LISTEN_ADDRESS: ""
+    VAULT_DEV_ROOT_TOKEN_ID: ""

@@ -1,0 +1,24 @@
+kind: Template
+name: doublezero
+description: 00 is a self hostable SES dashboard for sending and monitoring emails with AWS
+category: communication
+tags:
+    - email
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/double-zero.svg
+version: v0.2.1
+links:
+    docs: https://github.com/technomancy-dev/00
+    github: https://github.com/technomancy-dev/00
+    website: https://www.double-zero.cloud/
+image: liltechnomancer/double-zero:0.2.1
+volumes:
+    - db-data:/var/lib/doublezero/data
+env:
+    AWS_ACCESS_KEY_ID: ""
+    AWS_REGION: ""
+    AWS_SECRET_ACCESS_KEY: ""
+    DATABASE_PATH: ./00.db
+    PHX_HOST: ""
+    SECRET_KEY_BASE: ""
+    SQS_URL: ""
+    SYSTEM_EMAIL: ""

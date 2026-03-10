@@ -1,0 +1,17 @@
+kind: Template
+name: onedev
+description: Git server with CI/CD, kanban, and packages. Seamless integration. Unparalleled experience.
+category: development
+tags:
+    - self-hosted
+    - development
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/onedev.svg
+version: 11.6.6
+links:
+    docs: https://docs.onedev.io/
+    github: https://github.com/theonedev/onedev/
+    website: https://onedev.io/
+image: 1dev/server:11.6.6
+volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - onedev-data:/opt/onedev

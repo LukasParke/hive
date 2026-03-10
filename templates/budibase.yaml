@@ -1,0 +1,94 @@
+kind: Template
+name: budibase
+description: Budibase is an open-source low-code platform that saves engineers 100s of hours building forms, portals, and approval apps, securely.
+category: databases
+tags:
+    - database
+    - low-code
+    - nocode
+    - applications
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/budibase.svg
+version: 3.23.47
+links:
+    docs: https://docs.budibase.com/docs/
+    github: https://github.com/Budibase/budibase
+    website: https://budibase.com/
+image: budibase/apps:3.23.47
+stack: true
+services:
+    - name: apps
+      image: budibase/apps:3.23.47
+      env:
+        API_ENCRYPTION_KEY: ""
+        BB_ADMIN_USER_EMAIL: ""
+        BB_ADMIN_USER_PASSWORD: ""
+        BUDIBASE_ENVIRONMENT: PRODUCTION
+        COUCH_DB_PASSWORD: ""
+        COUCH_DB_URL: http://budibase:@couchdb:5984
+        COUCH_DB_USERNAME: budibase
+        ENABLE_ANALYTICS: "true"
+        INTERNAL_API_KEY: ""
+        JWT_SECRET: ""
+        LOG_LEVEL: info
+        MINIO_ACCESS_KEY: ""
+        MINIO_SECRET_KEY: ""
+        MINIO_URL: http://minio:9000
+        PORT: "4002"
+        REDIS_PASSWORD: ""
+        REDIS_URL: redis:6379
+        SELF_HOSTED: "1"
+        WORKER_URL: http://worker:4003
+    - name: couchdb
+      image: budibase/couchdb:v3.3.3
+      env:
+        COUCHDB_PASSWORD: ""
+        COUCHDB_USER: budibase
+        TARGETBUILD: docker-compose
+      volumes:
+        - couchdb3_data:/opt/couchdb/data
+    - name: minio
+      image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+      env:
+        MINIO_BROWSER: "off"
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+      volumes:
+        - minio_data:/data
+      command: server /data --console-address ":9001"
+    - name: proxy
+      image: budibase/proxy:3.23.47
+      env:
+        APPS_UPSTREAM_URL: http://apps:4002
+        COUCHDB_UPSTREAM_URL: http://couchdb:5984
+        MINIO_UPSTREAM_URL: http://minio:9000
+        PROXY_RATE_LIMIT_API_PER_SECOND: "20"
+        PROXY_RATE_LIMIT_WEBHOOKS_PER_SECOND: "10"
+        RESOLVER: 127.0.0.11
+        WATCHTOWER_UPSTREAM_URL: http://watchtower:8080
+        WORKER_UPSTREAM_URL: http://worker:4003
+    - name: redis
+      image: redis:8.4-alpine
+      volumes:
+        - redis_data:/data
+      command: redis-server --requirepass "${BB_REDIS_PASSWORD}"
+    - name: worker
+      image: budibase/worker:3.23.47
+      env:
+        API_ENCRYPTION_KEY: ""
+        APPS_URL: http://apps:4002
+        BUDIBASE_ENVIRONMENT: PRODUCTION
+        CLUSTER_PORT: "10000"
+        COUCH_DB_PASSWORD: ""
+        COUCH_DB_URL: http://budibase:@couchdb:5984
+        COUCH_DB_USERNAME: budibase
+        ENABLE_ANALYTICS: "true"
+        INTERNAL_API_KEY: ""
+        JWT_SECRET: ""
+        LOG_LEVEL: info
+        MINIO_ACCESS_KEY: ""
+        MINIO_SECRET_KEY: ""
+        MINIO_URL: http://minio:9000
+        PORT: "4003"
+        REDIS_PASSWORD: ""
+        REDIS_URL: redis:6379
+        SELF_HOSTED: "1"

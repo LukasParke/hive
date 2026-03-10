@@ -16,39 +16,39 @@ type Project struct {
 }
 
 type App struct {
-	ID                   string    `json:"id"`
-	ProjectID            string    `json:"project_id"`
-	Name                 string    `json:"name"`
-	DeployType           string    `json:"deploy_type"` // "image", "git", "compose"
-	Image                string    `json:"image"`
-	GitRepo              string    `json:"git_repo"`
-	GitBranch            string    `json:"git_branch"`
-	DockerfilePath       string    `json:"dockerfile_path"`
-	Domain               string    `json:"domain"`
-	Port                 int       `json:"port"`
-	Replicas             int       `json:"replicas"`
-	EnvEncrypted         []byte    `json:"env_encrypted"`
-	Status               string    `json:"status"` // "pending", "deploying", "running", "stopped", "failed"
-	CPULimit             float64   `json:"cpu_limit"`
-	MemoryLimit          int64     `json:"memory_limit"`
-	HealthCheckPath      string    `json:"health_check_path"`
-	HealthCheckInterval  int       `json:"health_check_interval"`
+	ID                   string          `json:"id"`
+	ProjectID            string          `json:"project_id"`
+	Name                 string          `json:"name"`
+	DeployType           string          `json:"deploy_type"` // "image", "git", "compose"
+	Image                string          `json:"image"`
+	GitRepo              string          `json:"git_repo"`
+	GitBranch            string          `json:"git_branch"`
+	DockerfilePath       string          `json:"dockerfile_path"`
+	Domain               string          `json:"domain"`
+	Port                 int             `json:"port"`
+	Replicas             int             `json:"replicas"`
+	EnvEncrypted         []byte          `json:"env_encrypted"`
+	Status               string          `json:"status"` // "pending", "deploying", "running", "stopped", "failed"
+	CPULimit             float64         `json:"cpu_limit"`
+	MemoryLimit          int64           `json:"memory_limit"`
+	HealthCheckPath      string          `json:"health_check_path"`
+	HealthCheckInterval  int             `json:"health_check_interval"`
 	HomepageLabels       json.RawMessage `json:"homepage_labels"`
 	ExtraLabels          json.RawMessage `json:"extra_labels"`
 	PlacementConstraints json.RawMessage `json:"placement_constraints"`
 	PlacementPreferences json.RawMessage `json:"placement_preferences"`
-	UpdateStrategy       string    `json:"update_strategy"`
-	UpdateParallelism    int       `json:"update_parallelism"`
-	UpdateDelay          string    `json:"update_delay"`
-	UpdateFailureAction  string    `json:"update_failure_action"`
-	UpdateOrder          string    `json:"update_order"`
-	BuildCacheEnabled    bool      `json:"build_cache_enabled"`
-	AutoDeployBranch     string    `json:"auto_deploy_branch"`
-	PreviewEnvironments  bool      `json:"preview_environments"`
-	TemplateName         string    `json:"template_name"`
-	TemplateVersion      string    `json:"template_version"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	UpdateStrategy       string          `json:"update_strategy"`
+	UpdateParallelism    int             `json:"update_parallelism"`
+	UpdateDelay          string          `json:"update_delay"`
+	UpdateFailureAction  string          `json:"update_failure_action"`
+	UpdateOrder          string          `json:"update_order"`
+	BuildCacheEnabled    bool            `json:"build_cache_enabled"`
+	AutoDeployBranch     string          `json:"auto_deploy_branch"`
+	PreviewEnvironments  bool            `json:"preview_environments"`
+	TemplateName         string          `json:"template_name"`
+	TemplateVersion      string          `json:"template_version"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
 }
 
 type TemplateSource struct {
@@ -101,6 +101,9 @@ type ManagedDatabase struct {
 	Version             string    `json:"version"`
 	Status              string    `json:"status"`
 	ConnectionEncrypted []byte    `json:"connection_encrypted"`
+	StorageMode         string    `json:"storage_mode"`
+	StorageHostID       string    `json:"storage_host_id"`
+	NodeID              string    `json:"node_id"`
 	CreatedAt           time.Time `json:"created_at"`
 }
 
@@ -115,15 +118,34 @@ type GitSource struct {
 	CreatedAt              time.Time         `json:"created_at"`
 }
 
+type GitHubApp struct {
+	ID                    string    `json:"id"`
+	OrgID                 string    `json:"org_id"`
+	AppID                 int       `json:"app_id"`
+	AppSlug               string    `json:"app_slug"`
+	PemEncrypted          []byte    `json:"-"`
+	WebhookSecret         string    `json:"-"`
+	ClientID              string    `json:"client_id"`
+	ClientSecretEncrypted []byte    `json:"-"`
+	InstallationID        int64     `json:"installation_id"`
+	HTMLURL               string    `json:"html_url"`
+	CreatedAt             time.Time `json:"created_at"`
+}
+
 type BackupConfig struct {
-	ID         string    `json:"id"`
-	ResourceID string    `json:"resource_id"`
-	Schedule   string    `json:"schedule"`
-	S3Bucket   string    `json:"s3_bucket"`
-	S3Prefix   string    `json:"s3_prefix"`
-	BackupType string    `json:"backup_type"`
-	VolumeID   string    `json:"volume_id"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID            string    `json:"id"`
+	ResourceID    string    `json:"resource_id"`
+	Schedule      string    `json:"schedule"`
+	S3Bucket      string    `json:"s3_bucket"`
+	S3Prefix      string    `json:"s3_prefix"`
+	BackupType    string    `json:"backup_type"`
+	VolumeID      string    `json:"volume_id"`
+	Destination   string    `json:"destination"`
+	NASHostID     string    `json:"nas_host_id"`
+	NASPath       string    `json:"nas_path"`
+	LocalPath     string    `json:"local_path"`
+	RetentionDays int       `json:"retention_days"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type BackupRun struct {
@@ -158,41 +180,41 @@ type Secret struct {
 }
 
 type Volume struct {
-	ID            string    `json:"id"`
-	ProjectID     string    `json:"project_id"`
-	Name          string    `json:"name"`
-	Driver        string    `json:"driver"`
+	ID            string          `json:"id"`
+	ProjectID     string          `json:"project_id"`
+	Name          string          `json:"name"`
+	Driver        string          `json:"driver"`
 	DriverOpts    json.RawMessage `json:"driver_opts"`
 	Labels        json.RawMessage `json:"labels"`
-	MountType     string    `json:"mount_type"`
-	RemoteHost    string    `json:"remote_host"`
-	RemotePath    string    `json:"remote_path"`
-	MountOptions  string    `json:"mount_options"`
-	Scope         string    `json:"scope"`
-	Status        string    `json:"status"`
-	StorageHostID string    `json:"storage_host_id"`
-	LocalPath     string    `json:"local_path"`
-	CephPool      string    `json:"ceph_pool"`
-	CephImage     string    `json:"ceph_image"`
-	CephFSName    string    `json:"ceph_fs_name"`
-	CreatedAt     time.Time `json:"created_at"`
+	MountType     string          `json:"mount_type"`
+	RemoteHost    string          `json:"remote_host"`
+	RemotePath    string          `json:"remote_path"`
+	MountOptions  string          `json:"mount_options"`
+	Scope         string          `json:"scope"`
+	Status        string          `json:"status"`
+	StorageHostID string          `json:"storage_host_id"`
+	LocalPath     string          `json:"local_path"`
+	CephPool      string          `json:"ceph_pool"`
+	CephImage     string          `json:"ceph_image"`
+	CephFSName    string          `json:"ceph_fs_name"`
+	CreatedAt     time.Time       `json:"created_at"`
 }
 
 type StorageHost struct {
-	ID                  string    `json:"id"`
-	Name                string    `json:"name"`
-	NodeID              string    `json:"node_id"`
-	Address             string    `json:"address"`
-	Type                string    `json:"type"`
-	DefaultExportPath   string    `json:"default_export_path"`
-	DefaultMountType    string    `json:"default_mount_type"`
-	MountOptionsDefault string    `json:"mount_options_default"`
-	CredentialsEncrypted []byte   `json:"-"`
-	Capabilities        json.RawMessage `json:"capabilities"`
-	NodeLabel           string    `json:"node_label"`
-	Status              string    `json:"status"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                   string          `json:"id"`
+	Name                 string          `json:"name"`
+	NodeID               string          `json:"node_id"`
+	Address              string          `json:"address"`
+	Type                 string          `json:"type"`
+	DefaultExportPath    string          `json:"default_export_path"`
+	DefaultMountType     string          `json:"default_mount_type"`
+	MountOptionsDefault  string          `json:"mount_options_default"`
+	CredentialsEncrypted []byte          `json:"-"`
+	Capabilities         json.RawMessage `json:"capabilities"`
+	NodeLabel            string          `json:"node_label"`
+	Status               string          `json:"status"`
+	CreatedAt            time.Time       `json:"created_at"`
+	UpdatedAt            time.Time       `json:"updated_at"`
 }
 
 type NodeMetricsSnapshot struct {
@@ -238,19 +260,19 @@ type NotificationEvent struct {
 }
 
 type ProxyRoute struct {
-	ID               string    `json:"id"`
-	ProjectID        string    `json:"project_id"`
-	Name             string    `json:"name"`
-	Domain           string    `json:"domain"`
-	TargetService    string    `json:"target_service"`
-	TargetPort       int       `json:"target_port"`
-	Protocol         string    `json:"protocol"`
-	UpstreamPort     *int      `json:"upstream_port"`
-	SSLMode          string    `json:"ssl_mode"`
-	CustomCertID     string    `json:"custom_cert_id"`
+	ID               string          `json:"id"`
+	ProjectID        string          `json:"project_id"`
+	Name             string          `json:"name"`
+	Domain           string          `json:"domain"`
+	TargetService    string          `json:"target_service"`
+	TargetPort       int             `json:"target_port"`
+	Protocol         string          `json:"protocol"`
+	UpstreamPort     *int            `json:"upstream_port"`
+	SSLMode          string          `json:"ssl_mode"`
+	CustomCertID     string          `json:"custom_cert_id"`
 	MiddlewareConfig json.RawMessage `json:"middleware_config"`
-	Enabled          bool      `json:"enabled"`
-	CreatedAt        time.Time `json:"created_at"`
+	Enabled          bool            `json:"enabled"`
+	CreatedAt        time.Time       `json:"created_at"`
 }
 
 type CustomCertificate struct {
@@ -273,6 +295,7 @@ type Stack struct {
 	ID             string    `json:"id"`
 	ProjectID      string    `json:"project_id"`
 	Name           string    `json:"name"`
+	Domain         string    `json:"domain"`
 	ComposeContent string    `json:"compose_content"`
 	Status         string    `json:"status"`
 	CreatedAt      time.Time `json:"created_at"`
@@ -344,13 +367,13 @@ type OrgRole struct {
 }
 
 type MaintenanceTask struct {
-	ID         string       `json:"id"`
-	OrgID      string       `json:"org_id"`
-	Type       string       `json:"type"`
-	Schedule   string       `json:"schedule"`
-	Enabled    bool         `json:"enabled"`
-	LastRunAt  sql.NullTime `json:"last_run_at"`
-	LastStatus string       `json:"last_status"`
+	ID         string          `json:"id"`
+	OrgID      string          `json:"org_id"`
+	Type       string          `json:"type"`
+	Schedule   string          `json:"schedule"`
+	Enabled    bool            `json:"enabled"`
+	LastRunAt  sql.NullTime    `json:"last_run_at"`
+	LastStatus string          `json:"last_status"`
 	Config     json.RawMessage `json:"config"`
 	CreatedAt  time.Time       `json:"created_at"`
 }
@@ -436,4 +459,63 @@ type LogForwardConfig struct {
 	ConfigEncrypted []byte    `json:"-"`
 	Enabled         bool      `json:"enabled"`
 	CreatedAt       time.Time `json:"created_at"`
+}
+
+type NodeUpdateStatus struct {
+	ID              string          `json:"id"`
+	NodeID          string          `json:"node_id"`
+	Hostname        string          `json:"hostname"`
+	OSInfo          string          `json:"os_info"`
+	KernelVersion   string          `json:"kernel_version"`
+	PackageManager  string          `json:"package_manager"`
+	PendingCount    int             `json:"pending_count"`
+	SecurityCount   int             `json:"security_count"`
+	RebootRequired  bool            `json:"reboot_required"`
+	PendingPackages json.RawMessage `json:"pending_packages"`
+	LastCheckedAt   time.Time       `json:"last_checked_at"`
+}
+
+type ServiceUpdateStatus struct {
+	ID              string    `json:"id"`
+	AppID           string    `json:"app_id"`
+	StackID         string    `json:"stack_id"`
+	ServiceName     string    `json:"service_name"`
+	CurrentImage    string    `json:"current_image"`
+	CurrentDigest   string    `json:"current_digest"`
+	LatestDigest    string    `json:"latest_digest"`
+	LatestVersion   string    `json:"latest_version"`
+	UpdateAvailable bool      `json:"update_available"`
+	LastCheckedAt   time.Time `json:"last_checked_at"`
+}
+
+type UpdateEvent struct {
+	ID              string       `json:"id"`
+	EventType       string       `json:"event_type"`
+	TargetType      string       `json:"target_type"`
+	TargetID        string       `json:"target_id"`
+	TargetName      string       `json:"target_name"`
+	PreviousVersion string       `json:"previous_version"`
+	NewVersion      string       `json:"new_version"`
+	Status          string       `json:"status"`
+	Details         string       `json:"details"`
+	TriggeredBy     string       `json:"triggered_by"`
+	StartedAt       time.Time    `json:"started_at"`
+	FinishedAt      sql.NullTime `json:"finished_at"`
+}
+
+type UpdatePolicy struct {
+	ID                     string    `json:"id"`
+	OrgID                  string    `json:"org_id"`
+	TargetType             string    `json:"target_type"`
+	TargetID               string    `json:"target_id"`
+	AutoUpdate             bool      `json:"auto_update"`
+	AutoRestart            bool      `json:"auto_restart"`
+	MaintenanceWindowStart string    `json:"maintenance_window_start"`
+	MaintenanceWindowEnd   string    `json:"maintenance_window_end"`
+	MaintenanceWindowDays  string    `json:"maintenance_window_days"`
+	SecurityOnly           bool      `json:"security_only"`
+	PreUpdateBackup        bool      `json:"pre_update_backup"`
+	NotifyOnUpdate         bool      `json:"notify_on_update"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }

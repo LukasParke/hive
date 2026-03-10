@@ -1,0 +1,33 @@
+kind: Template
+name: calcom
+description: Calcom is a open source alternative to Calendly that allows to create scheduling and booking services.
+category: scheduling
+tags:
+    - scheduling
+    - booking
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/calcom.svg
+version: v2.7.6
+links:
+    docs: https://cal.com/docs
+    github: https://github.com/calcom/cal.com
+    website: https://cal.com/
+image: calcom/cal.com:v2.7.6
+stack: true
+services:
+    - name: calcom
+      image: calcom/cal.com:v2.7.6
+      env:
+        CALENDSO_ENCRYPTION_KEY: ""
+        DATABASE_URL: postgres://postgres:password@postgres:5432/db
+        NEXT_PUBLIC_WEBAPP_URL: http://
+        NEXTAUTH_SECRET: ""
+        NEXTAUTH_URL: http:///api/auth
+    - name: postgres
+      image: postgres:16-alpine
+      env:
+        DATABASE_URL: postgres://postgres:password@postgres:5432/db
+        POSTGRES_DB: db
+        POSTGRES_PASSWORD: password
+        POSTGRES_USER: postgres
+      volumes:
+        - calcom-data:/var/lib/postgresql/data

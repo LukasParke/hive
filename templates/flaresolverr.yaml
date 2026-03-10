@@ -1,0 +1,18 @@
+kind: Template
+name: flaresolverr
+description: FlareSolverr is a proxy server to bypass Cloudflare and DDoS-GUARD protection.
+category: networking
+tags:
+    - proxy
+    - cloudflare
+    - bypass
+    - ddos-guard
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/flaresolverr.svg
+version: latest
+links:
+    docs: https://github.com/FlareSolverr/FlareSolverr
+    github: https://github.com/FlareSolverr/FlareSolverr
+    website: https://github.com/FlareSolverr/FlareSolverr
+image: ghcr.io/flaresolverr/flaresolverr:latest
+ports:
+    - "8191"

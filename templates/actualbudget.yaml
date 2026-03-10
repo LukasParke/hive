@@ -1,0 +1,19 @@
+kind: Template
+name: actualbudget
+description: A super fast and privacy-focused app for managing your finances.
+category: finance
+tags:
+    - budgeting
+    - finance
+    - money
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/actual-budget.svg
+version: latest
+links:
+    docs: https://actualbudget.org/docs
+    github: https://github.com/actualbudget/actual
+    website: https://actualbudget.org
+image: docker.io/actualbudget/actual-server:latest
+volumes:
+    - actual-data:/data
+env:
+    ACTUAL_PORT: "5006"

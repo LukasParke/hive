@@ -1,0 +1,17 @@
+kind: Template
+name: poke
+description: Poke is an open-source, self-hosted alternative to YouTube. A privacy-focused video platform that allows you to watch and share videos without tracking.
+category: media
+tags:
+    - video
+    - youtube-alternative
+    - self-hosted
+    - privacy
+    - streaming
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/poke.svg
+version: latest
+links:
+    docs: https://codeberg.org/ashley/poke
+    github: https://codeberg.org/ashley/poke
+    website: https://poketube.fun/
+image: codeberg.org/poketube/poke:amd64

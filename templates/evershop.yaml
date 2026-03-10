@@ -1,0 +1,38 @@
+kind: Template
+name: evershop
+description: Your All-in-One open source ecommerce solution.
+category: e-commerce
+tags:
+    - E-Commerce
+    - shopping
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/evershop.svg
+version: latest
+links:
+    docs: https://evershop.io/docs/development/getting-started/introduction
+    github: https://github.com/evershopcommerce/evershop
+    website: https://evershop.io/
+image: postgres:16
+ports:
+    - ${DB_PORT}
+stack: true
+services:
+    - name: database
+      image: postgres:16
+      ports:
+        - ${DB_PORT}
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres-data:/var/lib/postgresql/data
+    - name: evershop-app
+      image: evershop/evershop:latest
+      ports:
+        - "3000"
+      env:
+        DB_HOST: database
+        DB_NAME: ""
+        DB_PASSWORD: ""
+        DB_PORT: ""
+        DB_USER: ""

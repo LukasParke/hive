@@ -1,0 +1,38 @@
+kind: Template
+name: cloudreve
+description: Self-hosted file management and sharing system with multi-cloud storage support. Compatible with local, OneDrive, S3, and various cloud providers.
+category: storage
+tags:
+    - storage
+    - file-sharing
+    - cloud
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cloudreve.svg
+version: 4.10.1
+links:
+    docs: https://docs.cloudreve.org
+    github: https://github.com/cloudreve/Cloudreve
+    website: https://cloudreve.org
+image: cloudreve/cloudreve:4.10.1
+stack: true
+services:
+    - name: cloudreve
+      image: cloudreve/cloudreve:4.10.1
+      env:
+        CR_CONF_Database.Host: postgresql
+        CR_CONF_Database.Name: ""
+        CR_CONF_Database.Password: ""
+        CR_CONF_Database.Port: "5432"
+        CR_CONF_Database.Type: postgres
+        CR_CONF_Database.User: ""
+        CR_CONF_Redis.Server: redis:6379
+      volumes:
+        - cloudreve_data:/cloudreve/data
+    - name: postgresql
+      image: postgres:17
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+    - name: redis
+      image: redis:8.4.0
+      volumes:
+        - redis_data:/data

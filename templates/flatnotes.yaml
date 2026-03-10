@@ -1,0 +1,33 @@
+kind: Template
+name: flatnotes
+description: A self-hosted, modern note-taking web app that saves your notes as plain text Markdown files.
+category: productivity
+tags:
+    - notes
+    - productivity
+    - markdown
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/flatnotes.svg
+version: latest
+links:
+    docs: https://github.com/dullage/flatnotes
+    github: https://github.com/dullage/flatnotes
+    website: https://flatnotes.io
+image: dullage/flatnotes:latest
+volumes:
+    - flatnotes-data:/data
+env:
+    FLATNOTES_AUTH_TYPE: ""
+    FLATNOTES_PASSWORD: ""
+    FLATNOTES_PATH_PREFIX: ""
+    FLATNOTES_QUICK_ACCESS_HIDE: ""
+    FLATNOTES_QUICK_ACCESS_LIMIT: ""
+    FLATNOTES_QUICK_ACCESS_SORT: ""
+    FLATNOTES_QUICK_ACCESS_TERM: ""
+    FLATNOTES_QUICK_ACCESS_TITLE: ""
+    FLATNOTES_SECRET_KEY: ""
+    FLATNOTES_SESSION_EXPIRY_DAYS: ""
+    FLATNOTES_TOTP_KEY: ""
+    FLATNOTES_USERNAME: ""
+    PGID: ""
+    PUID: ""

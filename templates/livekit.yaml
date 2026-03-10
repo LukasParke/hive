@@ -1,0 +1,43 @@
+kind: Template
+name: livekit
+description: LiveKit is an open source platform for developers building realtime media applications.
+category: media
+tags:
+    - Video
+    - Audio
+    - Real-time
+    - Streaming
+    - Webrtc
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/livekit.svg
+version: v1.9.0
+links:
+    docs: https://docs.livekit.io/
+    github: https://github.com/livekit/livekit
+    website: https://livekit.io/
+image: livekit/ingress:latest
+ports:
+    - ${RTMP_PORT}
+    - ${INGRESS_UDP_PORT}
+stack: true
+services:
+    - name: egress
+      image: livekit/egress:latest
+      env:
+        EGRESS_CONFIG_FILE: /etc/egress.yaml
+    - name: ingress
+      image: livekit/ingress:latest
+      ports:
+        - ${RTMP_PORT}
+        - ${INGRESS_UDP_PORT}
+      env:
+        INGRESS_CONFIG_FILE: /etc/ingress.yaml
+    - name: livekit
+      image: livekit/livekit-server:v1.9.0
+      ports:
+        - ${LIVEKIT_PORT}
+        - ${TURN_UDP_PORT}
+        - ${LIVEKIT_UDP_PORT}
+      command: --config /etc/livekit.yaml
+    - name: redis
+      image: redis:7-alpine
+      command: redis-server /etc/redis.conf

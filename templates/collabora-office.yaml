@@ -1,0 +1,22 @@
+kind: Template
+name: collabora-office
+description: Collabora Online is a powerful, flexible, and secure online office suite designed to break free from vendor lock-in and put you in full control of your documents.
+category: productivity
+tags:
+    - office
+    - documents
+    - collaboration
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/collabora-office.svg
+version: latest
+links:
+    docs: https://sdk.collaboraonline.com/docs
+    github: https://github.com/CollaboraOnline
+    website: https://collaboraonline.com
+image: collabora/code:latest
+ports:
+    - "9980"
+env:
+    domain: ""
+    extra_params: --o:ssl.enable=false
+    password: ""
+    username: ""

@@ -1,0 +1,27 @@
+kind: Template
+name: fivem
+description: A modded GTA V multiplayer server with optional txAdmin web interface for easy server management.
+category: gaming
+tags:
+    - gaming
+    - gta
+    - multiplayer
+    - server
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/fivem-server.svg
+version: latest
+links:
+    docs: https://docs.fivem.net/docs/server-manual/
+    github: https://github.com/spritsail/fivem
+    website: https://fivem.net/
+image: spritsail/fivem:latest
+ports:
+    - "30120"
+    - "30120"
+    - "40120"
+volumes:
+    - fivem_config:/config
+    - fivem_txdata:/txData
+env:
+    LICENSE_KEY: ""
+    NO_DEFAULT_CONFIG: ""
+    RCON_PASSWORD: ""

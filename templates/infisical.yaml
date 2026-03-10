@@ -1,0 +1,41 @@
+kind: Template
+name: infisical
+description: All-in-one platform to securely manage application configuration and secrets across your team and infrastructure.
+category: self-hosted
+tags:
+    - self-hosted
+    - open-source
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/infisical.svg
+version: 0.135.0
+links:
+    docs: https://infisical.com/docs/documentation/getting-started/introduction
+    github: https://github.com/Infisical/infisical
+    website: https://infisical.com/
+image: infisical/infisical:v0.135.0-postgres
+stack: true
+services:
+    - name: backend
+      image: infisical/infisical:v0.135.0-postgres
+      env:
+        DB_CONNECTION_URI: postgres://:@db:5432/
+        NODE_ENV: production
+        REDIS_URL: redis://redis:6379
+        SMTP_SECURE: "true"
+    - name: db
+      image: postgres:14-alpine
+      volumes:
+        - pg_infisical_data:/var/lib/postgresql/data
+    - name: db-migration
+      image: infisical/infisical:v0.135.0-postgres
+      env:
+        DB_CONNECTION_URI: postgres://:@db:5432/
+        NODE_ENV: production
+        REDIS_URL: redis://redis:6379
+        SMTP_SECURE: "true"
+      command: npm run migration:latest
+    - name: redis
+      image: redis:7.4.1
+      env:
+        ALLOW_EMPTY_PASSWORD: "yes"
+      volumes:
+        - redis_infisical_data:/data

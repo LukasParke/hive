@@ -1,0 +1,29 @@
+kind: Template
+name: wg-easy
+description: WG-Easy is a simple and user-friendly WireGuard VPN server with a web interface for easy management.
+category: networking
+tags:
+    - vpn
+    - wireguard
+    - networking
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/wg-easy.svg
+version: "15"
+links:
+    docs: https://github.com/wg-easy/wg-easy/wiki
+    github: https://github.com/wg-easy/wg-easy
+    website: https://wg-easy.github.io/
+image: ghcr.io/wg-easy/wg-easy:15
+ports:
+    - "51820"
+    - "51821"
+volumes:
+    - etc_wireguard:/etc/wireguard
+    - /lib/modules:/lib/modules:ro
+env:
+    INIT_DNS: 1.1.1.1,8.8.8.8
+    INIT_ENABLED: "1"
+    INIT_HOST: ""
+    INIT_PASSWORD: ""
+    INIT_PORT: "51820"
+    INIT_USERNAME: admin
+    PORT: "51821"

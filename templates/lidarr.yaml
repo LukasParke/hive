@@ -2,7 +2,7 @@ kind: Template
 name: lidarr
 description: Music collection manager for Usenet and BitTorrent users
 category: media
-icon: https://raw.githubusercontent.com/Lidarr/Lidarr/develop/Logo/128.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/lidarr.svg
 image: lscr.io/linuxserver/lidarr:latest
 ports:
   - "8686"

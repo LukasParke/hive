@@ -1,0 +1,18 @@
+kind: Template
+name: dragonfly-db
+description: Dragonfly is a drop-in Redis replacement that is designed for heavy data workloads running on modern cloud hardware.
+category: databases
+tags:
+    - database
+    - redis
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dragonfly.svg
+version: 1.28.1
+links:
+    docs: https://www.dragonflydb.io/docs
+    github: https://github.com/dragonflydb/dragonfly
+    website: https://www.dragonflydb.io/
+image: docker.dragonflydb.io/dragonflydb/dragonfly
+ports:
+    - "6379"
+volumes:
+    - dragonflydata:/data

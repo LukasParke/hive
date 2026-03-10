@@ -1,0 +1,23 @@
+kind: Template
+name: homeassistant
+description: Open source home automation that puts local control and privacy first.
+category: home-automation
+tags:
+    - iot
+    - home-automation
+    - internet-of-things
+    - self-hosted
+    - server
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/home-assistant.svg
+version: stable
+links:
+    docs: https://www.home-assistant.io/getting-started/onboarding/
+    github: https://github.com/home-assistant/core
+    website: https://www.home-assistant.io/
+image: ghcr.io/home-assistant/home-assistant:stable
+ports:
+    - "8123"
+volumes:
+    - /opt/homeassistant:/config
+    - /etc/localtime:/etc/localtime:ro
+    - /run/dbus:/run/dbus:ro

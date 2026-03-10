@@ -2,7 +2,7 @@ kind: Template
 name: kavita
 description: Fast, feature-rich, cross-platform reading server for comics, manga, and books
 category: media
-icon: https://www.kavitareader.com/img/logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kavita.svg
 image: jvmilazz0/kavita:latest
 ports:
   - "5000"

@@ -1,0 +1,18 @@
+kind: Template
+name: web-check
+description: Web-Check is a powerful all-in-one website analyzer that provides detailed insights into any website's security, performance, and functionality.
+category: security
+tags:
+    - website-analyzer
+    - security
+    - performance
+    - seo
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/web-check.svg
+version: latest
+links:
+    docs: https://github.com/lissy93/web-check
+    github: https://github.com/lissy93/web-check
+    website: https://github.com/lissy93/web-check
+image: lissy93/web-check
+ports:
+    - "3000"

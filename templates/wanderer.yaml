@@ -1,0 +1,51 @@
+kind: Template
+name: wanderer
+description: Wanderer is a self-hosted mapping and geolocation platform powered by Meilisearch, PocketBase, and a web frontend.
+category: search
+tags:
+    - mapping
+    - geolocation
+    - search
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/wanderer.svg
+version: 1.0.0
+links:
+    docs: https://github.com/flomp/wanderer#readme
+    github: https://github.com/flomp/wanderer
+    website: https://wanderer.app
+image: flomp/wanderer-db
+stack: true
+services:
+    - name: db
+      image: flomp/wanderer-db
+      env:
+        MEILI_MASTER_KEY: ""
+        MEILI_URL: http://search:7700
+        ORIGIN: ""
+        POCKETBASE_ENCRYPTION_KEY: ""
+      volumes:
+        - db-data:/pb_data
+    - name: search
+      image: getmeili/meilisearch:v1.11.3
+      env:
+        MEILI_MASTER_KEY: ""
+        MEILI_NO_ANALYTICS: "true"
+        MEILI_URL: http://search:7700
+      volumes:
+        - search-data:/meili_data/data.ms
+    - name: web
+      image: flomp/wanderer-web
+      env:
+        BODY_SIZE_LIMIT: Infinity
+        MEILI_MASTER_KEY: ""
+        MEILI_URL: http://search:7700
+        ORIGIN: ""
+        PUBLIC_DISABLE_SIGNUP: "false"
+        PUBLIC_NOMINATIM_URL: https://nominatim.openstreetmap.org
+        PUBLIC_POCKETBASE_URL: http://db:8090
+        PUBLIC_VALHALLA_URL: https://valhalla1.openstreetmap.de
+        UPLOAD_FOLDER: /app/uploads
+        UPLOAD_PASSWORD: ""
+        UPLOAD_USER: ""
+      volumes:
+        - uploads:/app/uploads

@@ -1,0 +1,19 @@
+kind: Template
+name: scrypted
+description: Scrypted is a home automation platform that integrates with various smart home devices and provides NVR capabilities for video surveillance.
+category: home-automation
+tags:
+    - home-automation
+    - nvr
+    - smart-home
+    - surveillance
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/scrypted.svg
+version: latest
+links:
+    docs: https://docs.scrypted.app/
+    github: https://github.com/koush/scrypted
+    website: https://www.scrypted.app/
+image: ghcr.io/koush/scrypted:latest
+env:
+    SCRYPTED_WEBHOOK_UPDATE: http://:10444/v1/update
+    SCRYPTED_WEBHOOK_UPDATE_AUTHORIZATION: ""

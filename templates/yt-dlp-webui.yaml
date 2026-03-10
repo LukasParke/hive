@@ -1,0 +1,21 @@
+kind: Template
+name: yt-dlp-webui
+description: yt-dlp-webui is a web interface for yt-dlp, allowing you to download videos and audio from various platforms with a simple web UI.
+category: media
+tags:
+    - downloader
+    - youtube
+    - media
+    - webui
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/yt-dlp-webui.svg
+version: latest
+links:
+    docs: https://github.com/marcopiovanello/yt-dlp-web-ui
+    github: https://github.com/marcopiovanello/yt-dlp-web-ui
+    website: https://github.com/marcopiovanello/yt-dlp-web-ui
+image: marcobaobao/yt-dlp-webui
+ports:
+    - "3033"
+volumes:
+    - downloads:/downloads
+    - config:/config

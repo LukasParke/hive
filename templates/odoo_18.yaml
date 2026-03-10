@@ -1,0 +1,31 @@
+kind: Template
+name: odoo_18
+description: Odoo is a free and open source business management software that helps you manage your company's operations.
+category: erp
+tags:
+    - erp
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/odoo.svg
+version: "18.0"
+links:
+    docs: https://www.odoo.com/documentation/
+    github: https://github.com/odoo/odoo
+    website: https://odoo.com/
+image: postgres:17
+stack: true
+services:
+    - name: db
+      image: postgres:17
+      env:
+        POSTGRES_DB: postgres
+        POSTGRES_PASSWORD: odoo
+        POSTGRES_USER: odoo
+      volumes:
+        - odoo-db-data:/var/lib/postgresql/data
+    - name: web
+      image: odoo:18.0
+      env:
+        HOST: db
+        PASSWORD: odoo
+        USER: odoo
+      volumes:
+        - odoo-web-data:/var/lib/odoo

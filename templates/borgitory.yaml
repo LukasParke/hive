@@ -1,0 +1,20 @@
+kind: Template
+name: borgitory
+description: A web interface for managing BorgBackup archives. Allows browsing, mounting (via FUSE), and handling backup repositories.
+category: backup
+tags:
+    - backup
+    - borg
+    - archive
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/borgitory.svg
+version: latest
+links:
+    docs: https://github.com/mlapaglia/borgitory
+    github: https://github.com/mlapaglia/borgitory
+    website: https://github.com/mlapaglia/borgitory
+image: mlapaglia/borgitory:latest
+volumes:
+    - borgitory-data:/app/data
+    - borgitory-sources:/mnt/sources:ro
+    - borgitory-repos:/mnt/repos:ro

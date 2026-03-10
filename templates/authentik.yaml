@@ -1,0 +1,62 @@
+kind: Template
+name: authentik
+description: Authentik is an open-source Identity Provider for authentication and authorization. It provides a comprehensive solution for managing user authentication, authorization, and identity federation with support for SAML, OAuth2, OIDC, and more.
+category: security
+tags:
+    - authentication
+    - identity
+    - sso
+    - oidc
+    - saml
+    - oauth2
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/authentik.svg
+version: 2025.6.3
+links:
+    docs: https://goauthentik.io/docs/
+    github: https://github.com/goauthentik/authentik
+    website: https://goauthentik.io/
+image: docker.io/library/postgres:16-alpine
+stack: true
+services:
+    - name: postgresql
+      image: docker.io/library/postgres:16-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - database:/var/lib/postgresql/data
+    - name: redis
+      image: docker.io/library/redis:alpine
+      volumes:
+        - redis:/data
+      command: --save 60 1 --loglevel warning
+    - name: server
+      image: ghcr.io/goauthentik/server:2025.6.3
+      env:
+        AUTHENTIK_POSTGRESQL__HOST: postgresql
+        AUTHENTIK_POSTGRESQL__NAME: ""
+        AUTHENTIK_POSTGRESQL__PASSWORD: ""
+        AUTHENTIK_POSTGRESQL__USER: ""
+        AUTHENTIK_REDIS__HOST: redis
+        AUTHENTIK_SECRET_KEY: ""
+      volumes:
+        - media:/media
+        - custom-templates:/templates
+      command: server
+    - name: worker
+      image: ghcr.io/goauthentik/server:2025.6.3
+      env:
+        AUTHENTIK_POSTGRESQL__HOST: postgresql
+        AUTHENTIK_POSTGRESQL__NAME: ""
+        AUTHENTIK_POSTGRESQL__PASSWORD: ""
+        AUTHENTIK_POSTGRESQL__USER: ""
+        AUTHENTIK_REDIS__HOST: redis
+        AUTHENTIK_SECRET_KEY: ""
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - media:/media
+        - certs:/certs
+        - custom-templates:/templates
+      command: worker

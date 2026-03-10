@@ -1,0 +1,11 @@
+.git
+bin/
+ui/node_modules
+ui/.svelte-kit
+ui/build
+ui/dist
+*.out
+coverage.*
+deploy.env
+.cursor/
+.env

@@ -1,0 +1,30 @@
+kind: Template
+name: rutorrent
+description: ruTorrent + rTorrent BitTorrent client (crazy-max image). Web UI on 8080, XMLRPC on 8000, with P2P ports exposed for seeding.
+category: media
+tags:
+    - torrent
+    - rtorrent
+    - webui
+    - downloader
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rutorrent.svg
+version: latest
+links:
+    docs: https://github.com/crazy-max/docker-rtorrent-rutorrent
+    github: https://github.com/crazy-max/docker-rtorrent-rutorrent
+    website: https://crazymax.dev/
+image: crazymax/rtorrent-rutorrent:latest
+ports:
+    - "50000"
+    - "6881"
+volumes:
+    - rutorrent-data:/data
+    - rutorrent-downloads:/downloads
+    - rutorrent-passwd:/passwd
+env:
+    PGID: "1000"
+    PUID: "1000"
+    RT_DHT_PORT: "6881"
+    RT_INC_PORT: "50000"
+    RUTORRENT_PORT: "8080"
+    XMLRPC_PORT: "8000"

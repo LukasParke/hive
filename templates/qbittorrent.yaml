@@ -1,0 +1,27 @@
+kind: Template
+name: qbittorrent
+description: 'A free and open-source BitTorrent client with web interface for remote management. Default login: admin (check container logs for temporary password on first startup).'
+category: media
+tags:
+    - torrent
+    - download
+    - file-sharing
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/qbittorrent.svg
+version: latest
+links:
+    docs: https://github.com/qbittorrent/qBittorrent/wiki
+    github: https://github.com/qbittorrent/qBittorrent
+    website: https://www.qbittorrent.org/
+image: lscr.io/linuxserver/qbittorrent:latest
+ports:
+    - "8080"
+    - "6881"
+    - "6881"
+volumes:
+    - qb_config:/config
+    - qb_downloads:/downloads
+env:
+    PGID: "1000"
+    PUID: "1000"
+    TORRENTING_PORT: "6881"
+    WEBUI_PORT: "8080"

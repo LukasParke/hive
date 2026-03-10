@@ -1,0 +1,21 @@
+kind: Template
+name: cup
+description: Cup is a self-hosted Docker container management UI.
+category: docker
+tags:
+    - docker
+    - container
+    - management
+    - ui
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cup.svg
+version: latest
+links:
+    docs: https://github.com/sergi0g/cup
+    github: https://github.com/sergi0g/cup
+    website: https://cup.sh
+image: ghcr.io/sergi0g/cup:latest
+ports:
+    - "8000"
+volumes:
+    - /var/run/docker.sock:/var/run/docker.sock

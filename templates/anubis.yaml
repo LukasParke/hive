@@ -1,0 +1,25 @@
+kind: Template
+name: anubis
+description: Anubis is a bot protector, It will block bots from accessing your website.
+category: self-hosted
+tags:
+    - self-hosted
+    - bot-protection
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/anubis.svg
+version: latest
+links:
+    docs: https://anubis.techaro.lol/docs/
+    github: https://github.com/TecharoHQ/anubis
+    website: https://anubis.techaro.lol
+image: ghcr.io/techarohq/anubis:latest
+ports:
+    - "8923"
+env:
+    BIND: :8923
+    COOKIE_DOMAIN: ""
+    DIFFICULTY: ""
+    OG_CACHE_CONSIDER_HOST: ""
+    OG_EXPIRY_TIME: ""
+    OG_PASSTHROUGH: ""
+    SERVE_ROBOTS_TXT: ""
+    TARGET: ""

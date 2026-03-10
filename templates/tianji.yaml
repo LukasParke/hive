@@ -1,0 +1,37 @@
+kind: Template
+name: tianji
+description: Tianji is a lightweight web analytic service and uptime monitoring tool.
+category: analytics
+tags:
+    - analytics
+    - monitoring
+    - web
+    - uptime
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/tianji.svg
+version: latest
+links:
+    docs: https://tianji.dev/docs/intro
+    github: https://github.com/msgbyte/tianji
+    website: https://tianji.dev/
+image: moonrailgun/tianji
+ports:
+    - "12345"
+stack: true
+services:
+    - name: postgres
+      image: postgres:15.4-alpine
+      env:
+        POSTGRES_DB: tianji
+        POSTGRES_PASSWORD: tianji
+        POSTGRES_USER: tianji
+      volumes:
+        - tianji-db-data:/var/lib/postgresql/data
+    - name: tianji
+      image: moonrailgun/tianji
+      ports:
+        - "12345"
+      env:
+        ALLOW_OPENAPI: "true"
+        ALLOW_REGISTER: "false"
+        DATABASE_URL: postgresql://tianji:tianji@postgres:5432/tianji
+        JWT_SECRET: ""

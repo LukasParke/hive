@@ -1,0 +1,17 @@
+kind: Template
+name: metube
+description: MeTube is a web-based YouTube downloader that allows downloading videos and audio using yt-dlp.
+category: media
+tags:
+    - downloader
+    - youtube
+    - media
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/metube.svg
+version: latest
+links:
+    docs: https://github.com/alexta69/metube/wiki
+    github: https://github.com/alexta69/metube
+    website: https://github.com/alexta69/metube
+image: ghcr.io/alexta69/metube
+ports:
+    - "8081"

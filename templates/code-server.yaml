@@ -2,7 +2,7 @@ kind: Template
 name: code-server
 description: VS Code in the browser for remote development
 category: development
-icon: https://code-server.dev/favicon.ico
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/code-server.svg
 image: lscr.io/linuxserver/code-server:latest
 ports:
   - "8443"

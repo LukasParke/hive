@@ -1,0 +1,231 @@
+kind: Template
+name: supabase
+description: The open source Firebase alternative. Supabase gives you a dedicated Postgres database to build your web, mobile, and AI applications. This require at least version 0.22.5 of dokploy.
+category: databases
+tags:
+    - database
+    - firebase
+    - postgres
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/supabase.svg
+version: 1.25.04 / dokploy >= 0.22.5
+links:
+    docs: https://supabase.com/docs/guides/self-hosting
+    github: https://github.com/supabase/supabase
+    website: https://supabase.com/
+image: supabase/supavisor:2.5.1
+ports:
+    - "5432"
+    - "6543"
+stack: true
+services:
+    - name: analytics
+      image: supabase/logflare:1.12.0
+      env:
+        DB_DATABASE: _supabase
+        DB_HOSTNAME: ""
+        DB_PASSWORD: ""
+        DB_PORT: ""
+        DB_SCHEMA: _analytics
+        DB_USERNAME: supabase_admin
+        LOGFLARE_API_KEY: ""
+        LOGFLARE_FEATURE_FLAG_OVERRIDE: multibackend=true
+        LOGFLARE_MIN_CLUSTER_SIZE: "1"
+        LOGFLARE_NODE_HOST: 127.0.0.1
+        LOGFLARE_SINGLE_TENANT: "true"
+        LOGFLARE_SUPABASE_MODE: "true"
+        POSTGRES_BACKEND_SCHEMA: _analytics
+        POSTGRES_BACKEND_URL: postgresql://supabase_admin:@:/_supabase
+    - name: auth
+      image: supabase/gotrue:v2.171.0
+      env:
+        API_EXTERNAL_URL: ""
+        GOTRUE_API_HOST: 0.0.0.0
+        GOTRUE_API_PORT: "9999"
+        GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:@:/
+        GOTRUE_DB_DRIVER: postgres
+        GOTRUE_DISABLE_SIGNUP: ""
+        GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ""
+        GOTRUE_EXTERNAL_EMAIL_ENABLED: ""
+        GOTRUE_EXTERNAL_PHONE_ENABLED: ""
+        GOTRUE_JWT_ADMIN_ROLES: service_role
+        GOTRUE_JWT_AUD: authenticated
+        GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+        GOTRUE_JWT_EXP: ""
+        GOTRUE_JWT_SECRET: ""
+        GOTRUE_MAILER_AUTOCONFIRM: ""
+        GOTRUE_MAILER_EXTERNAL_HOSTS: kong,
+        GOTRUE_MAILER_URLPATHS_CONFIRMATION: ""
+        GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ""
+        GOTRUE_MAILER_URLPATHS_INVITE: ""
+        GOTRUE_MAILER_URLPATHS_RECOVERY: ""
+        GOTRUE_SITE_URL: ""
+        GOTRUE_SMS_AUTOCONFIRM: ""
+        GOTRUE_SMTP_ADMIN_EMAIL: ""
+        GOTRUE_SMTP_HOST: ""
+        GOTRUE_SMTP_PASS: ""
+        GOTRUE_SMTP_PORT: ""
+        GOTRUE_SMTP_SENDER_NAME: ""
+        GOTRUE_SMTP_USER: ""
+        GOTRUE_URI_ALLOW_LIST: ""
+    - name: db
+      image: supabase/postgres:15.8.1.060
+      env:
+        JWT_EXP: ""
+        JWT_SECRET: ""
+        PGDATABASE: ""
+        PGPASSWORD: ""
+        PGPORT: ""
+        POSTGRES_DB: ""
+        POSTGRES_HOST: /var/run/postgresql
+        POSTGRES_PASSWORD: ""
+        POSTGRES_PORT: ""
+      volumes:
+        - db-config:/etc/postgresql-custom
+      command:
+        - postgres
+        - -c
+        - config_file=/etc/postgresql/postgresql.conf
+        - -c
+        - log_min_messages=fatal
+    - name: functions
+      image: supabase/edge-runtime:v1.67.4
+      env:
+        JWT_SECRET: ""
+        SUPABASE_ANON_KEY: ""
+        SUPABASE_DB_URL: postgresql://postgres:@:/
+        SUPABASE_SERVICE_ROLE_KEY: ""
+        SUPABASE_URL: http://kong:8000
+        VERIFY_JWT: ""
+      command:
+        - start
+        - --main-service
+        - /home/deno/functions/main
+    - name: imgproxy
+      image: darthsim/imgproxy:v3.8.0
+      env:
+        IMGPROXY_BIND: :5001
+        IMGPROXY_ENABLE_WEBP_DETECTION: ""
+        IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+        IMGPROXY_USE_ETAG: "true"
+    - name: kong
+      image: kong:2.8.1
+      env:
+        CONTAINER_PREFIX: ""
+        DASHBOARD_PASSWORD: ""
+        DASHBOARD_USERNAME: ""
+        KONG_DATABASE: "off"
+        KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+        KONG_DNS_ORDER: LAST,A,CNAME
+        KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+        KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+        KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+        SUPABASE_ANON_KEY: ""
+        SUPABASE_SERVICE_KEY: ""
+    - name: meta
+      image: supabase/postgres-meta:v0.88.9
+      env:
+        PG_META_DB_HOST: ""
+        PG_META_DB_NAME: ""
+        PG_META_DB_PASSWORD: ""
+        PG_META_DB_PORT: ""
+        PG_META_DB_USER: supabase_admin
+        PG_META_PORT: "8080"
+    - name: realtime
+      image: supabase/realtime:v2.34.47
+      env:
+        API_JWT_SECRET: ""
+        APP_NAME: realtime
+        DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
+        DB_ENC_KEY: supabaserealtime
+        DB_HOST: ""
+        DB_NAME: ""
+        DB_PASSWORD: ""
+        DB_PORT: ""
+        DB_USER: supabase_admin
+        DNS_NODES: ''''''
+        ERL_AFLAGS: -proto_dist inet_tcp
+        PORT: "4000"
+        RLIMIT_NOFILE: "10000"
+        RUN_JANITOR: "true"
+        SECRET_KEY_BASE: ""
+        SEED_SELF_HOST: "true"
+    - name: rest
+      image: postgrest/postgrest:v12.2.11
+      env:
+        PGRST_APP_SETTINGS_JWT_EXP: ""
+        PGRST_APP_SETTINGS_JWT_SECRET: ""
+        PGRST_DB_ANON_ROLE: anon
+        PGRST_DB_SCHEMAS: ""
+        PGRST_DB_URI: postgres://authenticator:@:/
+        PGRST_DB_USE_LEGACY_GUCS: "false"
+        PGRST_JWT_SECRET: ""
+      command:
+        - postgrest
+    - name: storage
+      image: supabase/storage-api:v1.22.7
+      env:
+        ANON_KEY: ""
+        DATABASE_URL: postgres://supabase_storage_admin:@:/
+        ENABLE_IMAGE_TRANSFORMATION: "true"
+        FILE_SIZE_LIMIT: "52428800"
+        FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+        GLOBAL_S3_BUCKET: stub
+        IMGPROXY_URL: http://imgproxy:5001
+        PGRST_JWT_SECRET: ""
+        POSTGREST_URL: http://rest:3000
+        REGION: stub
+        SERVICE_KEY: ""
+        STORAGE_BACKEND: file
+        TENANT_ID: stub
+    - name: studio
+      image: supabase/studio:2025.04.21-sha-173cc56
+      env:
+        AUTH_JWT_SECRET: ""
+        DEFAULT_ORGANIZATION_NAME: ""
+        DEFAULT_PROJECT_NAME: ""
+        LOGFLARE_API_KEY: ""
+        LOGFLARE_URL: http://analytics:4000
+        NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+        NEXT_PUBLIC_ENABLE_LOGS: "true"
+        OPENAI_API_KEY: ""
+        POSTGRES_PASSWORD: ""
+        STUDIO_PG_META_URL: http://meta:8080
+        SUPABASE_ANON_KEY: ""
+        SUPABASE_PUBLIC_URL: ""
+        SUPABASE_SERVICE_KEY: ""
+        SUPABASE_URL: ""
+    - name: supavisor
+      image: supabase/supavisor:2.5.1
+      ports:
+        - "5432"
+        - "6543"
+      env:
+        API_JWT_SECRET: ""
+        CLUSTER_POSTGRES: "true"
+        DATABASE_URL: ecto://supabase_admin:@db:/_supabase
+        ERL_AFLAGS: -proto_dist inet_tcp
+        METRICS_JWT_SECRET: ""
+        POOLER_DEFAULT_POOL_SIZE: ""
+        POOLER_MAX_CLIENT_CONN: ""
+        POOLER_POOL_MODE: transaction
+        POOLER_TENANT_ID: ""
+        PORT: "4000"
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_PORT: ""
+        REGION: local
+        SECRET_KEY_BASE: ""
+        VAULT_ENC_KEY: ""
+      command:
+        - /bin/sh
+        - -c
+        - /app/bin/migrate && /app/bin/supavisor eval "$$(cat /etc/pooler/pooler.exs)" && /app/bin/server
+    - name: vector
+      image: timberio/vector:0.28.1-alpine
+      env:
+        LOGFLARE_API_KEY: ""
+      volumes:
+        - :/var/run/docker.sock:ro,z
+      command:
+        - --config
+        - /etc/vector/vector.yml

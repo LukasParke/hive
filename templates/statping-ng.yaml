@@ -1,0 +1,19 @@
+kind: Template
+name: statping-ng
+description: Statping-NG is an easy-to-use status page for monitoring websites and applications with beautiful metrics, analytics, and health checks.
+category: monitoring
+tags:
+    - monitoring
+    - status-page
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/statping-ng.svg
+version: latest
+links:
+    docs: https://statping-ng.github.io/install.html
+    github: https://github.com/adamboutcher/statping-ng
+    website: https://statping-ng.github.io/
+image: adamboutcher/statping-ng:latest
+ports:
+    - "8080"
+env:
+    DB_CONN: sqlite
+    TZ: ""

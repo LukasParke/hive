@@ -1,0 +1,35 @@
+kind: Template
+name: open_notebook
+description: Open Notebook with SurrealDB for data storage and AI-powered features.
+category: databases
+tags:
+    - notebook
+    - ai
+    - database
+    - surrealdb
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/open-notebook.svg
+version: latest
+links:
+    docs: https://www.open-notebook.ai/get-started.html
+    github: https://github.com/lfnovo/open_notebook
+    website: https://www.open-notebook.ai/
+image: lfnovo/open_notebook:latest
+ports:
+    - "8502"
+stack: true
+services:
+    - name: open_notebook
+      image: lfnovo/open_notebook:latest
+      ports:
+        - "8502"
+      env:
+        SURREAL_DATABASE: staging
+        SURREAL_NAMESPACE: open_notebook
+        SURREAL_PASSWORD: root
+        SURREAL_URL: ws://surrealdb:8000/rpc
+        SURREAL_USER: root
+    - name: surrealdb
+      image: surrealdb/surrealdb:v2
+      ports:
+        - "8000"
+      command: start --user root --pass root rocksdb:/mydata/mydatabase.db

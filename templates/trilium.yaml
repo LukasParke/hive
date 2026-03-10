@@ -1,0 +1,19 @@
+kind: Template
+name: trilium
+description: Trilium Notes is a hierarchical note taking application with focus on building large personal knowledge bases.
+category: productivity
+tags:
+    - self-hosted
+    - productivity
+    - personal-use
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/trilium.svg
+version: latest
+links:
+    docs: https://github.com/zadam/trilium/wiki/
+    github: https://github.com/zadam/trilium
+    website: https://github.com/zadam/trilium
+image: zadam/trilium:latest
+ports:
+    - "8080"
+volumes:
+    - /root/trilium-backups:/home/node/trilium-data/backup

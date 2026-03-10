@@ -1,0 +1,44 @@
+kind: Template
+name: mixpost
+description: Mixpost is an open-source social media management tool that allows you to create, schedule, and publish posts across multiple social media platforms from a single interface.
+category: social-media
+tags:
+    - social-media
+    - management
+    - scheduling
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mixpost.svg
+version: latest
+links:
+    docs: https://docs.mixpost.app/
+    github: https://github.com/inovector/mixpost
+    website: https://mixpost.app/
+image: inovector/mixpost:latest
+stack: true
+services:
+    - name: mixpost
+      image: inovector/mixpost:latest
+      env:
+        APP_DEBUG: ""
+        APP_DOMAIN: ""
+        APP_KEY: ""
+        APP_NAME: ""
+        APP_URL: ""
+        DB_DATABASE: ""
+        DB_PASSWORD: ""
+        DB_USERNAME: ""
+      volumes:
+        - storage:/var/www/html/storage/app
+        - logs:/var/www/html/storage/logs
+    - name: mysql
+      image: mysql/mysql-server:8.0
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_USER: ""
+      volumes:
+        - mysql:/var/lib/mysql
+    - name: redis
+      image: redis:latest
+      volumes:
+        - redis:/data
+      command: redis-server --appendonly yes --replica-read-only no

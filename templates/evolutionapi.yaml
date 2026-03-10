@@ -1,0 +1,57 @@
+kind: Template
+name: evolutionapi
+description: Evolution API is a robust platform dedicated to empowering small businesses with limited resources, going beyond a simple messaging solution via WhatsApp.
+category: communication
+tags:
+    - api
+    - whatsapp
+    - messaging
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/evolution-api.svg
+version: v2.1.2
+links:
+    docs: https://doc.evolution-api.com/v2/en/get-started/introduction
+    github: https://github.com/EvolutionAPI/evolution-api
+    website: https://evolution-api.com/opensource-whatsapp-api/
+image: evoapicloud/evolution-api:latest
+stack: true
+services:
+    - name: evolution-api
+      image: evoapicloud/evolution-api:latest
+      env:
+        AUTHENTICATION_API_KEY: ""
+        AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: ""
+        AUTHENTICATION_TYPE: ""
+        CACHE_REDIS_ENABLED: ""
+        CACHE_REDIS_PREFIX_KEY: ""
+        CACHE_REDIS_SAVE_INSTANCES: ""
+        CACHE_REDIS_URI: ""
+        CONFIG_SESSION_PHONE_CLIENT: ""
+        CONFIG_SESSION_PHONE_NAME: ""
+        DATABASE_CONNECTION_URI: ""
+        DATABASE_ENABLED: ""
+        DATABASE_PROVIDER: ""
+        DATABASE_SAVE_DATA_CHATS: ""
+        DATABASE_SAVE_DATA_CONTACTS: ""
+        DATABASE_SAVE_DATA_HISTORIC: ""
+        DATABASE_SAVE_DATA_INSTANCE: ""
+        DATABASE_SAVE_DATA_LABELS: ""
+        DATABASE_SAVE_DATA_NEW_MESSAGE: ""
+        DATABASE_SAVE_MESSAGE_UPDATE: ""
+        LANGUAGE: ""
+        SERVER_URL: ""
+        TELEMETRY: ""
+        TELEMETRY_URL: ""
+      volumes:
+        - evolution-instances:/evolution/instances
+    - name: evolution-postgres
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - evolution-postgres-data:/var/lib/postgresql/data
+    - name: evolution-redis
+      image: redis:alpine
+      volumes:
+        - evolution-redis-data:/data

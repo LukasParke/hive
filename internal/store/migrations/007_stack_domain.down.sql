@@ -1,0 +1,2 @@
+ALTER TABLE stack
+DROP COLUMN IF EXISTS domain;

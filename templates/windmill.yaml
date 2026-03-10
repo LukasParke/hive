@@ -1,0 +1,60 @@
+kind: Template
+name: windmill
+description: A developer platform to build production-grade workflows and internal apps. Open-source alternative to Airplane, Retool, and GitHub Actions.
+category: automation
+tags:
+    - workflow
+    - automation
+    - development
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/windmill.svg
+version: latest
+links:
+    docs: https://docs.windmill.dev/
+    github: https://github.com/windmill-labs/windmill
+    website: https://www.windmill.dev/
+image: ghcr.io/windmill-labs/caddy-l4:latest
+stack: true
+services:
+    - name: windmill-caddy
+      image: ghcr.io/windmill-labs/caddy-l4:latest
+      env:
+        BASE_URL: '":80"'
+    - name: windmill-lsp
+      image: ghcr.io/windmill-labs/windmill-lsp:latest
+      volumes:
+        - windmill-lsp-cache:/root/.cache
+    - name: windmill-postgres
+      image: postgres:16
+      env:
+        POSTGRES_DB: windmill
+        POSTGRES_PASSWORD: ""
+      volumes:
+        - windmill-postgres-data:/var/lib/postgresql/data
+    - name: windmill-server
+      image: ghcr.io/windmill-labs/windmill:main
+      env:
+        BASE_URL: http://
+        DATABASE_URL: ""
+        MODE: server
+      volumes:
+        - windmill-worker-logs:/tmp/windmill/logs
+    - name: windmill-worker
+      image: ghcr.io/windmill-labs/windmill:main
+      env:
+        DATABASE_URL: ""
+        MODE: worker
+        WORKER_GROUP: default
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - windmill-worker-cache:/tmp/windmill/cache
+        - windmill-worker-logs:/tmp/windmill/logs
+    - name: windmill-worker-native
+      image: ghcr.io/windmill-labs/windmill:main
+      env:
+        DATABASE_URL: ""
+        MODE: worker
+        NUM_WORKERS: "8"
+        SLEEP_QUEUE: "200"
+        WORKER_GROUP: native
+      volumes:
+        - windmill-worker-logs:/tmp/windmill/logs

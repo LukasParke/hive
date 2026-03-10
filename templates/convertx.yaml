@@ -1,0 +1,27 @@
+kind: Template
+name: convertx
+description: ConvertX is a service for converting media files, with optional user registration and file management features.
+category: media
+tags:
+    - media
+    - converter
+    - ffmpeg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/convertx.svg
+version: latest
+links:
+    docs: https://github.com/c4illin/ConvertX#environment-variables
+    github: https://github.com/c4illin/ConvertX
+    website: https://github.com/c4illin/ConvertX
+image: ghcr.io/c4illin/convertx
+ports:
+    - "3000"
+env:
+    ACCOUNT_REGISTRATION: ""
+    ALLOW_UNAUTHENTICATED: ""
+    AUTO_DELETE_EVERY_N_HOURS: ""
+    FFMPEG_ARGS: ""
+    HIDE_HISTORY: ""
+    HTTP_ALLOWED: ""
+    JWT_SECRET: ""
+    LANGUAGE: ""
+    WEBROOT: ""

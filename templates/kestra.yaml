@@ -1,0 +1,62 @@
+kind: Template
+name: kestra
+description: Unified Orchestration Platform to Simplify Business-Critical Workflows and Govern them as Code and from the UI.
+category: automation
+tags:
+    - automation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kestra.svg
+version: latest
+links:
+    docs: https://kestra.io/docs
+    github: https://github.com/kestra-io/kestra
+    website: https://kestra.io
+image: kestra/kestra:latest
+ports:
+    - "8080"
+    - "8081"
+stack: true
+services:
+    - name: kestra
+      image: kestra/kestra:latest
+      ports:
+        - "8080"
+        - "8081"
+      env:
+        KESTRA_CONFIGURATION: |
+            datasources:
+              postgres:
+                url: jdbc:postgresql://postgres:5432/kestra
+                driverClassName: org.postgresql.Driver
+                username: kestra
+                password: k3str4
+            kestra:
+              server:
+                basicAuth:
+                  enabled: false
+                  username: "admin@localhost.dev" # it must be a valid email address
+                  password: k3str4p@ss
+              repository:
+                type: postgres
+              storage:
+                type: local
+                local:
+                  basePath: "/app/storage"
+              queue:
+                type: postgres
+              tasks:
+                tmpDir:
+                  path: /tmp/kestra-wd/tmp
+              url: http://localhost:8080/
+      volumes:
+        - kestra-data:/app/storage
+        - /var/run/docker.sock:/var/run/docker.sock
+        - /tmp/kestra-wd:/tmp/kestra-wd
+      command: server standalone
+    - name: postgres
+      image: postgres
+      env:
+        POSTGRES_DB: kestra
+        POSTGRES_PASSWORD: k3str4
+        POSTGRES_USER: kestra
+      volumes:
+        - postgres-data:/var/lib/postgresql/data

@@ -1,0 +1,45 @@
+kind: Template
+name: authorizer
+description: Authorizer is a powerful tool designed to simplify the process of user authentication and authorization in your applications. It allows you to build secure apps 10x faster with its low code tool and low-cost deployment.
+category: security
+tags:
+    - authentication
+    - authorization
+    - security
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/authorizer.svg
+version: 1.4.4
+links:
+    docs: https://docs.authorizer.dev/
+    github: https://github.com/authorizerdev/authorizer
+    website: https://authorizer.dev
+image: lakhansamani/authorizer:1.4.4
+ports:
+    - "8080"
+stack: true
+services:
+    - name: authorizer
+      image: lakhansamani/authorizer:1.4.4
+      ports:
+        - "8080"
+      env:
+        ACCESS_TOKEN_EXPIRY_TIME: "86400"
+        ADMIN_SECRET: ""
+        COOKIE_NAME: authorizer
+        DATABASE_TYPE: postgres
+        DATABASE_URL: postgres://postgres:@authorizer-db:5432/authorizer?sslmode=disable
+        DISABLE_PLAYGROUND: "true"
+        JWT_SECRET: ""
+        REDIS_URL: redis://authorizer-redis:6379
+        REFRESH_TOKEN_EXPIRY_TIME: "86400"
+    - name: authorizer-db
+      image: postgres:15-alpine
+      env:
+        POSTGRES_DB: authorizer
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: postgres
+      volumes:
+        - db_data:/var/lib/postgresql/data
+    - name: authorizer-redis
+      image: redis:7-alpine
+      volumes:
+        - redis_data:/data

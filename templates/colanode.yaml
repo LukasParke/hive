@@ -1,0 +1,84 @@
+kind: Template
+name: colanode
+description: Open-source and local-first Slack and Notion alternative that puts you in control of your data
+category: documentation
+tags:
+    - documentation
+    - knowledge-base
+    - collaboration
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/colanode-server.svg
+version: v0.1.6
+links:
+    docs: https://colanode.com/docs/
+    github: https://github.com/colanode/colanode
+    website: https://colanode.com
+image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+stack: true
+services:
+    - name: minio
+      image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+      env:
+        MINIO_ADDRESS: :9000
+        MINIO_BROWSER: "on"
+        MINIO_CONSOLE_ADDRESS: :9001
+        MINIO_DOMAIN: minio
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+      volumes:
+        - minio_data:/data
+      command: -c 'mkdir -p /data/colanode-avatars /data/colanode-files && minio server /data --address ":9000" --console-address ":9001"'
+    - name: postgres
+      image: pgvector/pgvector:pg17
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+    - name: server
+      image: ghcr.io/colanode/server:latest
+      env:
+        ACCOUNT_ALLOW_GOOGLE_LOGIN: "false"
+        ACCOUNT_OTP_TIMEOUT: "600"
+        ACCOUNT_VERIFICATION_TYPE: automatic
+        AI_ENABLED: "false"
+        NODE_ENV: production
+        PORT: "3000"
+        POSTGRES_URL: postgres://:@postgres:5432/
+        REDIS_DB: "0"
+        REDIS_EVENTS_CHANNEL: events
+        REDIS_JOBS_QUEUE_NAME: jobs
+        REDIS_JOBS_QUEUE_PREFIX: colanode
+        REDIS_URL: redis://:@valkey:6379/0
+        S3_AVATARS_ACCESS_KEY: ""
+        S3_AVATARS_BUCKET_NAME: colanode-avatars
+        S3_AVATARS_ENDPOINT: http://minio:9000
+        S3_AVATARS_FORCE_PATH_STYLE: "true"
+        S3_AVATARS_REGION: us-east-1
+        S3_AVATARS_SECRET_KEY: ""
+        SERVER_AVATAR: ""
+        SERVER_MODE: standalone
+        SERVER_NAME: ""
+        SMTP_EMAIL_FROM: ""
+        SMTP_EMAIL_FROM_NAME: ""
+        SMTP_ENABLED: ""
+        SMTP_HOST: ""
+        SMTP_PASSWORD: ""
+        SMTP_PORT: ""
+        SMTP_USER: ""
+        STORAGE_S3_ACCESS_KEY: ""
+        STORAGE_S3_BUCKET: colanode-files
+        STORAGE_S3_ENDPOINT: http://minio:9000
+        STORAGE_S3_FORCE_PATH_STYLE: "true"
+        STORAGE_S3_REGION: us-east-1
+        STORAGE_S3_SECRET_KEY: ""
+        USER_MAX_FILE_SIZE: "104857600"
+        USER_STORAGE_LIMIT: "10737418240"
+    - name: valkey
+      image: valkey/valkey:8.1
+      volumes:
+        - valkey_data:/data
+      command:
+        - valkey-server
+        - --requirepass
+        - ${VALKEY_PASSWORD}

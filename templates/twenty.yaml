@@ -1,0 +1,66 @@
+kind: Template
+name: twenty
+description: Twenty is a modern CRM offering a powerful spreadsheet interface and open-source alternative to Salesforce.
+category: business
+tags:
+    - crm
+    - sales
+    - business
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/twenty-crm.svg
+version: latest
+links:
+    docs: https://docs.twenty.com
+    github: https://github.com/twentyhq/twenty
+    website: https://twenty.com
+image: ubuntu
+stack: true
+services:
+    - name: twenty-change-vol-ownership
+      image: ubuntu
+      volumes:
+        - twenty-server-local-data:/tmp/server-local-data
+        - twenty-docker-data:/tmp/docker-data
+      command: |
+        bash -c " chown -R 1000:1000 /tmp/server-local-data && chown -R 1000:1000 /tmp/docker-data"
+    - name: twenty-postgres
+      image: postgres:17-alpine
+      env:
+        POSTGRES_DB: twenty
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - twenty-postgres-data:/var/lib/postgresql/data
+    - name: twenty-redis
+      image: redis:latest
+      volumes:
+        - twenty-redis-data:/data
+    - name: twenty-server
+      image: twentycrm/twenty:latest
+      env:
+        APP_SECRET: ""
+        ENABLE_DB_MIGRATIONS: "true"
+        FRONT_BASE_URL: ://
+        IS_CONFIG_VARIABLES_IN_DB_ENABLED: "true"
+        IS_SIGN_UP_DISABLED: "false"
+        PG_DATABASE_URL: postgres://:@twenty-postgres:5432/twenty
+        PORT: "3000"
+        REDIS_URL: redis://twenty-redis:6379
+        SERVER_URL: ://
+        SIGN_IN_PREFILLED: "false"
+        STORAGE_TYPE: local
+      volumes:
+        - twenty-server-local-data:/app/packages/twenty-server/.local-storage
+        - twenty-docker-data:/app/docker-data
+    - name: twenty-worker
+      image: twentycrm/twenty:latest
+      env:
+        APP_SECRET: ""
+        ENABLE_DB_MIGRATIONS: "false"
+        FRONT_BASE_URL: ://
+        PG_DATABASE_URL: postgres://:@twenty-postgres:5432/twenty
+        REDIS_URL: redis://twenty-redis:6379
+        SERVER_URL: ://
+        STORAGE_TYPE: local
+      command:
+        - yarn
+        - worker:prod

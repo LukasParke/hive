@@ -1,0 +1,20 @@
+kind: Template
+name: cloudflare-ddns
+description: A small, feature-rich, and robust Cloudflare DDNS updater.
+category: networking
+tags:
+    - cloud
+    - networking
+    - ddns
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cloudflare-ddns.svg
+version: 1.15.1
+links:
+    docs: https://github.com/favonia/cloudflare-ddns
+    github: https://github.com/favonia/cloudflare-ddns
+    website: https://github.com/favonia/cloudflare-ddns
+image: favonia/cloudflare-ddns:1
+env:
+    CLOUDFLARE_API_TOKEN: ""
+    DOMAINS: ""
+    IP6_PROVIDER: none
+    PROXIED: "false"

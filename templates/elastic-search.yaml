@@ -1,0 +1,35 @@
+kind: Template
+name: elastic-search
+description: Elasticsearch is an open-source search and analytics engine, used for full-text search and analytics on structured data such as text, web pages, images, and videos.
+category: search
+tags:
+    - search
+    - analytics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/elasticsearch.svg
+version: 8.10.2
+links:
+    docs: https://docs.elastic.co/elasticsearch/
+    github: https://github.com/elastic/elasticsearch
+    website: https://www.elastic.co/elasticsearch/
+image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+ports:
+    - "9200"
+stack: true
+services:
+    - name: elasticsearch
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+      ports:
+        - "9200"
+      env:
+        ES_JAVA_OPTS: -Xms512m -Xmx512m
+        bootstrap.memory_lock: "true"
+        discovery.type: single-node
+        xpack.security.enabled: "false"
+      volumes:
+        - es_data:/usr/share/elasticsearch/data
+    - name: kibana
+      image: docker.elastic.co/kibana/kibana:8.10.2
+      ports:
+        - "5601"
+      env:
+        ELASTICSEARCH_HOSTS: http://elasticsearch:9200

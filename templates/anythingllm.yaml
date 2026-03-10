@@ -1,0 +1,21 @@
+kind: Template
+name: anythingllm
+description: AnythingLLM is a private, self-hosted, and local document chatbot platform that allows you to chat with your documents using various LLM providers.
+category: ai
+tags:
+    - ai
+    - llm
+    - chatbot
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/anythingllm.svg
+version: latest
+links:
+    docs: https://github.com/Mintplex-Labs/anything-llm/tree/master/docs
+    github: https://github.com/Mintplex-Labs/anything-llm
+    website: https://useanything.com
+image: mintplexlabs/anythingllm:latest
+ports:
+    - "3001"
+volumes:
+    - storage:/app/server/storage
+env:
+    STORAGE_DIR: /app/server/storage

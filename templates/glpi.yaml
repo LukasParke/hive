@@ -1,0 +1,29 @@
+kind: Template
+name: glpi
+description: The most complete open source service management software
+category: productivity
+tags:
+    - self-hosted
+    - project-management
+    - management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/glpi-project.svg
+version: 10.0.16
+links:
+    docs: https://glpi-project.org/documentation/
+    github: https://github.com/glpi-project/glpi
+    website: https://glpi-project.org/
+image: mysql:9.1.0
+stack: true
+services:
+    - name: glpi-mysql
+      image: mysql:9.1.0
+      volumes:
+        - glpi-mysql-data:/var/lib/mysql
+    - name: glpi-web
+      image: elestio/glpi:10.0.16
+      env:
+        TIMEZONE: Europe/Brussels
+      volumes:
+        - /etc/timezone:/etc/timezone:ro
+        - /etc/localtime:/etc/localtime:ro
+        - glpi-www-data:/var/www/html/glpi

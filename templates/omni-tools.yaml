@@ -1,0 +1,18 @@
+kind: Template
+name: omni-tools
+description: Omni-Tools is a collection of useful tools in a single self-hosted web application.
+category: tools
+tags:
+    - tools
+    - utilities
+    - collection
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/omni-tools.svg
+version: latest
+links:
+    docs: https://github.com/iib0011/omni-tools
+    github: https://github.com/iib0011/omni-tools
+    website: https://github.com/iib0011/omni-tools
+image: iib0011/omni-tools:latest
+ports:
+    - "80"

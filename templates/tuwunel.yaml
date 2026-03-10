@@ -1,0 +1,24 @@
+kind: Template
+name: tuwunel
+description: High performance Matrix homeserver written in Rust. Official successor to conduwuit - a scalable, low-cost, enterprise-ready alternative to Synapse.
+category: communication
+tags:
+    - matrix
+    - chat
+    - messaging
+    - rust
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/tuwunel.svg
+version: v1.5.0
+links:
+    docs: https://matrix-construct.github.io/tuwunel/
+    github: https://github.com/matrix-construct/tuwunel
+    website: https://tuwunel.chat
+image: ghcr.io/matrix-construct/tuwunel:v1.5.0
+volumes:
+    - tuwunel-data:/var/lib/tuwunel/
+env:
+    TUWUNEL_ADDRESS: 0.0.0.0
+    TUWUNEL_ALLOW_REGISTRATION: "false"
+    TUWUNEL_PORT: "6167"
+    TUWUNEL_REGISTRATION_TOKEN: ""
+    TUWUNEL_SERVER_NAME: matrix.local

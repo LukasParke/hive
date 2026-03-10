@@ -2,7 +2,7 @@ kind: Template
 name: ntfy
 description: Simple HTTP-based pub-sub notification service
 category: notifications
-icon: https://docs.ntfy.sh/img/ntfy.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/ntfy.svg
 image: binwiederhier/ntfy:latest
 ports:
   - "80"

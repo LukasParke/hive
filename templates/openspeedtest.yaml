@@ -1,0 +1,19 @@
+kind: Template
+name: openspeedtest
+description: OpenSpeedTest is a 100% browser-based HTML5 network performance estimation tool for accurately measuring network speed.
+category: development
+tags:
+    - network
+    - testing
+    - performance
+    - monitoring
+    - bandwidth
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/openspeedtest.svg
+version: latest
+links:
+    docs: https://github.com/openspeedtest/Speed-Test/wiki
+    github: https://github.com/openspeedtest/Speed-Test
+    website: https://openspeedtest.com/
+image: openspeedtest/latest:latest
+ports:
+    - "3000"

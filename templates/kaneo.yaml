@@ -1,0 +1,38 @@
+kind: Template
+name: kaneo
+description: Kaneo - an open source project management platform focused on simplicity and efficiency. Self-host it, customize it, make it yours.
+category: task tracking
+tags:
+    - Task Tracking
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kaneo.svg
+version: latest
+links:
+    docs: https://kaneo.app/docs/
+    github: https://github.com/usekaneo/kaneo
+    website: https://kaneo.app/
+image: ghcr.io/usekaneo/api:latest
+ports:
+    - "1337"
+stack: true
+services:
+    - name: backend
+      image: ghcr.io/usekaneo/api:latest
+      ports:
+        - "1337"
+      env:
+        DATABASE_URL: postgresql://:@postgres:5432/
+        JWT_ACCESS: ""
+    - name: frontend
+      image: ghcr.io/usekaneo/web:latest
+      ports:
+        - "5173"
+      env:
+        KANEO_API_URL: http://
+    - name: postgres
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres_data:/var/lib/postgresql/data

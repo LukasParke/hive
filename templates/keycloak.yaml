@@ -1,0 +1,41 @@
+kind: Template
+name: keycloak
+description: Keycloak is an open source Identity and Access Management solution for modern applications and services.
+category: security
+tags:
+    - authentication
+    - identity
+    - sso
+    - oauth2
+    - openid-connect
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/keycloak.svg
+version: "26.0"
+links:
+    docs: https://www.keycloak.org/documentation
+    github: https://github.com/keycloak/keycloak
+    website: https://www.keycloak.org/
+image: quay.io/keycloak/keycloak:26.3.5
+stack: true
+services:
+    - name: keycloak
+      image: quay.io/keycloak/keycloak:26.3.5
+      env:
+        KC_BOOTSTRAP_ADMIN_PASSWORD: ""
+        KC_BOOTSTRAP_ADMIN_USERNAME: ""
+        KC_DB: postgres
+        KC_DB_PASSWORD: ""
+        KC_DB_URL: jdbc:postgresql://postgres:5432/
+        KC_DB_USERNAME: ""
+        KC_HEALTH_ENABLED: "true"
+        KC_HOSTNAME: ""
+        KC_HTTP_ENABLED: "true"
+        KC_PROXY_HEADERS: xforwarded
+      command: start-dev
+    - name: postgres
+      image: postgres:16.2
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres_data:/var/lib/postgresql/data

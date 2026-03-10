@@ -1,125 +1,179 @@
 <script lang="ts">
+	import { api } from '$lib/api';
+	import type { SwarmNode, PrometheusNodeCurrent } from '$lib/types';
+	import { Button, EmptyState, Badge, Alert, NodeCard } from '$lib/components';
+	import { metricsStore } from '$lib/stores/metrics.svelte';
 	import { onMount } from 'svelte';
-	import { api, type SwarmNode } from '$lib/api';
 
-	let nodes = $state<SwarmNode[]>([]);
-	let joinTokens = $state<{ worker: string; manager: string } | null>(null);
+	let { data } = $props();
+
 	let error = $state('');
 	let showTokens = $state(false);
+	let actionLoading = $state<string | null>(null);
 
-	onMount(async () => {
-		try {
-			const data = await api.listNodes();
-			nodes = data.nodes ?? [];
-			joinTokens = data.join_tokens ?? null;
-		} catch (e: any) {
-			error = e.message;
-		}
+	const ms = $derived(metricsStore.state);
+	const promNodes = $derived(ms.nodes);
+
+	onMount(() => {
+		return metricsStore.subscribe();
 	});
 
-	function formatBytes(bytes: number): string {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-	}
-
-	function formatCPUs(nanoCPUs: number): string {
-		return (nanoCPUs / 1e9).toFixed(0) + ' cores';
+	function getPromNode(hostname: string): PrometheusNodeCurrent | null {
+		return promNodes.find((p) => p.hostname === hostname) ?? null;
 	}
 
 	function copyToClipboard(text: string) {
 		navigator.clipboard.writeText(text);
 	}
+
+	async function setAvailability(nodeId: string, availability: string) {
+		actionLoading = nodeId;
+		error = '';
+		try {
+			await api.updateNodeAvailability(nodeId, availability);
+			const updated = await api.listNodes();
+			data.nodes = (updated.nodes ?? []) as SwarmNode[];
+		} catch (e: any) {
+			error = e.message;
+		} finally {
+			actionLoading = null;
+		}
+	}
+
+	function statusLabel(node: SwarmNode): string {
+		if (node.Status.State !== 'ready') return 'Down';
+		if (node.Spec.Availability === 'drain') return 'Draining';
+		if (node.Spec.Availability === 'pause') return 'Paused';
+		return 'Ready';
+	}
+
+	function statusVariant(node: SwarmNode): 'success' | 'danger' | 'warning' {
+		if (node.Status.State !== 'ready') return 'danger';
+		if (node.Spec.Availability === 'drain' || node.Spec.Availability === 'pause') return 'warning';
+		return 'success';
+	}
 </script>
 
-<div>
-	<div class="flex items-center justify-between mb-6">
-		<h2 class="text-2xl font-bold">Nodes</h2>
-		{#if joinTokens}
-			<button
-				onclick={() => showTokens = !showTokens}
-				class="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
-				style="background-color: var(--color-primary); color: var(--color-bg);"
-			>
+<svelte:head><title>Nodes | Hive</title></svelte:head>
+
+<div class="max-w-7xl mx-auto">
+	<div class="page-header">
+		<div>
+			<h2 class="page-title">Nodes</h2>
+			<p class="page-subtitle">{(data.nodes ?? []).length} node{(data.nodes ?? []).length !== 1 ? 's' : ''} in cluster</p>
+		</div>
+		{#if data.joinTokens}
+			<Button variant="primary" onclick={() => showTokens = !showTokens}>
 				{showTokens ? 'Hide' : 'Show'} Join Tokens
-			</button>
+			</Button>
 		{/if}
 	</div>
 
 	{#if error}
-		<div class="rounded-lg p-4 mb-4" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger);">
+		<Alert variant="danger" class="mb-4">
 			<p style="color: var(--color-danger);">{error}</p>
-		</div>
+		</Alert>
 	{/if}
 
-	{#if showTokens && joinTokens}
-		<div class="rounded-lg p-4 mb-6 space-y-3" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
-			<h3 class="font-semibold text-sm">Add a worker node:</h3>
-			<div class="flex items-center gap-2">
-				<code class="flex-1 text-xs p-2 rounded overflow-x-auto" style="background-color: var(--color-bg); color: var(--color-text-muted);">
-					docker swarm join --token {joinTokens.worker} &lt;MANAGER_IP&gt;:2377
-				</code>
-				<button onclick={() => copyToClipboard(`docker swarm join --token ${joinTokens!.worker} <MANAGER_IP>:2377`)} class="text-xs px-2 py-1 rounded cursor-pointer" style="background-color: var(--color-bg); color: var(--color-text-muted);">
-					Copy
-				</button>
-			</div>
-			<h3 class="font-semibold text-sm mt-4">Add a manager node:</h3>
-			<div class="flex items-center gap-2">
-				<code class="flex-1 text-xs p-2 rounded overflow-x-auto" style="background-color: var(--color-bg); color: var(--color-text-muted);">
-					docker swarm join --token {joinTokens.manager} &lt;MANAGER_IP&gt;:2377
-				</code>
-				<button onclick={() => copyToClipboard(`docker swarm join --token ${joinTokens!.manager} <MANAGER_IP>:2377`)} class="text-xs px-2 py-1 rounded cursor-pointer" style="background-color: var(--color-bg); color: var(--color-text-muted);">
-					Copy
-				</button>
-			</div>
-		</div>
-	{/if}
-
-	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-		{#each nodes as node}
-			<div class="rounded-lg p-4" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
-				<div class="flex items-center justify-between mb-3">
-					<h3 class="font-semibold">{node.Description.Hostname}</h3>
-					<span class="text-xs px-2 py-0.5 rounded font-medium"
-						style="background-color: {node.Status.State === 'ready' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}; color: {node.Status.State === 'ready' ? 'var(--color-success)' : 'var(--color-danger)'};">
-						{node.Status.State}
-					</span>
+	{#if showTokens && data.joinTokens}
+		{@const addr = (data as any).advertiseAddr || '<MANAGER_IP>:2377'}
+		<div class="hive-card mb-6">
+			<div class="hive-card-body space-y-3">
+				<h3 class="font-semibold text-sm">Add a worker node:</h3>
+				<div class="flex flex-col sm:flex-row sm:items-center gap-2">
+					<code class="flex-1 text-xs p-2 rounded overflow-x-auto" style="background-color: var(--color-bg); color: var(--color-text-muted);">
+						docker swarm join --token {data.joinTokens.worker} {addr}
+					</code>
+					<Button size="sm" onclick={() => copyToClipboard(`docker swarm join --token ${data.joinTokens!.worker} ${addr}`)}>
+						Copy
+					</Button>
 				</div>
-				<div class="space-y-2 text-sm">
-					<div class="flex justify-between">
-						<span style="color: var(--color-text-muted);">Role</span>
-						<span class="capitalize">{node.Spec.Role}</span>
-					</div>
-					<div class="flex justify-between">
-						<span style="color: var(--color-text-muted);">Address</span>
-						<span>{node.Status.Addr}</span>
-					</div>
-					<div class="flex justify-between">
-						<span style="color: var(--color-text-muted);">CPU</span>
-						<span>{formatCPUs(node.Description.Resources.NanoCPUs)}</span>
-					</div>
-					<div class="flex justify-between">
-						<span style="color: var(--color-text-muted);">Memory</span>
-						<span>{formatBytes(node.Description.Resources.MemoryBytes)}</span>
-					</div>
-					<div class="flex justify-between">
-						<span style="color: var(--color-text-muted);">OS / Arch</span>
-						<span>{node.Description.Platform.OS}/{node.Description.Platform.Architecture}</span>
-					</div>
-					<div class="flex justify-between">
-						<span style="color: var(--color-text-muted);">Availability</span>
-						<span class="capitalize">{node.Spec.Availability}</span>
+				<h3 class="font-semibold text-sm mt-4">Add a manager node:</h3>
+				<div class="flex flex-col sm:flex-row sm:items-center gap-2">
+					<code class="flex-1 text-xs p-2 rounded overflow-x-auto" style="background-color: var(--color-bg); color: var(--color-text-muted);">
+						docker swarm join --token {data.joinTokens.manager} {addr}
+					</code>
+					<Button size="sm" onclick={() => copyToClipboard(`docker swarm join --token ${data.joinTokens!.manager} ${addr}`)}>
+						Copy
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+		{#each data.nodes ?? [] as node}
+			{@const prom = getPromNode(node.Description.Hostname)}
+			<div class="node-wrapper">
+				<NodeCard
+					hostname={node.Description.Hostname}
+					nodeId={node.Description.Hostname}
+					role={node.Spec.Role}
+					state={node.Status.State === 'ready' ? (node.Spec.Availability === 'active' ? 'ready' : node.Spec.Availability) : 'down'}
+					addr={node.Status.Addr}
+					cores={Math.round(node.Description.Resources.NanoCPUs / 1e9)}
+					memTotal={node.Description.Resources.MemoryBytes}
+					prom={prom}
+				/>
+				<!-- Quick actions bar -->
+				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+				<div class="node-actions" onclick={(e) => e.stopPropagation()}>
+					<Badge variant={statusVariant(node)} dot>{statusLabel(node)}</Badge>
+					<div class="flex gap-2">
+						{#if node.Spec.Availability === 'active'}
+							<Button size="sm" variant="secondary"
+								onclick={() => setAvailability(node.ID, 'drain')}
+								disabled={actionLoading === node.ID}
+								loading={actionLoading === node.ID}>
+								Drain
+							</Button>
+							<Button size="sm" variant="ghost"
+								onclick={() => setAvailability(node.ID, 'pause')}
+								disabled={actionLoading === node.ID}>
+								Pause
+							</Button>
+						{:else}
+							<Button size="sm" variant="primary"
+								onclick={() => setAvailability(node.ID, 'active')}
+								disabled={actionLoading === node.ID}
+								loading={actionLoading === node.ID}>
+								Activate
+							</Button>
+						{/if}
 					</div>
 				</div>
 			</div>
 		{/each}
 	</div>
 
-	{#if nodes.length === 0 && !error}
-		<div class="text-center py-12" style="color: var(--color-text-muted);">
-			<p>No nodes found. Is Docker Swarm initialized?</p>
-		</div>
+	{#if (data.nodes ?? []).length === 0 && !error}
+		<EmptyState title="No nodes found" description="Is Docker Swarm initialized?" />
 	{/if}
 </div>
+
+<style>
+	.node-wrapper {
+		display: flex;
+		flex-direction: column;
+	}
+	.node-wrapper > :global(.node-card) {
+		border-bottom-left-radius: 0;
+		border-bottom-right-radius: 0;
+	}
+	.node-actions {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 1.25rem;
+		background-color: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-top: none;
+		border-bottom-left-radius: var(--radius-lg);
+		border-bottom-right-radius: var(--radius-lg);
+	}
+	@media (max-width: 768px) {
+		.node-actions {
+			padding: 0.5rem 1rem;
+		}
+	}
+</style>

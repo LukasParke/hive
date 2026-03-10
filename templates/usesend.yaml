@@ -1,0 +1,64 @@
+kind: Template
+name: usesend
+description: Open source alternative to Resend, Sendgrid, Postmark etc.
+category: e-mail
+tags:
+    - e-mail
+    - marketing
+    - business
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/usesend.svg
+version: latest
+links:
+    docs: https://docs.usesend.com/introduction
+    github: https://github.com/usesend/usesend
+    website: https://usesend.com/
+image: usesend/usesend:latest
+ports:
+    - -3000}
+stack: true
+services:
+    - name: usesend
+      image: usesend/usesend:latest
+      ports:
+        - -3000}
+      env:
+        API_RATE_LIMIT: "1"
+        AWS_ACCESS_KEY: ""
+        AWS_DEFAULT_REGION: ""
+        AWS_SECRET_KEY: ""
+        DATABASE_URL: ""
+        GITHUB_ID: ""
+        GITHUB_SECRET: ""
+        NEXT_PUBLIC_IS_CLOUD: "false"
+        NEXTAUTH_SECRET: ""
+        NEXTAUTH_URL: ""
+        PORT: "3000"
+        REDIS_URL: ""
+    - name: usesend-db-prod
+      image: postgres:16
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - database:/var/lib/postgresql/data
+    - name: usesend-redis-prod
+      image: redis:7
+      volumes:
+        - cache:/data
+      command:
+        - redis-server
+        - --maxmemory-policy
+        - noeviction
+    - name: usesend-storage-prod
+      image: minio/minio:latest
+      ports:
+        - "9002"
+        - "9001"
+      env:
+        MINIO_ROOT_PASSWORD: password
+        MINIO_ROOT_USER: usesend
+      volumes:
+        - storage:/data
+      command: -c 'mkdir -p /data/usesend && minio server /data --console-address ":9001" --address ":9002"'

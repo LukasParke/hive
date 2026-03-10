@@ -1,0 +1,21 @@
+# Build artifacts
+bin/
+*.out
+coverage.*
+
+# Remote deploy config (contains SSH targets)
+deploy.env
+
+# Environment files
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.cursor/
+.vscode/
+*.swp
+*.swo

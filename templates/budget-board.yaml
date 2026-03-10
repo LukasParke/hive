@@ -1,0 +1,44 @@
+kind: Template
+name: budget-board
+description: Self-hosted budgeting app with a web UI and a server backed by PostgreSQL.
+category: finance
+tags:
+    - finance
+    - postgres
+    - self-hosted
+    - docker
+    - compose
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/budget-board.svg
+version: release
+links:
+    docs: https://budgetboard.net/
+    github: https://github.com/teelur/budget-board
+    website: https://budgetboard.net/
+image: ghcr.io/teelur/budget-board/client:release
+ports:
+    - "6253"
+stack: true
+services:
+    - name: budget-board-client
+      image: ghcr.io/teelur/budget-board/client:release
+      ports:
+        - "6253"
+      env:
+        PORT: "6253"
+        VITE_API_URL: http://budget-board-server
+    - name: budget-board-db
+      image: postgres:16
+      env:
+        POSTGRES_DB: budgetboard
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: postgres
+    - name: budget-board-server
+      image: ghcr.io/teelur/budget-board/server:release
+      env:
+        AUTO_UPDATE_DB: "true"
+        CLIENT_URL: http://budget-board-client:6253
+        Logging__LogLevel__Default: Information
+        POSTGRES_DATABASE: budgetboard
+        POSTGRES_HOST: budget-board-db
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: postgres

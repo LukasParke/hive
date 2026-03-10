@@ -1,0 +1,23 @@
+kind: Template
+name: mediafetch
+description: A tiny, self-hosted web wrapper for yt-dlp to download video and audio. Optional basic auth.
+category: media
+tags:
+    - utilities
+    - media
+    - downloader
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mediafetch.svg
+version: 1.1.1
+links:
+    docs: https://docs.lukedunsmore.com/docs/self-hosted/mediafetch/
+    github: https://github.com/lukedunsmoto/mediafetch
+    website: https://www.lukedunsmore.com/mediafetch
+image: lukedunsmoto/mediafetch:latest
+volumes:
+    - mediafetch_data:/data/downloads
+env:
+    BASIC_AUTH_PASS: ""
+    BASIC_AUTH_USER: ""
+    OUTPUT_DIR: /data/downloads
+    PORT: "3002"
+    PUBLIC_BASE_URL: https://

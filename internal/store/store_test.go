@@ -244,7 +244,7 @@ func TestCreateManagedDatabase(t *testing.T) {
 	s, mock := newMock(t)
 	now := time.Now()
 	mock.ExpectQuery(`INSERT INTO managed_database`).
-		WithArgs("proj-1", "mydb", "postgres", "16", []byte(nil)).
+		WithArgs("proj-1", "mydb", "postgres", "16", []byte(nil), "local", "", "").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow("db-1", now))
 
 	d := &ManagedDatabase{ProjectID: "proj-1", Name: "mydb", DBType: "postgres", Version: "16"}
@@ -259,8 +259,8 @@ func TestListManagedDatabases(t *testing.T) {
 	now := time.Now()
 	mock.ExpectQuery(`SELECT .+ FROM managed_database WHERE project_id`).
 		WithArgs("proj-1").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "name", "db_type", "version", "status", "connection_encrypted", "created_at"}).
-			AddRow("db-1", "proj-1", "mydb", "postgres", "16", "running", nil, now))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "name", "db_type", "version", "status", "connection_encrypted", "storage_mode", "storage_host_id", "node_id", "created_at"}).
+			AddRow("db-1", "proj-1", "mydb", "postgres", "16", "running", nil, "local", "", "", now))
 
 	dbs, err := s.ListManagedDatabases(context.Background(), "proj-1")
 	require.NoError(t, err)
@@ -513,7 +513,7 @@ func TestCreateBackupConfig(t *testing.T) {
 	s, mock := newMock(t)
 	now := time.Now()
 	mock.ExpectQuery(`INSERT INTO backup_config`).
-		WithArgs("res-1", "0 2 * * *", "my-bucket", "backups/", "database", "").
+		WithArgs("res-1", "0 2 * * *", "my-bucket", "backups/", "database", "", "s3", "", "", "", 0).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow("bc-1", now))
 
 	bc := &BackupConfig{ResourceID: "res-1", Schedule: "0 2 * * *", S3Bucket: "my-bucket", S3Prefix: "backups/"}

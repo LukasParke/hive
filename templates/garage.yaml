@@ -1,0 +1,22 @@
+kind: Template
+name: garage
+description: Garage is an open-source distributed object storage service tailored for self-hosting.
+category: storage
+tags:
+    - storage
+    - object-storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/garage-s3.svg
+version: latest
+links:
+    docs: https://garagehq.deuxfleurs.fr/documentation/quick-start/
+    github: https://git.deuxfleurs.fr/Deuxfleurs/garage
+    website: https://garagehq.deuxfleurs.fr
+image: dxflrs/garage:v2.0.0
+ports:
+    - "3900"
+    - "3901"
+    - "3902"
+    - "3903"
+volumes:
+    - garage-storage:/var/lib/garage
+    - garage-storage:/var/lib/garage

@@ -1,0 +1,42 @@
+kind: Template
+name: bookstack
+description: BookStack is a self-hosted platform for creating beautiful, feature-rich documentation sites.
+category: documentation
+tags:
+    - documentation
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/bookstack.svg
+version: 24.12.1
+links:
+    docs: https://www.bookstackapp.com/docs
+    github: https://github.com/BookStackApp/BookStack
+    website: https://www.bookstackapp.com
+image: lscr.io/linuxserver/bookstack:24.12.1
+ports:
+    - "80"
+stack: true
+services:
+    - name: bookstack
+      image: lscr.io/linuxserver/bookstack:24.12.1
+      ports:
+        - "80"
+      env:
+        APP_KEY: ""
+        APP_URL: http://
+        DB_DATABASE: bookstack
+        DB_HOST: bookstack-db
+        DB_PASSWORD: ""
+        DB_USERNAME: mariadb
+        PGID: "1000"
+        PUID: "1000"
+      volumes:
+        - config:/config
+    - name: bookstack-db
+      image: mariadb:10.11
+      env:
+        MYSQL_DATABASE: bookstack
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: mariadb
+      volumes:
+        - db_data:/var/lib/mysql

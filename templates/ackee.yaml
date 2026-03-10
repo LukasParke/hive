@@ -1,0 +1,33 @@
+kind: Template
+name: ackee
+description: Ackee is a self-hosted analytics tool for your website.
+category: analytics
+tags:
+    - analytics
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/ackee.svg
+version: latest
+links:
+    docs: https://docs.ackee.electerious.com/
+    github: https://github.com/electerious/Ackee
+    website: https://ackee.electerious.com/
+image: electerious/ackee:3.4.2
+ports:
+    - "3000"
+stack: true
+services:
+    - name: ackee
+      image: electerious/ackee:3.4.2
+      ports:
+        - "3000"
+      env:
+        ACKEE_MONGODB: ""
+        ACKEE_PASSWORD: ""
+        ACKEE_USERNAME: ""
+    - name: mongo
+      image: mongo:4
+      env:
+        MONGO_INITDB_ROOT_PASSWORD: ""
+        MONGO_INITDB_ROOT_USERNAME: mongo
+      volumes:
+        - mongo-data:/data/db

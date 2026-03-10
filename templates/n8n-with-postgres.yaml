@@ -1,0 +1,45 @@
+kind: Template
+name: n8n-with-postgres
+description: n8n is an open source low-code platform for automating workflows and integrations with PostgreSQL database for better performance and scalability.
+category: automation
+tags:
+    - automation
+    - workflow
+    - low-code
+    - postgres
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/n8n-with-postgres.svg
+version: latest
+links:
+    docs: https://docs.n8n.io/
+    github: https://github.com/n8n-io/n8n
+    website: https://n8n.io/
+image: n8nio/n8n:latest
+stack: true
+services:
+    - name: n8n
+      image: n8nio/n8n:latest
+      env:
+        DB_POSTGRESDB_DATABASE: ""
+        DB_POSTGRESDB_HOST: postgres
+        DB_POSTGRESDB_PASSWORD: ""
+        DB_POSTGRESDB_PORT: "5432"
+        DB_POSTGRESDB_USER: ""
+        DB_TYPE: postgresdb
+        GENERIC_TIMEZONE: ""
+        N8N_ENCRYPTION_KEY: ""
+        N8N_HOST: ""
+        N8N_PORT: ""
+        N8N_PROTOCOL: http
+        N8N_SECURE_COOKIE: "false"
+        NODE_ENV: production
+        WEBHOOK_URL: https:///
+      volumes:
+        - n8n_data:/home/node/.n8n
+    - name: postgres
+      image: postgres:17-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres_data:/var/lib/postgresql/data

@@ -16,16 +16,16 @@ type DynamicConfig struct {
 
 type HTTPConfig struct {
 	Routers     map[string]RouterConfig     `yaml:"routers"`
-	Services    map[string]ServiceConfig     `yaml:"services"`
-	Middlewares map[string]MiddlewareConfig  `yaml:"middlewares,omitempty"`
+	Services    map[string]ServiceConfig    `yaml:"services"`
+	Middlewares map[string]MiddlewareConfig `yaml:"middlewares,omitempty"`
 }
 
 type RouterConfig struct {
-	Rule        string            `yaml:"rule"`
-	Service     string            `yaml:"service"`
-	EntryPoints []string          `yaml:"entryPoints"`
-	TLS         *TLSRouterConfig  `yaml:"tls,omitempty"`
-	Middlewares []string          `yaml:"middlewares,omitempty"`
+	Rule        string           `yaml:"rule"`
+	Service     string           `yaml:"service"`
+	EntryPoints []string         `yaml:"entryPoints"`
+	TLS         *TLSRouterConfig `yaml:"tls,omitempty"`
+	Middlewares []string         `yaml:"middlewares,omitempty"`
 }
 
 type TLSRouterConfig struct {
@@ -52,7 +52,7 @@ type ServerEntry struct {
 
 type MiddlewareConfig map[string]interface{}
 
-func GenerateDynamicConfig(routes []store.ProxyRoute, certStore *store.Store) (*DynamicConfig, error) {
+func GenerateDynamicConfig(routes []store.ProxyRoute, defaultResolver string) (*DynamicConfig, error) {
 	cfg := &DynamicConfig{
 		HTTP: HTTPConfig{
 			Routers:     make(map[string]RouterConfig),
@@ -79,7 +79,11 @@ func GenerateDynamicConfig(routes []store.ProxyRoute, certStore *store.Store) (*
 		case "custom":
 			router.TLS = &TLSRouterConfig{}
 		default:
-			router.TLS = &TLSRouterConfig{CertResolver: "letsencrypt"}
+			resolver := defaultResolver
+			if resolver == "" {
+				resolver = "letsencrypt"
+			}
+			router.TLS = &TLSRouterConfig{CertResolver: resolver}
 		}
 
 		var mwConfig map[string]interface{}

@@ -1,0 +1,85 @@
+kind: Template
+name: firecrawl
+description: Firecrawl is an API service that takes a URL, crawls it, and converts it into clean markdown or structured data. It can crawl all accessible subpages and provide clean data for each.
+category: api
+tags:
+    - api
+    - crawler
+    - scraping
+    - data-extraction
+    - llm
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/firecrawl.svg
+version: latest
+links:
+    docs: https://github.com/firecrawl/firecrawl
+    github: https://github.com/firecrawl/firecrawl
+    website: https://firecrawl.dev
+image: ghcr.io/firecrawl/firecrawl:latest
+ports:
+    - "3002"
+stack: true
+services:
+    - name: api
+      image: ghcr.io/firecrawl/firecrawl:latest
+      ports:
+        - "3002"
+      env:
+        BULL_AUTH_KEY: ""
+        ENV: local
+        HOST: 0.0.0.0
+        LOGGING_LEVEL: INFO
+        MODEL_EMBEDDING_NAME: ""
+        MODEL_NAME: ""
+        NO_PROXY: localhost,127.0.0.1,redis,nuq-postgres,playwright-service,rabbitmq,host.docker.internal
+        NUQ_RABBITMQ_URL: amqp://rabbitmq:5672
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: postgres
+        POSTGRES_HOST: nuq-postgres
+        POSTGRES_PORT: "5432"
+        NUM_WORKERS_PER_QUEUE: "8"
+        CRAWL_CONCURRENT_REQUESTS: "10"
+        MAX_CONCURRENT_JOBS: "5"
+        BROWSER_POOL_SIZE: "5"
+        OLLAMA_BASE_URL: ""
+        OPENAI_API_KEY: ""
+        OPENAI_BASE_URL: ""
+        PLAYWRIGHT_MICROSERVICE_URL: http://playwright-service:3000/scrape
+        PORT: "3002"
+        EXTRACT_WORKER_PORT: "3004"
+        WORKER_PORT: "3005"
+        PROXY_PASSWORD: ""
+        PROXY_SERVER: ""
+        PROXY_USERNAME: ""
+        REDIS_RATE_LIMIT_URL: redis://redis:6379
+        REDIS_URL: redis://redis:6379
+        SEARXNG_CATEGORIES: ""
+        SEARXNG_ENDPOINT: ""
+        SEARXNG_ENGINES: ""
+        SELF_HOSTED_WEBHOOK_URL: ""
+        SLACK_WEBHOOK_URL: ""
+        TEST_API_KEY: ""
+        USE_DB_AUTHENTICATION: "false"
+      command: node dist/src/harness.js --start-docker
+    - name: playwright-service
+      image: ghcr.io/firecrawl/playwright-service:latest
+      env:
+        BLOCK_MEDIA: ""
+        MAX_CONCURRENT_PAGES: "10"
+        NO_PROXY: localhost,127.0.0.1,redis,nuq-postgres,playwright-service,rabbitmq,host.docker.internal
+        PORT: "3000"
+        PROXY_PASSWORD: ""
+        PROXY_SERVER: ""
+        PROXY_USERNAME: ""
+    - name: redis
+      image: redis:alpine
+      command: redis-server --bind 0.0.0.0
+    - name: rabbitmq
+      image: rabbitmq:3-management
+      command: rabbitmq-server
+    - name: nuq-postgres
+      image: ghcr.io/firecrawl/nuq-postgres:latest
+      env:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: postgres

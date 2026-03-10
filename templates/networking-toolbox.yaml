@@ -1,0 +1,20 @@
+kind: Template
+name: networking-toolbox
+description: A collection of handy networking utilities by Lissy93, packaged as a self-hostable web app.
+category: networking
+tags:
+    - networking
+    - tools
+    - utilities
+    - web
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/networking-toolbox.svg
+version: latest
+links:
+    docs: https://github.com/lissy93/networking#readme
+    github: https://github.com/lissy93/networking
+    website: https://github.com/lissy93/networking
+image: lissy93/networking-toolbox:latest
+env:
+    HOST: ""
+    NODE_ENV: ""
+    PORT: ""

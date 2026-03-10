@@ -2,7 +2,7 @@ kind: Template
 name: actual-budget
 description: A local-first personal finance app
 category: finance
-icon: https://actualbudget.com/favicon.ico
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/actual-budget.png
 image: actualbudget/actual-server:latest
 ports:
   - "5006"

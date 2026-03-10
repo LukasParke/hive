@@ -1,0 +1,23 @@
+kind: Template
+name: carbone
+description: Carbone is a high-performance, self-hosted document generation engine. It allows you to generate reports, invoices, and documents in various formats (e.g., PDF, DOCX, XLSX) using JSON data and template-based rendering.
+category: automation
+tags:
+    - Document Generation
+    - Automation
+    - Reporting
+    - Productivity
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/carbone.svg
+version: 4.25.5
+links:
+    docs: https://carbone.io/documentation/design/overview/getting-started.html
+    github: https://github.com/carboneio/carbone
+    website: https://carbone.io/
+image: carbone/carbone-ee:full-4.25.5
+ports:
+    - "4000"
+volumes:
+    - template:/app/template
+env:
+    CARBONE_EE_LICENSE: ""
+    CARBONE_EE_STUDIO: "true"

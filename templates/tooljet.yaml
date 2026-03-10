@@ -1,0 +1,28 @@
+kind: Template
+name: tooljet
+description: Tooljet is an open-source low-code platform that allows you to build internal tools quickly and efficiently. It provides a user-friendly interface for creating applications without extensive coding knowledge.
+category: storage
+tags:
+    - file-sync
+    - file-sharing
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/tooljet.svg
+version: ee-lts-latest
+links:
+    docs: https://docs.tooljet.ai/
+    github: https://github.com/ToolJet/ToolJet
+    website: https://tooljet.ai/
+image: postgres:13
+stack: true
+services:
+    - name: postgres
+      image: postgres:13
+      env:
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+    - name: tooljet
+      image: tooljet/tooljet:ee-lts-latest
+      env:
+        PORT: "80"
+        SERVE_CLIENT: "true"
+      command: npm run start:prod

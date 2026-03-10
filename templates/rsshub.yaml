@@ -1,0 +1,34 @@
+kind: Template
+name: rsshub
+description: RSSHub is the world's largest RSS network, consisting of over 5,000 global instances.RSSHub delivers millions of contents aggregated from all kinds of sources, our vibrant open source community is ensuring the deliver of RSSHub's new routes, new features and bug fixes.
+category: media
+tags:
+    - rss
+    - api
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rsshub.svg
+version: 1.0.0
+links:
+    docs: https://docs.rsshub.app/
+    github: https://github.com/DIYgod/RSSHub
+    website: https://rsshub.app/
+image: diygod/rsshub
+ports:
+    - "1200"
+stack: true
+services:
+    - name: browserless
+      image: browserless/chrome
+    - name: redis
+      image: redis:alpine
+      volumes:
+        - redis-data:/data
+    - name: rsshub
+      image: diygod/rsshub
+      ports:
+        - "1200"
+      env:
+        CACHE_TYPE: redis
+        NODE_ENV: production
+        PUPPETEER_WS_ENDPOINT: ws://browserless:3000
+        REDIS_URL: redis://redis:6379/

@@ -1,0 +1,32 @@
+kind: Template
+name: slash
+description: Slash is a modern, self-hosted bookmarking service and link shortener that helps you organize and share your favorite links.
+category: productivity
+tags:
+    - bookmarks
+    - link-shortener
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/slash.svg
+version: latest
+links:
+    docs: https://github.com/yourselfhosted/slash/wiki
+    github: https://github.com/yourselfhosted/slash
+    website: https://github.com/yourselfhosted/slash#readme
+image: yourselfhosted/slash:latest
+stack: true
+services:
+    - name: slash-app
+      image: yourselfhosted/slash:latest
+      env:
+        SLASH_DRIVER: postgres
+        SLASH_DSN: postgresql://:@slash-postgres:5432/?sslmode=disable
+      volumes:
+        - slash-app-data:/var/opt/slash
+    - name: slash-postgres
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - slash-postgres-data:/var/lib/postgresql/data

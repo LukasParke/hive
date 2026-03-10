@@ -2,7 +2,7 @@ kind: Template
 name: mealie
 description: Self-hosted recipe manager and meal planner
 category: productivity
-icon: https://raw.githubusercontent.com/mealie-recipes/mealie/main/frontend/static/img/icons/android-chrome-192x192.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mealie.svg
 image: ghcr.io/mealie-recipes/mealie:latest
 ports:
   - "9000"

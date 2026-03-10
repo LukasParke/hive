@@ -1,151 +1,138 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import {
-		api,
-		type App,
-		type Deployment,
-		type TaskInfo,
-		type ServiceEvent,
-		type PortMapping,
-		type ServiceLink,
-		type PreviewDeployment
-	} from '$lib/api';
-	import { onMount, onDestroy } from 'svelte';
+	import { api } from '$lib/api';
+	import { goto, invalidateAll } from '$app/navigation';
+	import type { ServiceUpdateStatus } from '$lib/types';
+	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
-	let app = $state<App | null>(null);
-	let deployments = $state<Deployment[]>([]);
-	let tasks = $state<TaskInfo[]>([]);
-	let events = $state<ServiceEvent[]>([]);
-	let ports = $state<PortMapping[]>([]);
-	let serviceLinks = $state<ServiceLink[]>([]);
-	let previews = $state<PreviewDeployment[]>([]);
+	let { data } = $props();
+
 	let error = $state('');
-	let loading = $state(true);
 	let activeTab = $state<'overview' | 'tasks' | 'deployments' | 'events' | 'links' | 'previews'>('overview');
+	let updateStatus = $state<ServiceUpdateStatus | null>(null);
+	let updateLoading = $state(false);
+	let showDeleteConfirm = $state(false);
 	let logLines = $state<string[]>([]);
-	let buildLines = $state<string[]>([]);
 	let scaleInput = $state(1);
 	let actionLoading = $state('');
-
-	const projectId = $derived($page.params.id ?? '');
-	const appId = $derived(($page.params as Record<string, string>).appId ?? '');
+	let editingDomain = $state(false);
+	let domainDraft = $state('');
+	let domainProvisioning = $state(false);
 
 	let logSocket: WebSocket | null = null;
-	let buildSocket: WebSocket | null = null;
+	const deployInProgress = $derived(data.app?.status === 'deploying' || data.app?.status === 'building');
 
-	onMount(async () => {
-		await loadAll();
+	$effect(() => {
+		if (data.app) scaleInput = data.app.replicas;
 	});
 
-	onDestroy(() => {
-		logSocket?.close();
-		buildSocket?.close();
+	onMount(() => {
+		checkForImageUpdate();
 	});
 
-	async function loadAll() {
-		if (!projectId || !appId) return;
+	async function checkForImageUpdate() {
+		if (!data.app) return;
 		try {
-			loading = true;
-			[app, deployments, tasks, events, ports, serviceLinks, previews] = await Promise.all([
-				api.getApp(projectId, appId),
-				api.listDeployments(projectId, appId),
-				api.getAppTasks(projectId, appId),
-				api.getAppEvents(projectId, appId),
-				api.getAppPorts(projectId, appId),
-				api.listServiceLinks(projectId, appId).catch(() => []),
-				api.listPreviews(projectId, appId).catch(() => [])
-			]);
-			if (app) scaleInput = app.replicas;
-			error = '';
-		} catch (e: any) {
-			error = e.message;
-		} finally {
-			loading = false;
-		}
+			const statuses = await api.updatesServices();
+			const serviceName = 'hive-app-' + data.app.name;
+			const match = statuses.find((s: ServiceUpdateStatus) => s.service_name === serviceName || s.app_id === data.appId);
+			if (match) updateStatus = match;
+		} catch { /* update check optional */ }
 	}
 
-	async function loadApp() {
-		if (!projectId || !appId) return;
+	async function applyImageUpdate() {
+		if (!updateStatus || !data.app) return;
+		updateLoading = true;
 		try {
-			app = await api.getApp(projectId, appId);
-			deployments = await api.listDeployments(projectId, appId);
-			tasks = await api.getAppTasks(projectId, appId);
-			ports = await api.getAppPorts(projectId, appId);
-			if (app) scaleInput = app.replicas;
-			error = '';
+			const serviceName = 'hive-app-' + data.app.name;
+			await api.applyServiceUpdate(serviceName);
+			updateStatus = { ...updateStatus, update_available: false };
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
+		updateLoading = false;
 	}
+
+	$effect(() => {
+		return () => {
+			logSocket?.close();
+		};
+	});
 
 	function connectContainerLogs() {
-		if (!app) return;
+		if (!data.app) return;
 		logSocket?.close();
 		logLines = [];
 		const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const url = `${proto}//${location.host}/api/v1/projects/${projectId}/apps/${appId}/container-logs?name=${encodeURIComponent(app.name)}&tail=200`;
+		const url = `${proto}//${location.host}/ws/logs/${data.appId}?tail=200`;
 		logSocket = new WebSocket(url);
 		logSocket.onmessage = (e) => {
-			logLines = [...logLines.slice(-999), e.data];
-		};
-	}
-
-	function connectBuildLogs() {
-		if (!app) return;
-		buildSocket?.close();
-		buildLines = [];
-		const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-		const url = `${proto}//${location.host}/api/v1/projects/${projectId}/apps/${appId}/logs`;
-		buildSocket = new WebSocket(url);
-		buildSocket.onmessage = (e) => {
 			try {
-				const data = JSON.parse(e.data);
-				buildLines = [...buildLines.slice(-999), data.message || e.data];
+				const msg = JSON.parse(e.data);
+				if (msg.type === 'log' && msg.data) {
+					logLines = [...logLines.slice(-999), msg.data];
+				}
 			} catch {
-				buildLines = [...buildLines.slice(-999), e.data];
+				logLines = [...logLines.slice(-999), e.data];
 			}
+		};
+		logSocket.onerror = () => {
+			logSocket?.close();
+			logSocket = null;
 		};
 	}
 
 	$effect(() => {
-		if (activeTab === 'overview' && app) {
-			connectContainerLogs();
-			connectBuildLogs();
+		if (typeof window !== 'undefined' && activeTab === 'overview' && data.app) {
+			const status = data.app.status;
+			if (status === 'running' || status === 'degraded' || status === 'updating') {
+				connectContainerLogs();
+			}
 		}
 	});
 
 	async function refreshTasks() {
-		if (!projectId || !appId) return;
 		try {
-			tasks = await api.getAppTasks(projectId, appId);
-			events = await api.getAppEvents(projectId, appId);
+			await invalidateAll();
 		} catch {}
 	}
 
+	async function refreshAppDomainState() {
+		const latest = await api.getApp(data.projectId, data.appId);
+		data.app = latest;
+	}
+
 	const taskCounts = $derived({
-		running: tasks.filter((t) => t.status === 'running').length,
-		pending: tasks.filter((t) => t.status === 'pending' || t.status === 'starting').length,
-		failed: tasks.filter((t) => t.status === 'failed' || t.status === 'rejected').length
+		running: (data.tasks ?? []).filter((t) => t.status === 'running').length,
+		pending: (data.tasks ?? []).filter((t) => t.status === 'pending' || t.status === 'starting').length,
+		failed: (data.tasks ?? []).filter((t) => t.status === 'failed' || t.status === 'rejected').length
 	});
 
 	async function handleDeploy() {
-		if (!app) return;
+		if (!data.app) return;
+		if (deployInProgress) {
+			toast.info('A deployment is already in progress');
+			return;
+		}
 		actionLoading = 'deploy';
 		try {
-			await api.deployApp(projectId, appId);
-			await loadAll();
+			await api.deployApp(data.projectId, data.appId);
+			toast.success('Deployment triggered');
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
+			toast.error(e.message ?? 'Failed to trigger deployment');
 		}
 		actionLoading = '';
 	}
 
 	async function handleRestart() {
-		if (!app) return;
+		if (!data.app) return;
 		actionLoading = 'restart';
 		try {
-			await api.restartApp(projectId, appId);
-			await loadApp();
+			await api.restartApp(data.projectId, data.appId);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -153,11 +140,11 @@
 	}
 
 	async function handleStop() {
-		if (!app) return;
+		if (!data.app) return;
 		actionLoading = 'stop';
 		try {
-			await api.stopApp(projectId, appId);
-			await loadApp();
+			await api.stopApp(data.projectId, data.appId);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -165,11 +152,11 @@
 	}
 
 	async function handleStart() {
-		if (!app) return;
+		if (!data.app) return;
 		actionLoading = 'start';
 		try {
-			await api.startApp(projectId, appId);
-			await loadApp();
+			await api.startApp(data.projectId, data.appId);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -177,11 +164,11 @@
 	}
 
 	async function handleScale() {
-		if (!app) return;
+		if (!data.app) return;
 		actionLoading = 'scale';
 		try {
-			await api.scaleApp(projectId, appId, scaleInput);
-			await loadApp();
+			await api.scaleApp(data.projectId, data.appId, scaleInput);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -189,27 +176,62 @@
 	}
 
 	async function handleRollback() {
-		if (!app || !confirm('Rollback to the previous version?')) return;
+		if (!data.app || !confirm('Rollback to the previous version?')) return;
 		actionLoading = 'rollback';
 		try {
-			await api.rollbackApp(projectId, appId);
-			await loadApp();
+			await api.rollbackApp(data.projectId, data.appId);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
 		actionLoading = '';
 	}
 
+	async function handleRollbackToDeployment(deploymentId: string) {
+		if (!data.app) return;
+		actionLoading = `rollback-${deploymentId}`;
+		try {
+			await api.rollbackToDeployment(data.projectId, data.appId, deploymentId);
+			toast.success('Rollback started');
+			await invalidateAll();
+		} catch (e: any) {
+			error = e.message;
+			toast.error(e.message ?? 'Rollback failed');
+		}
+		actionLoading = '';
+	}
+
+	async function copyDeploymentLogs(logs: string) {
+		try {
+			await navigator.clipboard.writeText(logs);
+			toast.success('Logs copied');
+		} catch {
+			toast.error('Failed to copy logs');
+		}
+	}
+
+	async function handleDeleteApp() {
+		if (!data.app) return;
+		actionLoading = 'delete';
+		try {
+			await api.deleteApp(data.projectId, data.appId);
+			goto(`/projects/${data.projectId}`);
+		} catch (e: any) {
+			error = e.message;
+			showDeleteConfirm = false;
+		}
+		actionLoading = '';
+	}
+
 	async function handleExportAsTemplate() {
-		if (!app) return;
+		if (!data.app) return;
 		actionLoading = 'export';
 		try {
-			await api.exportAppAsTemplate(projectId, appId);
+			await api.exportAppAsTemplate(data.projectId, data.appId);
 			error = '';
 			actionLoading = '';
-			// Could navigate to catalog or show toast
 			if (confirm('Template created. Go to catalog?')) {
-				window.location.href = '/catalog';
+				goto('/catalog');
 			}
 		} catch (e: any) {
 			error = e.message;
@@ -236,6 +258,25 @@
 		}
 	}
 
+	function statusBg(status: string): string {
+		switch (status) {
+			case 'success':
+			case 'running':
+				return 'rgba(34, 197, 94, 0.12)';
+			case 'building':
+			case 'deploying':
+			case 'pending':
+			case 'starting':
+				return 'rgba(229, 160, 13, 0.12)';
+			case 'failed':
+			case 'stopped':
+			case 'rejected':
+				return 'rgba(239, 68, 68, 0.12)';
+			default:
+				return 'rgba(154, 145, 138, 0.12)';
+		}
+	}
+
 	function formatBytes(bytes: number): string {
 		if (bytes === 0) return '0 B';
 		const k = 1024;
@@ -245,15 +286,10 @@
 	}
 </script>
 
-<div class="max-w-6xl mx-auto p-6">
-	{#if loading}
-		<div class="flex items-center justify-center py-20">
-			<div
-				class="animate-spin rounded-full h-8 w-8 border-b-2"
-				style="border-color: var(--color-primary);"
-			></div>
-		</div>
-	{:else if error}
+<svelte:head><title>{data.app?.name ?? 'App'} | Hive</title></svelte:head>
+
+<div class="max-w-6xl mx-auto">
+	{#if error}
 		<div
 			class="rounded-lg p-4 mb-4"
 			style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger);"
@@ -262,10 +298,10 @@
 		</div>
 	{/if}
 
-	{#if app}
+	{#if data.app}
 		<div class="mb-4">
 			<a
-				href="/projects/{projectId}"
+				href="/projects/{data.projectId}"
 				class="text-sm hover:underline"
 				style="color: var(--color-text-muted);"
 			>
@@ -273,37 +309,114 @@
 			</a>
 		</div>
 
-		<div class="flex items-center justify-between mb-6">
-			<div>
-				<div class="flex items-center gap-3">
-					<h1 class="text-2xl font-bold">{app.name}</h1>
+		<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+			<div class="min-w-0">
+				<div class="flex items-center gap-3 flex-wrap">
+					<h1 class="text-xl md:text-2xl font-bold">{data.app.name}</h1>
 					<span
 						class="px-2 py-0.5 rounded text-xs font-semibold uppercase"
-						style="background-color: {statusColor(app.status)}20; color: {statusColor(app.status)};"
+						style="background-color: {statusBg(data.app.status)}; color: {statusColor(data.app.status)};"
 					>
-						{app.status}
+						{data.app.status}
 					</span>
-				</div>
-				<div class="flex items-center gap-3 mt-1">
-					<span class="text-sm" style="color: var(--color-text-muted);">{app.deploy_type}</span>
-					{#if app.domain}
-						<a
-							href="https://{app.domain}"
-							target="_blank"
-							class="text-sm underline"
-							style="color: var(--color-primary);"
-						>
-							{app.domain}
-						</a>
+					{#if updateStatus?.update_available}
+						<span class="px-2 py-0.5 rounded text-xs font-semibold" style="background: rgba(59,130,246,0.15); color: var(--color-info);">
+							Update Available
+						</span>
 					{/if}
 				</div>
+			<div class="flex items-center gap-3 mt-1">
+				<span class="text-sm" style="color: var(--color-text-muted);">{data.app.deploy_type}</span>
+				{#if editingDomain}
+					<div class="flex items-center gap-2 flex-wrap">
+						<input
+							type="text"
+							bind:value={domainDraft}
+							placeholder="app.example.com"
+							class="px-2 py-1 rounded text-sm outline-none w-full sm:w-[200px]"
+							style="background-color: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text);"
+						/>
+						<button
+							onclick={async () => {
+								actionLoading = 'domain';
+								domainProvisioning = true;
+								try {
+									const updated = await api.updateApp(data.projectId, data.appId, { domain: domainDraft });
+									data.app = updated;
+									editingDomain = false;
+									toast.success('Domain saved. Provisioning DNS and ingress routing...');
+									setTimeout(async () => {
+										try {
+											await refreshAppDomainState();
+										} catch {}
+										domainProvisioning = false;
+									}, 1500);
+								} catch (e) {
+									error = (e as Error).message;
+									domainProvisioning = false;
+								}
+								actionLoading = '';
+							}}
+							disabled={actionLoading === 'domain'}
+							class="text-xs px-2 py-1 rounded cursor-pointer font-medium"
+							style="background-color: var(--color-primary); color: white;"
+						>
+							Save
+						</button>
+						<button onclick={() => editingDomain = false} class="text-xs px-2 py-1 cursor-pointer" style="color: var(--color-text-muted);">Cancel</button>
+					</div>
+			{:else if data.app.domain}
+				<a
+					href="https://{data.app.domain}"
+					target="_blank"
+					class="text-sm underline"
+					style="color: var(--color-primary);"
+				>
+					{data.app.domain}
+				</a>
+				{#if data.app.dns_status === 'configured'}
+					<span class="inline-flex items-center gap-1 text-xs" style="color: var(--color-success);">
+						<span class="inline-block w-1.5 h-1.5 rounded-full" style="background-color: var(--color-success);"></span>
+						DNS
+					</span>
+				{:else if data.app.dns_status === 'missing'}
+					<span class="inline-flex items-center gap-1 text-xs" style="color: var(--color-warning);">
+						<span class="inline-block w-1.5 h-1.5 rounded-full" style="background-color: var(--color-warning);"></span>
+						No DNS record
+					</span>
+				{:else if data.app.has_dns_provider === false}
+					<a href="/dns" class="inline-flex items-center gap-1 text-xs underline" style="color: var(--color-text-muted);">
+						<span class="inline-block w-1.5 h-1.5 rounded-full" style="background-color: var(--color-text-muted);"></span>
+						Configure DNS
+					</a>
+				{/if}
+				<button
+					onclick={() => { domainDraft = data.app.domain; editingDomain = true; }}
+					class="text-xs px-2 py-0.5 rounded cursor-pointer"
+					style="background-color: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border);"
+				>
+					Edit
+				</button>
+				{:else}
+					<button
+						onclick={() => { domainDraft = ''; editingDomain = true; }}
+						class="text-xs px-2 py-0.5 rounded cursor-pointer"
+						style="background-color: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border);"
+					>
+						Add Domain
+					</button>
+				{/if}
+				{#if domainProvisioning}
+					<span class="text-xs" style="color: var(--color-text-muted);">Provisioning DNS/routing...</span>
+				{/if}
 			</div>
-			<div class="flex gap-2">
-				{#if app.status === 'stopped'}
+			</div>
+			<div class="flex gap-2 flex-wrap">
+				{#if data.app.status === 'stopped'}
 					<button
 						onclick={handleStart}
 						disabled={!!actionLoading}
-						class="px-3 py-1.5 rounded text-sm font-medium"
+						class="app-action-btn"
 						style="background-color: var(--color-success); color: var(--color-bg);"
 					>
 						{actionLoading === 'start' ? '...' : 'Start'}
@@ -312,7 +425,7 @@
 					<button
 						onclick={handleStop}
 						disabled={!!actionLoading}
-						class="px-3 py-1.5 rounded text-sm font-medium"
+						class="app-action-btn"
 						style="background-color: var(--color-text-muted); color: var(--color-bg);"
 					>
 						{actionLoading === 'stop' ? '...' : 'Stop'}
@@ -321,23 +434,23 @@
 				<button
 					onclick={handleRestart}
 					disabled={!!actionLoading}
-					class="px-3 py-1.5 rounded text-sm font-medium"
+					class="app-action-btn"
 					style="background-color: var(--color-warning); color: var(--color-bg);"
 				>
 					{actionLoading === 'restart' ? '...' : 'Restart'}
 				</button>
 				<button
 					onclick={handleDeploy}
-					disabled={!!actionLoading}
-					class="px-3 py-1.5 rounded text-sm font-medium"
+					disabled={!!actionLoading || deployInProgress}
+					class="app-action-btn"
 					style="background-color: var(--color-primary); color: var(--color-bg);"
 				>
-					{actionLoading === 'deploy' ? '...' : 'Deploy'}
+					{actionLoading === 'deploy' ? '...' : deployInProgress ? 'Deploying...' : 'Deploy'}
 				</button>
 				<button
 					onclick={handleRollback}
 					disabled={!!actionLoading}
-					class="px-3 py-1.5 rounded text-sm font-medium"
+					class="app-action-btn"
 					style="border: 1px solid var(--color-border); color: var(--color-text);"
 				>
 					{actionLoading === 'rollback' ? '...' : 'Rollback'}
@@ -345,20 +458,28 @@
 				<button
 					onclick={handleExportAsTemplate}
 					disabled={!!actionLoading}
-					class="px-3 py-1.5 rounded text-sm font-medium"
+					class="app-action-btn"
 					style="border: 1px solid var(--color-border); color: var(--color-text);"
 				>
-					{actionLoading === 'export' ? '...' : 'Export as Template'}
+					{actionLoading === 'export' ? '...' : 'Export'}
+				</button>
+				<button
+					onclick={() => showDeleteConfirm = true}
+					disabled={!!actionLoading}
+					class="app-action-btn"
+					style="border: 1px solid rgba(239,68,68,0.3); color: var(--color-danger);"
+				>
+					Delete
 				</button>
 			</div>
 		</div>
 
 		<!-- Tabs -->
-		<div class="flex gap-1 mb-6 border-b" style="border-color: var(--color-border);">
+		<div class="app-tabs mb-6 border-b" style="border-color: var(--color-border);">
 			{#each ['overview', 'tasks', 'deployments', 'events', 'links', 'previews'] as tab}
 				<button
 					onclick={() => (activeTab = tab as any)}
-					class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+					class="app-tab"
 					style="border-color: {activeTab === tab ? 'var(--color-primary)' : 'transparent'}; color: {activeTab === tab ? 'var(--color-primary)' : 'var(--color-text-muted)'};"
 				>
 					{tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -367,6 +488,64 @@
 		</div>
 
 		{#if activeTab === 'overview'}
+			{#if data.app.status === 'failed'}
+				{@const failedDeploy = (data.deployments ?? []).find((d) => d.status === 'failed')}
+				<div class="rounded-lg p-4 mb-6" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3);">
+					<div class="flex items-center justify-between gap-4 mb-2">
+						<div class="flex items-center gap-2">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+							<p class="text-sm font-semibold" style="color: var(--color-danger);">Deployment Failed</p>
+						</div>
+						<div class="flex gap-2">
+							<button
+								onclick={handleDeploy}
+								disabled={!!actionLoading || deployInProgress}
+								class="px-3 py-1.5 rounded text-xs font-semibold cursor-pointer"
+								style="background: var(--color-primary); color: white;"
+							>
+								{actionLoading === 'deploy' ? 'Deploying...' : deployInProgress ? 'Deploying...' : 'Retry Deploy'}
+							</button>
+							<button
+								onclick={() => showDeleteConfirm = true}
+								class="px-3 py-1.5 rounded text-xs font-semibold cursor-pointer"
+								style="border: 1px solid rgba(239,68,68,0.3); color: var(--color-danger);"
+							>
+								Remove
+							</button>
+						</div>
+					</div>
+					{#if failedDeploy?.logs}
+						<pre class="mt-2 p-2 rounded text-xs overflow-auto font-mono" style="background-color: var(--color-bg); color: var(--color-text); max-height: 150px; border: 1px solid var(--color-border);">{failedDeploy.logs}</pre>
+					{:else}
+						<p class="text-xs mt-1" style="color: var(--color-text-muted);">No error logs available. Check the Deployments tab for details.</p>
+					{/if}
+				</div>
+			{/if}
+
+			{#if updateStatus?.update_available}
+				<div class="rounded-lg p-4 mb-6 flex items-center justify-between gap-4" style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25);">
+					<div>
+						<p class="text-sm font-semibold" style="color: var(--color-info);">Image Update Available</p>
+						<p class="text-xs mt-1" style="color: var(--color-text-muted);">
+							Current: <span class="font-mono">{updateStatus.current_image}</span>
+							{#if updateStatus.latest_version}
+								&rarr; <span class="font-mono" style="color: var(--color-success);">{updateStatus.latest_version}</span>
+							{:else}
+								(newer digest available)
+							{/if}
+						</p>
+					</div>
+					<button
+						class="px-3 py-1.5 rounded text-xs font-semibold cursor-pointer"
+						style="background: var(--color-info); color: white;"
+						onclick={applyImageUpdate}
+						disabled={updateLoading}
+					>
+						{updateLoading ? 'Updating...' : 'Update Now'}
+					</button>
+				</div>
+			{/if}
+
 			<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
 				<div
 					class="rounded-lg p-4"
@@ -375,7 +554,7 @@
 					<p class="text-xs uppercase tracking-wide mb-1" style="color: var(--color-text-muted);">
 						Image
 					</p>
-					<p class="text-sm font-mono truncate">{app.image || 'Built from source'}</p>
+					<p class="text-sm font-mono truncate">{data.app.image || 'Built from source'}</p>
 				</div>
 				<div
 					class="rounded-lg p-4"
@@ -384,7 +563,7 @@
 					<p class="text-xs uppercase tracking-wide mb-1" style="color: var(--color-text-muted);">
 						Port
 					</p>
-					<p class="text-sm">{app.port}</p>
+					<p class="text-sm">{data.app.port}</p>
 				</div>
 				<div
 					class="rounded-lg p-4"
@@ -393,7 +572,7 @@
 					<p class="text-xs uppercase tracking-wide mb-1" style="color: var(--color-text-muted);">
 						Replicas
 					</p>
-					<p class="text-sm">{app.replicas}</p>
+					<p class="text-sm">{data.app.replicas}</p>
 				</div>
 				<div
 					class="rounded-lg p-4"
@@ -403,8 +582,8 @@
 						Resources
 					</p>
 					<p class="text-sm">
-						{app.cpu_limit ? app.cpu_limit + ' CPU' : 'No limit'}
-						{app.memory_limit ? ' / ' + formatBytes(app.memory_limit) : ''}
+						{data.app.cpu_limit ? data.app.cpu_limit + ' CPU' : 'No limit'}
+						{data.app.memory_limit ? ' / ' + formatBytes(data.app.memory_limit) : ''}
 					</p>
 				</div>
 			</div>
@@ -437,8 +616,51 @@
 				</div>
 			</div>
 
+			<!-- Access Links -->
+			{#if data.app.domain || (data.ports ?? []).some((p) => p.published_port > 0)}
+				<div
+					class="rounded-lg p-4 mb-6"
+					style="background-color: var(--color-surface); border: 1px solid var(--color-border);"
+				>
+					<h3 class="text-sm font-semibold mb-3">Access Links</h3>
+					<div class="space-y-2">
+						{#if data.app.domain}
+							<div class="flex items-center gap-2">
+								<span class="text-xs uppercase tracking-wide w-16" style="color: var(--color-text-muted);">Domain</span>
+								<a
+									href="https://{data.app.domain}"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-sm underline"
+									style="color: var(--color-primary);"
+								>
+									https://{data.app.domain}
+								</a>
+							</div>
+						{/if}
+						{#each data.ports ?? [] as p}
+							{#if p.published_port > 0}
+								{@const nodeIp = (data.nodes ?? [])[0]?.Status?.Addr || 'localhost'}
+								<div class="flex items-center gap-2">
+									<span class="text-xs uppercase tracking-wide w-16" style="color: var(--color-text-muted);">Port {p.published_port}</span>
+									<a
+										href="http://{nodeIp}:{p.published_port}"
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-sm underline font-mono"
+										style="color: var(--color-primary);"
+									>
+										http://{nodeIp}:{p.published_port}
+									</a>
+								</div>
+							{/if}
+						{/each}
+					</div>
+				</div>
+			{/if}
+
 			<!-- Port mappings -->
-			{#if ports.length > 0}
+			{#if (data.ports ?? []).length > 0}
 				<div
 					class="rounded-lg p-4 mb-6"
 					style="background-color: var(--color-surface); border: 1px solid var(--color-border);"
@@ -455,7 +677,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#each ports as p}
+								{#each data.ports ?? [] as p}
 									<tr style="border-top: 1px solid var(--color-border);">
 										<td class="py-2">{p.protocol}</td>
 										<td class="py-2">{p.target_port}</td>
@@ -495,9 +717,9 @@
 					</button>
 					<button
 						onclick={handleScale}
-						disabled={scaleInput === app.replicas || !!actionLoading}
+						disabled={scaleInput === data.app.replicas || !!actionLoading}
 						class="px-4 py-1 rounded text-sm font-medium ml-4"
-						style="background-color: var(--color-primary); color: var(--color-bg); opacity: {scaleInput === app.replicas ? '0.5' : '1'};"
+						style="background-color: var(--color-primary); color: var(--color-bg); opacity: {scaleInput === data.app.replicas ? '0.5' : '1'};"
 					>
 						{actionLoading === 'scale' ? 'Scaling...' : 'Apply'}
 					</button>
@@ -551,12 +773,12 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each tasks as t}
+							{#each data.tasks ?? [] as t}
 								<tr style="border-top: 1px solid var(--color-border);">
 									<td class="px-4 py-3">
 										<span
 											class="px-2 py-0.5 rounded text-xs font-medium"
-											style="background-color: {statusColor(t.status)}20; color: {statusColor(t.status)};"
+											style="background-color: {statusBg(t.status)}; color: {statusColor(t.status)};"
 										>
 											{t.status}
 										</span>
@@ -574,7 +796,7 @@
 							{/each}
 						</tbody>
 					</table>
-					{#if tasks.length === 0}
+					{#if (data.tasks ?? []).length === 0}
 						<p class="p-6 text-sm" style="color: var(--color-text-muted);">No tasks found for this service.</p>
 					{/if}
 				</div>
@@ -583,7 +805,7 @@
 
 		{#if activeTab === 'deployments'}
 			<div class="space-y-2">
-				{#each deployments as deploy}
+				{#each data.deployments ?? [] as deploy}
 					<div
 						class="rounded-lg p-4"
 						style="background-color: var(--color-surface); border: 1px solid var(--color-border);"
@@ -611,6 +833,25 @@
 								{/if}
 							</div>
 						</div>
+						<div class="flex items-center gap-2 mb-2">
+							<button
+								onclick={() => handleRollbackToDeployment(deploy.id)}
+								disabled={!!actionLoading}
+								class="px-2 py-1 rounded text-xs font-semibold cursor-pointer"
+								style="border: 1px solid var(--color-border); color: var(--color-text);"
+							>
+								{actionLoading === `rollback-${deploy.id}` ? 'Rolling back...' : 'Rollback to this'}
+							</button>
+							{#if deploy.logs}
+								<button
+									onclick={() => copyDeploymentLogs(deploy.logs)}
+									class="px-2 py-1 rounded text-xs font-semibold cursor-pointer"
+									style="border: 1px solid var(--color-border); color: var(--color-text-muted);"
+								>
+									Copy logs
+								</button>
+							{/if}
+						</div>
 						{#if deploy.logs}
 							<details class="mt-2">
 								<summary class="text-xs cursor-pointer" style="color: var(--color-primary);">
@@ -626,7 +867,7 @@
 						{/if}
 					</div>
 				{/each}
-				{#if deployments.length === 0}
+				{#if (data.deployments ?? []).length === 0}
 					<p class="text-sm py-4" style="color: var(--color-text-muted);">No deployments yet</p>
 				{/if}
 			</div>
@@ -648,7 +889,7 @@
 					</button>
 				</div>
 				<div class="space-y-2">
-					{#each events as evt}
+					{#each data.events ?? [] as evt}
 						<div
 							class="flex gap-4 py-2 border-b"
 							style="border-color: var(--color-border);"
@@ -665,7 +906,7 @@
 							<span class="text-sm truncate" style="color: var(--color-text);">{evt.message}</span>
 						</div>
 					{/each}
-					{#if events.length === 0}
+					{#if (data.events ?? []).length === 0}
 						<p class="text-sm py-4" style="color: var(--color-text-muted);">
 							No events in the last hour.
 						</p>
@@ -677,11 +918,11 @@
 		{#if activeTab === 'links'}
 			<div class="rounded-lg p-4" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
 				<h3 class="text-sm font-semibold mb-4">Service Links</h3>
-				{#if serviceLinks.length === 0}
+				{#if (data.serviceLinks ?? []).length === 0}
 					<p class="text-sm" style="color: var(--color-text-muted);">No service links configured. Links connect this app to other services or databases via injected environment variables.</p>
 				{:else}
 					<div class="space-y-2">
-						{#each serviceLinks as link}
+						{#each data.serviceLinks ?? [] as link}
 							<div class="flex items-center justify-between py-2 border-b" style="border-color: var(--color-border);">
 								<div class="text-sm">
 									<span class="font-mono text-xs px-1.5 py-0.5 rounded" style="background-color: var(--color-bg);">{link.env_prefix}</span>
@@ -690,8 +931,8 @@
 								</div>
 								<button onclick={async () => {
 									try {
-										await api.deleteServiceLink(projectId, appId, link.id);
-										serviceLinks = serviceLinks.filter(l => l.id !== link.id);
+										await api.deleteServiceLink(data.projectId, data.appId, link.id);
+										await invalidateAll();
 									} catch (e) { error = (e as Error).message; }
 								}}
 									class="text-xs px-2 py-1 rounded" style="color: var(--color-danger);">
@@ -707,11 +948,11 @@
 		{#if activeTab === 'previews'}
 			<div class="rounded-lg p-4" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
 				<h3 class="text-sm font-semibold mb-4">Preview Deployments</h3>
-				{#if previews.length === 0}
+				{#if (data.previews ?? []).length === 0}
 					<p class="text-sm" style="color: var(--color-text-muted);">No preview deployments. Enable preview environments and push a PR to generate one.</p>
 				{:else}
 					<div class="space-y-2">
-						{#each previews as preview}
+						{#each data.previews ?? [] as preview}
 							<div class="flex items-center justify-between py-3 border-b" style="border-color: var(--color-border);">
 								<div>
 									<div class="flex items-center gap-2">
@@ -731,8 +972,8 @@
 									<span class="text-xs" style="color: var(--color-text-muted);">{new Date(preview.created_at).toLocaleDateString()}</span>
 									<button onclick={async () => {
 										try {
-											await api.deletePreview(projectId, appId, preview.id);
-											previews = previews.filter(p => p.id !== preview.id);
+											await api.deletePreview(data.projectId, data.appId, preview.id);
+											await invalidateAll();
 										} catch (e) { error = (e as Error).message; }
 									}}
 										class="text-xs px-2 py-1 rounded" style="color: var(--color-danger);">
@@ -747,3 +988,73 @@
 		{/if}
 	{/if}
 </div>
+
+{#if showDeleteConfirm}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div class="modal-backdrop" onclick={() => showDeleteConfirm = false}>
+		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
+			<div class="modal-header">
+				<h3 class="text-lg font-semibold">Delete App</h3>
+			</div>
+			<div class="modal-body">
+				<p class="text-sm mb-4">Are you sure you want to delete <strong>{data.app?.name}</strong>? This will remove the Docker service and all associated data. This action cannot be undone.</p>
+				<div class="flex gap-2 justify-end flex-wrap">
+					<button onclick={() => showDeleteConfirm = false} class="btn btn-ghost btn-sm">Cancel</button>
+					<button onclick={handleDeleteApp} disabled={actionLoading === 'delete'} class="btn btn-danger-filled btn-sm">
+						{actionLoading === 'delete' ? 'Deleting...' : 'Delete App'}
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<style>
+	.app-action-btn {
+		padding: 0.375rem 0.75rem;
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: all var(--transition-base);
+	}
+	.app-action-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.app-tabs {
+		display: flex;
+		gap: 0.25rem;
+		overflow-x: auto;
+		white-space: nowrap;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+	}
+	.app-tabs::-webkit-scrollbar {
+		display: none;
+	}
+
+	.app-tab {
+		padding: 0.5rem 1rem;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		border-bottom: 2px solid transparent;
+		transition: color var(--transition-fast), border-color var(--transition-fast);
+		white-space: nowrap;
+		flex-shrink: 0;
+		cursor: pointer;
+	}
+
+	@media (max-width: 768px) {
+		.app-action-btn {
+			min-height: 40px;
+			padding: 0.5rem 0.875rem;
+		}
+		.app-tab {
+			min-height: 44px;
+			padding: 0.625rem 1rem;
+		}
+	}
+</style>

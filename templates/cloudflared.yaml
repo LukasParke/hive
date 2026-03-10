@@ -1,0 +1,18 @@
+kind: Template
+name: cloudflared
+description: A lightweight daemon that securely connects local services to the internet through Cloudflare Tunnel.
+category: networking
+tags:
+    - cloud
+    - networking
+    - security
+    - tunnel
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cloudflared.svg
+version: latest
+links:
+    docs: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/
+    github: https://github.com/cloudflare/cloudflared
+    website: https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/
+image: cloudflare/cloudflared:latest
+env:
+    TUNNEL_TOKEN: ""

@@ -1,0 +1,65 @@
+kind: Template
+name: affinepro
+description: Affine Pro is a modern, self-hosted platform designed for collaborative content creation and project management. It offers an intuitive interface, seamless real-time collaboration, and powerful tools for organizing tasks, notes, and ideas.
+category: productivity
+tags:
+    - collaboration
+    - self-hosted
+    - productivity
+    - project-management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/affine-pro.svg
+version: stable-780dd83
+links:
+    docs: https://affine.pro/docs
+    github: https://github.com/toeverything/Affine
+    website: https://affine.pro/
+image: ghcr.io/toeverything/affine-graphql:stable-780dd83
+ports:
+    - "3010"
+stack: true
+services:
+    - name: affinepro
+      image: ghcr.io/toeverything/affine-graphql:stable-780dd83
+      ports:
+        - "3010"
+      env:
+        AFFINE_SERVER_HOST: ""
+        DATABASE_URL: postgresql://postgres:@db:5432/affinepro
+        MAILER_HOST: ""
+        MAILER_PASSWORD: ""
+        MAILER_PORT: ""
+        MAILER_SENDER: ""
+        MAILER_USER: ""
+        REDIS_SERVER_HOST: redis
+        REDIS_SERVER_PASSWORD: ""
+      volumes:
+        - affine-storage:/root/.affine/storage
+        - affine-config:/root/.affine/config
+    - name: db
+      image: postgres:15-alpine
+      env:
+        POSTGRES_DB: affinepro
+        POSTGRES_PASSWORD: ""
+      volumes:
+        - postgres-data:/var/lib/postgresql/data
+    - name: migration
+      image: ghcr.io/toeverything/affine-graphql:stable-780dd83
+      env:
+        AFFINE_SERVER_HOST: ""
+        DATABASE_URL: postgresql://postgres:@db:5432/affinepro
+        MAILER_HOST: ""
+        MAILER_PASSWORD: ""
+        MAILER_PORT: ""
+        MAILER_SENDER: ""
+        MAILER_USER: ""
+        REDIS_SERVER_HOST: redis
+        REDIS_SERVER_PASSWORD: ""
+      volumes:
+        - affine-storage:/root/.affine/storage
+        - affine-config:/root/.affine/config
+      command: node ./scripts/self-host-predeploy.js
+    - name: redis
+      image: redis:7-alpine
+      volumes:
+        - redis-data:/data
+      command: redis-server --requirepass ${REDIS_PASSWORD}

@@ -1,0 +1,21 @@
+kind: Template
+name: arangodb
+description: ArangoDB is a native multi-model database with flexible data models for documents, graphs, and key-values. Build high performance applications using a convenient SQL-like query language or JavaScript extensions.
+category: databases
+tags:
+    - database
+    - graph-database
+    - nosql
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/arangodb.svg
+version: latest
+links:
+    docs: https://www.arangodb.com/docs/
+    github: https://github.com/arangodb/arangodb
+    website: https://www.arangodb.com/
+image: arangodb:3.12.4
+ports:
+    - "8529"
+volumes:
+    - data:/var/lib/arangodb3
+env:
+    ARANGO_ROOT_PASSWORD: ""

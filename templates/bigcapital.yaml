@@ -1,0 +1,105 @@
+kind: Template
+name: bigcapital
+description: BigCapital is a great open source alternative to QuickBooks. A comprehensive accounting and financial management system for businesses.
+category: finance
+tags:
+    - accounting
+    - finance
+    - bookkeeping
+    - quickbooks
+    - erp
+    - business
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/bigcapital.svg
+version: latest
+links:
+    docs: https://github.com/bigcapitalhq/bigcapital
+    github: https://github.com/bigcapitalhq/bigcapital
+    website: https://bigcapital.app/
+image: gotenberg/gotenberg:7
+ports:
+    - "9000"
+stack: true
+services:
+    - name: gotenberg
+      image: gotenberg/gotenberg:7
+      ports:
+        - "9000"
+    - name: mongo
+      image: mongo:7
+      ports:
+        - "27017"
+      volumes:
+        - mongo:/data/db
+    - name: mysql
+      image: mariadb:10.11
+      ports:
+        - "3306"
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: ""
+      volumes:
+        - mysql:/var/lib/mysql
+    - name: redis
+      image: redis:7-alpine
+      ports:
+        - "6379"
+      volumes:
+        - redis:/data
+    - name: server
+      image: bigcapitalhq/server:latest
+      ports:
+        - "3000"
+      env:
+        AGENDASH_AUTH_PASSWORD: ""
+        AGENDASH_AUTH_USER: ""
+        BANKING_CONNECT: ""
+        BASE_URL: ""
+        DB_CHARSET: ""
+        DB_HOST: mysql
+        DB_PASSWORD: ""
+        DB_USER: ""
+        EXCHANGE_RATE_SERVICE: ""
+        GOTENBERG_DOCS_URL: ""
+        GOTENBERG_URL: ""
+        HOSTED_ON_BIGCAPITAL_CLOUD: ""
+        JWT_SECRET: ""
+        LEMONSQUEEZY_API_KEY: ""
+        LEMONSQUEEZY_STORE_ID: ""
+        LEMONSQUEEZY_WEBHOOK_SECRET: ""
+        MAIL_FROM_ADDRESS: ""
+        MAIL_FROM_NAME: ""
+        MAIL_HOST: ""
+        MAIL_PASSWORD: ""
+        MAIL_PORT: ""
+        MAIL_SECURE: ""
+        MAIL_USERNAME: ""
+        MONGODB_DATABASE_URL: mongodb://mongo/bigcapital
+        NEW_RELIC_AI_MONITORING_ENABLED: ""
+        NEW_RELIC_APP_NAME: ""
+        NEW_RELIC_CUSTOM_INSIGHTS_EVENTS_MAX_SAMPLES_STORED: ""
+        NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: ""
+        NEW_RELIC_LICENSE_KEY: ""
+        NEW_RELIC_LOG: ""
+        NEW_RELIC_SPAN_EVENTS_MAX_SAMPLES_STORED: ""
+        OPEN_EXCHANGE_RATE_APP_ID: ""
+        PLAID_CLIENT_ID: ""
+        PLAID_ENV: ""
+        PLAID_LINK_WEBHOOK: ""
+        PLAID_SECRET: ""
+        S3_ACCESS_KEY_ID: ""
+        S3_BUCKET: ""
+        S3_ENDPOINT: ""
+        S3_REGION: ""
+        S3_SECRET_ACCESS_KEY: ""
+        SIGNUP_ALLOWED_DOMAINS: ""
+        SIGNUP_ALLOWED_EMAILS: ""
+        SIGNUP_DISABLED: ""
+        SIGNUP_EMAIL_CONFIRMATION: ""
+        SYSTEM_DB_NAME: ""
+        TENANT_DB_NAME_PERFIX: ""
+    - name: webapp
+      image: bigcapitalhq/webapp:latest
+      ports:
+        - "80"

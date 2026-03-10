@@ -1,8 +1,8 @@
-kind: App
+kind: Template
 name: n8n
 description: Workflow automation tool
 category: automation
-icon: https://n8n.io/favicon.ico
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/n8n.svg
 image: n8nio/n8n:latest
 ports:
   - "5678:5678"

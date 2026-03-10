@@ -1,0 +1,33 @@
+kind: Template
+name: chibisafe
+description: A beautiful and performant vault to save all your files in the cloud.
+category: storage
+tags:
+    - media system
+    - storage
+    - file-sharing
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/chibisafe.svg
+version: latest
+links:
+    docs: https://chibisafe.app/docs/intro
+    github: https://github.com/chibisafe/chibisafe
+    website: https://chibisafe.app
+image: caddy:2-alpine
+stack: true
+services:
+    - name: caddy
+      image: caddy:2-alpine
+      env:
+        BASE_URL: '":80"'
+      volumes:
+        - uploads:/app/uploads:ro
+    - name: chibisafe
+      image: chibisafe/chibisafe:latest
+      env:
+        BASE_API_URL: http://chibisafe_server:8000
+    - name: chibisafe_server
+      image: chibisafe/chibisafe-server:latest
+      volumes:
+        - database:/app/database:rw
+        - uploads:/app/uploads:rw
+        - logs:/app/logs:rw

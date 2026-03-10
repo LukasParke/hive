@@ -2,7 +2,7 @@ kind: Template
 name: miniflux
 description: Minimalist and opinionated RSS feed reader
 category: productivity
-icon: https://miniflux.app/images/logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/miniflux.svg
 image: miniflux/miniflux:latest
 ports:
   - "8080"

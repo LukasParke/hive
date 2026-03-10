@@ -1,0 +1,37 @@
+kind: Template
+name: kitchenowl
+description: KitchenOwl is a self-hosted grocery list and recipe manager.
+category: self-hosted
+tags:
+    - self-hosted
+    - recipes
+    - grocery
+    - personal
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kitchenowl.svg
+version: v0.7.1
+links:
+    docs: https://github.com/TomBursch/kitchenowl/wiki
+    github: https://github.com/TomBursch/kitchenowl
+    website: https://kitchenowl.org/
+image: postgres:17
+stack: true
+services:
+    - name: db
+      image: postgres:17
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - kitchenowl_db:/var/lib/postgresql/data
+    - name: web
+      image: tombursch/kitchenowl:v0.7.1
+      env:
+        DB_DRIVER: postgresql
+        DB_HOST: db
+        DB_NAME: ""
+        DB_PASSWORD: ""
+        DB_USER: ""
+        JWT_SECRET_KEY: ""
+      volumes:
+        - kitchenowl_files:/data

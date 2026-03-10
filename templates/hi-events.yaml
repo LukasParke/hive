@@ -1,0 +1,35 @@
+kind: Template
+name: hi-events
+description: Hi.Events is a self-hosted event management and ticket selling platform that allows you to create, manage and promote events easily.
+category: self-hosted
+tags:
+    - self-hosted
+    - open-source
+    - manager
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/hi.events.svg
+version: 0.8.0-beta.1
+links:
+    docs: https://hi.events/docs
+    github: https://github.com/HiEventsDev/hi.events
+    website: https://hi.events/
+image: daveearley/hi.events-all-in-one:v0.8.0-beta.1
+stack: true
+services:
+    - name: all-in-one
+      image: daveearley/hi.events-all-in-one:v0.8.0-beta.1
+      env:
+        APP_CDN_URL: https:///storage
+        APP_FRONTEND_URL: https://
+        DATABASE_URL: postgresql://:@postgres:5432/
+        FILESYSTEM_PRIVATE_DISK: local
+        FILESYSTEM_PUBLIC_DISK: public
+        LOG_CHANNEL: stderr
+        MAIL_MAILER: array
+        QUEUE_CONNECTION: sync
+        VITE_API_URL_CLIENT: https:///api
+        VITE_API_URL_SERVER: http://localhost:80/api
+        VITE_FRONTEND_URL: https://
+    - name: postgres
+      image: elestio/postgres:16
+      volumes:
+        - pg_hi-events_data:/var/lib/postgresql/data

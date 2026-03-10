@@ -1,0 +1,38 @@
+kind: Template
+name: logto
+description: Logto is an open-source Identity and Access Management (IAM) platform designed to streamline Customer Identity and Access Management (CIAM) and Workforce Identity Management.
+category: security
+tags:
+    - identity
+    - auth
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/logto.svg
+version: 1.27.0
+links:
+    docs: https://docs.logto.io/introduction
+    github: https://github.com/logto-io/logto
+    website: https://logto.io/
+image: ghcr.io/logto-io/logto:1.27.0
+ports:
+    - "3001"
+    - "3002"
+stack: true
+services:
+    - name: app
+      image: ghcr.io/logto-io/logto:1.27.0
+      ports:
+        - "3001"
+        - "3002"
+      env:
+        ADMIN_ENDPOINT: ""
+        DB_URL: postgres://logto:@postgres:5432/logto
+        ENDPOINT: ""
+        TRUST_PROXY_HEADER: "1"
+      volumes:
+        - logto-connectors:/etc/logto/packages/core/connectors
+    - name: postgres
+      image: postgres:17-alpine
+      env:
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: logto
+      volumes:
+        - postgres-data:/var/lib/postgresql/data

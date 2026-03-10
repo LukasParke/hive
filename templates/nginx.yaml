@@ -1,0 +1,19 @@
+kind: Template
+name: nginx
+description: Nginx is an High performance web server
+category: webserver
+tags:
+    - webserver
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/nginx.svg
+version: latest
+links:
+    docs: https://nginx.org/en/docs/
+    github: https://github.com/nginx/nginx
+    website: https://nginx.org/
+image: nginx:latest
+ports:
+    - "80"
+    - "443"
+volumes:
+    - nginx-config:/etc/nginx
+    - nginx-html:/usr/share/nginx/html

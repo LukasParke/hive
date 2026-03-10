@@ -1,0 +1,39 @@
+kind: Template
+name: blinko
+description: Blinko is a modern web application for managing and organizing your digital content and workflows.
+category: productivity
+tags:
+    - productivity
+    - organization
+    - workflow
+    - nextjs
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/blinko.svg
+version: latest
+links:
+    docs: https://docs.blinko.space/
+    github: https://github.com/blinkospace/blinko
+    website: https://blinko.space/
+image: blinkospace/blinko:1.6.3
+ports:
+    - "1111"
+stack: true
+services:
+    - name: blinko-postgres
+      image: postgres:14
+      env:
+        POSTGRES_DB: postgres
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: postgres
+        TZ: Asia/Shanghai
+      volumes:
+        - blinko-db:/var/lib/postgresql/data
+    - name: blinko-website
+      image: blinkospace/blinko:1.6.3
+      ports:
+        - "1111"
+      env:
+        DATABASE_URL: ""
+        NEXT_PUBLIC_BASE_URL: ""
+        NEXTAUTH_SECRET: ""
+        NEXTAUTH_URL: ""
+        NODE_ENV: production

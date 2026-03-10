@@ -1,0 +1,23 @@
+kind: Template
+name: barrage
+description: Barrage is a minimalistic Deluge WebUI app with full mobile support. It features a responsive mobile-first design, allowing you to manage your torrents with ease from any device.
+category: torrents
+tags:
+    - torrents
+    - deluge
+    - mobile
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/barrage.svg
+version: 0.3.0
+links:
+    docs: https://github.com/maulik9898/barrage/blob/main/README.md
+    github: https://github.com/maulik9898/barrage
+    website: https://github.com/maulik9898/barrage
+image: maulik9898/barrage:0.3.0
+ports:
+    - "3000"
+env:
+    BARRAGE_PASSWORD: ""
+    DELUGE_PASSWORD: ""
+    DELUGE_URL: ""
+    NEXTAUTH_SECRET: ""
+    NEXTAUTH_URL: http://

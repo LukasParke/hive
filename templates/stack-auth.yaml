@@ -1,0 +1,41 @@
+kind: Template
+name: stack-auth
+description: Open-source Auth0/Clerk alternative. Stack Auth is a free and open source authentication tool that allows you to authenticate your users.
+category: authentication
+tags:
+    - authentication
+    - auth
+    - authorization
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/stack-auth.svg
+version: latest
+links:
+    docs: https://docs.stack-auth.com/next/overview
+    github: https://github.com/stack-auth/stack-auth
+    website: https://stack-auth.com/
+image: stackauth/server:latest
+stack: true
+services:
+    - name: stack-auth
+      image: stackauth/server:latest
+      env:
+        NEXT_PUBLIC_STACK_API_URL: ""
+        NEXT_PUBLIC_STACK_DASHBOARD_URL: ""
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+        STACK_DATABASE_CONNECTION_STRING: ""
+        STACK_DIRECT_DATABASE_CONNECTION_STRING: ""
+        STACK_EMAIL_HOST: ""
+        STACK_RUN_MIGRATIONS: ""
+        STACK_RUN_SEED_SCRIPT: ""
+        STACK_SEED_INTERNAL_PROJECT_ALLOW_LOCALHOST: ""
+        STACK_SEED_INTERNAL_PROJECT_SIGN_UP_ENABLED: ""
+        STACK_SERVER_SECRET: ""
+    - name: stack-auth-db
+      image: postgres:17
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - stack-auth-db-data:/var/lib/postgresql/data

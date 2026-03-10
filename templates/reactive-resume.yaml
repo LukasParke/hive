@@ -1,0 +1,63 @@
+kind: Template
+name: reactive-resume
+description: A free and open-source resume builder that simplifies the process of creating, updating, and sharing your resume.
+category: productivity
+tags:
+    - resume
+    - cv
+    - productivity
+    - document
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/reactive-resume.svg
+version: latest
+links:
+    docs: https://docs.rxresu.me/
+    github: https://github.com/AmruthPillai/Reactive-Resume
+    website: https://rxresu.me/
+image: amruthpillai/reactive-resume:latest
+stack: true
+services:
+    - name: app
+      image: amruthpillai/reactive-resume:latest
+      env:
+        ACCESS_TOKEN_SECRET: ""
+        CHROME_TOKEN: ""
+        CHROME_URL: ws://chrome:3000
+        DATABASE_URL: postgresql://postgres:@postgres:5432/postgres
+        MAIL_FROM: ""
+        NODE_ENV: production
+        PORT: "3000"
+        PUBLIC_URL: https://
+        REFRESH_TOKEN_SECRET: ""
+        STORAGE_ACCESS_KEY: ""
+        STORAGE_BUCKET: default
+        STORAGE_ENDPOINT: minio
+        STORAGE_PORT: "9000"
+        STORAGE_REGION: us-east-1
+        STORAGE_SECRET_KEY: ""
+        STORAGE_SKIP_BUCKET_CHECK: "false"
+        STORAGE_URL: https:///default
+        STORAGE_USE_SSL: "false"
+    - name: chrome
+      image: ghcr.io/browserless/chromium:v2.18.0
+      env:
+        CONCURRENT: "10"
+        EXIT_ON_HEALTH_FAILURE: "true"
+        PRE_REQUEST_HEALTH_CHECK: "true"
+        TIMEOUT: "10000"
+        TOKEN: ""
+    - name: minio
+      image: minio/minio:latest
+      env:
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+      volumes:
+        - minio_data:/data
+      command: server /data
+    - name: postgres
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: postgres
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: postgres
+      volumes:
+        - postgres_data:/var/lib/postgresql/data

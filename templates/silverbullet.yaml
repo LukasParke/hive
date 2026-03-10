@@ -1,0 +1,28 @@
+kind: Template
+name: silverbullet
+description: SilverBullet is a personal knowledge base and collaborative note-taking platform.
+category: productivity
+tags:
+    - notes
+    - knowledge-base
+    - productivity
+    - markdown
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/silverbullet.svg
+version: v2
+links:
+    docs: https://silverbullet.md/docs
+    github: https://github.com/silverbulletmd/silverbullet
+    website: https://silverbullet.md
+image: ghcr.io/silverbulletmd/silverbullet:v2
+stack: true
+services:
+    - name: silverbullet
+      image: ghcr.io/silverbulletmd/silverbullet:v2
+      env:
+        SB_USER: ""
+      volumes:
+        - silverbullet-space:/space
+    - name: watchtower
+      image: containrrr/watchtower
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock

@@ -1,0 +1,39 @@
+kind: Template
+name: rustdesk
+description: RustDesk is a full-featured open source remote control alternative for self-hosting and security with minimal configuration.
+category: productivity
+tags:
+    - remote-desktop
+    - self-hosted
+    - productivity
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rustdesk.svg
+version: latest
+links:
+    docs: https://rustdesk.com/docs/
+    github: https://github.com/rustdesk/rustdesk-server
+    website: https://rustdesk.com/
+image: rustdesk/rustdesk-server:latest
+ports:
+    - "21117"
+    - "21118"
+    - "21119"
+stack: true
+services:
+    - name: hbbr
+      image: rustdesk/rustdesk-server:latest
+      ports:
+        - "21117"
+        - "21118"
+        - "21119"
+      volumes:
+        - rustdesk-data:/root
+      command: hbbr
+    - name: hbbs
+      image: rustdesk/rustdesk-server:latest
+      ports:
+        - "21115"
+        - "21116"
+        - "21116"
+      volumes:
+        - rustdesk-data:/root
+      command: hbbs

@@ -1,0 +1,38 @@
+kind: Template
+name: rote
+description: Rote is an open-source multi-platform personal note system featuring an open API, full data ownership, and effortless Docker deployment.
+category: productivity
+tags:
+    - notes
+    - productivity
+    - postgres
+    - bun
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rote.svg
+version: latest
+links:
+    docs: https://github.com/Rabithua/Rote/tree/main/doc/userguide
+    github: https://github.com/Rabithua/Rote
+    website: https://rote.ink
+image: rabithua/rote-backend:latest
+stack: true
+services:
+    - name: rote-backend
+      image: rabithua/rote-backend:latest
+      env:
+        POSTGRESQL_URL: postgresql://rote:@rote-postgres:5432/rote
+      command:
+        - sh
+        - -c
+        - sleep 15 && bun run dist/scripts/runMigrations.js && bun run dist/server.js
+    - name: rote-frontend
+      image: rabithua/rote-frontend:latest
+      env:
+        VITE_API_BASE: ""
+    - name: rote-postgres
+      image: postgres:17
+      env:
+        POSTGRES_DB: rote
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: rote
+      volumes:
+        - rote-postgres-data:/var/lib/postgresql/data

@@ -1,0 +1,37 @@
+kind: Template
+name: aptabase
+description: Aptabase is a self-hosted web analytics platform that lets you track website traffic and user behavior.
+category: analytics
+tags:
+    - analytics
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/aptabase.svg
+version: v1.0.0
+links:
+    docs: https://github.com/aptabase/aptabase/blob/main/README.md
+    github: https://github.com/aptabase/aptabase
+    website: https://aptabase.com/
+image: ghcr.io/aptabase/aptabase:main
+stack: true
+services:
+    - name: aptabase
+      image: ghcr.io/aptabase/aptabase:main
+      env:
+        AUTH_SECRET: ""
+        BASE_URL: http://
+        CLICKHOUSE_URL: Host=aptabase_events_db;Port=8123;Username=aptabase;Password=sTr0NGp4ssw0rd
+        DATABASE_URL: Server=aptabase_db;Port=5432;User Id=aptabase;Password=sTr0NGp4ssw0rd;Database=aptabase
+    - name: aptabase_db
+      image: postgres:15-alpine
+      env:
+        POSTGRES_PASSWORD: sTr0NGp4ssw0rd
+        POSTGRES_USER: aptabase
+      volumes:
+        - db-data:/var/lib/postgresql/data
+    - name: aptabase_events_db
+      image: clickhouse/clickhouse-server:23.8.16.16-alpine
+      env:
+        CLICKHOUSE_PASSWORD: sTr0NGp4ssw0rd
+        CLICKHOUSE_USER: aptabase
+      volumes:
+        - events-db-data:/var/lib/clickhouse

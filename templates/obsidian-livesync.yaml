@@ -1,0 +1,22 @@
+kind: Template
+name: obsidian-livesync
+description: Obsidian LiveSync with CouchDB for real-time note synchronization.
+category: databases
+tags:
+    - database
+    - sync
+    - obsidian
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/obsidian-livesync.svg
+version: latest
+links:
+    docs: https://docs.couchdb.apache.org/
+    github: https://github.com/vrtmrz/obsidian-livesync
+    website: https://obsidian.md/sync
+image: couchdb:latest
+ports:
+    - "5984"
+volumes:
+    - couchdb-data:/opt/couchdb/data
+env:
+    COUCHDB_PASSWORD: ""
+    COUCHDB_USER: ""

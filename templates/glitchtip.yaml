@@ -1,0 +1,66 @@
+kind: Template
+name: glitchtip
+description: Glitchtip is simple, open source error tracking
+category: hosting
+tags:
+    - hosting
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/glitchtip.svg
+version: v4.0
+links:
+    docs: https://glitchtip.com/documentation
+    github: https://gitlab.com/glitchtip/
+    website: https://glitchtip.com/
+image: glitchtip/glitchtip:v4.0
+ports:
+    - ${GLITCHTIP_PORT}
+stack: true
+services:
+    - name: migrate
+      image: glitchtip/glitchtip:v4.0
+      env:
+        CELERY_WORKER_AUTOSCALE: 1,3
+        CELERY_WORKER_MAX_TASKS_PER_CHILD: "10000"
+        DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+        DEFAULT_FROM_EMAIL: email@glitchtip.com
+        EMAIL_URL: consolemail://
+        GLITCHTIP_DOMAIN: http://
+        PORT: ""
+        SECRET_KEY: ""
+      command: ./manage.py migrate
+    - name: postgres
+      image: postgres:16
+      env:
+        POSTGRES_HOST_AUTH_METHOD: trust
+      volumes:
+        - pg-data:/var/lib/postgresql/data
+    - name: redis
+      image: redis
+    - name: web
+      image: glitchtip/glitchtip:v4.0
+      ports:
+        - ${GLITCHTIP_PORT}
+      env:
+        CELERY_WORKER_AUTOSCALE: 1,3
+        CELERY_WORKER_MAX_TASKS_PER_CHILD: "10000"
+        DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+        DEFAULT_FROM_EMAIL: email@glitchtip.com
+        EMAIL_URL: consolemail://
+        GLITCHTIP_DOMAIN: http://
+        PORT: ""
+        SECRET_KEY: ""
+      volumes:
+        - uploads:/code/uploads
+    - name: worker
+      image: glitchtip/glitchtip:v4.0
+      env:
+        CELERY_WORKER_AUTOSCALE: 1,3
+        CELERY_WORKER_MAX_TASKS_PER_CHILD: "10000"
+        DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+        DEFAULT_FROM_EMAIL: email@glitchtip.com
+        EMAIL_URL: consolemail://
+        GLITCHTIP_DOMAIN: http://
+        PORT: ""
+        SECRET_KEY: ""
+      volumes:
+        - uploads:/code/uploads
+      command: ./bin/run-celery-with-beat.sh

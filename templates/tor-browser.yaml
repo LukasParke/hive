@@ -1,0 +1,21 @@
+kind: Template
+name: tor-browser
+description: A Dockerized Tor Browser accessible via web VNC (noVNC) and VNC client.
+category: security
+tags:
+    - privacy
+    - security
+    - browser
+    - tor
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/tor-browser.svg
+version: latest
+links:
+    docs: https://hub.docker.com/r/domistyle/tor-browser
+    github: https://github.com/DomiStyle/docker-tor-browser
+    website: https://www.torproject.org/
+image: domistyle/tor-browser
+env:
+    DISPLAY_HEIGHT: ""
+    DISPLAY_WIDTH: ""
+    KEEP_APP_RUNNING: ""
+    TZ: ""

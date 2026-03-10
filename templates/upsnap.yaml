@@ -1,0 +1,25 @@
+kind: Template
+name: upsnap
+description: Upsnap is a simple network device monitor and dashboard built on PocketBase.
+category: monitoring
+tags:
+    - network
+    - monitoring
+    - dashboard
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/upsnap.svg
+version: "5"
+links:
+    docs: https://github.com/seriousm4x/upsnap#readme
+    github: https://github.com/seriousm4x/upsnap
+    website: https://github.com/seriousm4x/upsnap
+image: ghcr.io/seriousm4x/upsnap:5
+volumes:
+    - upsnap-data:/app/pb_data
+env:
+    TZ: ""
+    UPSNAP_INTERVAL: ""
+    UPSNAP_PING_PRIVILEGED: ""
+    UPSNAP_SCAN_RANGE: ""
+    UPSNAP_SCAN_TIMEOUT: ""
+    UPSNAP_WEBSITE_TITLE: ""

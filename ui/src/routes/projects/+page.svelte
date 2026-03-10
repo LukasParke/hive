@@ -1,31 +1,29 @@
 <script lang="ts">
-	import { api, type Project } from '$lib/api';
-	import { onMount } from 'svelte';
+	import { api } from '$lib/api';
+	import { invalidateAll } from '$app/navigation';
+	import { Button, Card, Input, Modal, EmptyState } from '$lib/components';
 
-	let projects = $state<Project[]>([]);
+	let { data } = $props();
+
 	let showCreate = $state(false);
 	let newName = $state('');
 	let newDesc = $state('');
 	let loading = $state(false);
+	let deletingId = $state('');
+	let success = $state('');
 	let error = $state('');
-
-	onMount(async () => {
-		try {
-			projects = await api.listProjects();
-		} catch (e: any) {
-			error = e.message;
-		}
-	});
 
 	async function createProject(e: Event) {
 		e.preventDefault();
 		loading = true;
+		error = '';
 		try {
-			const project = await api.createProject({ name: newName, description: newDesc });
-			projects = [project, ...projects];
+			await api.createProject({ name: newName, description: newDesc });
 			showCreate = false;
 			newName = '';
 			newDesc = '';
+			success = 'Project created.';
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		} finally {
@@ -34,82 +32,87 @@
 	}
 
 	async function deleteProject(id: string) {
-		await api.deleteProject(id);
-		projects = projects.filter(p => p.id !== id);
+		if (!confirm('Delete this project and all its apps?')) return;
+		deletingId = id;
+		try {
+			await api.deleteProject(id);
+			success = 'Project deleted.';
+			await invalidateAll();
+		} catch (e: any) {
+			error = e.message;
+		} finally {
+			deletingId = '';
+		}
 	}
 </script>
 
-<div>
-	<div class="flex items-center justify-between mb-6">
-		<h2 class="text-2xl font-bold">Projects</h2>
-		<button
-			onclick={() => showCreate = !showCreate}
-			class="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
-			style="background-color: var(--color-primary); color: var(--color-bg);"
-		>
-			New Project
-		</button>
+<svelte:head><title>Projects | Hive</title></svelte:head>
+
+<div class="page-header">
+	<div>
+		<h2 class="page-title">Projects</h2>
+		<p class="page-subtitle">{(data.projects ?? []).length} project{(data.projects ?? []).length !== 1 ? 's' : ''}</p>
 	</div>
+	<Button variant="primary" onclick={() => showCreate = true}>
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+		New Project
+	</Button>
+</div>
 
-	{#if error}
-		<div class="rounded-lg p-4 mb-4" style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger);">
-			<p style="color: var(--color-danger);">{error}</p>
-		</div>
-	{/if}
+{#if error}
+	<div class="alert alert-error mb-4">
+		<p class="text-danger text-sm">{error}</p>
+	</div>
+{/if}
+{#if success}
+	<div class="alert alert-success mb-4">
+		<p class="text-sm">{success}</p>
+	</div>
+{/if}
 
-	{#if showCreate}
-		<form onsubmit={createProject} class="rounded-lg p-4 mb-6 space-y-3" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
-			<input
-				type="text"
-				bind:value={newName}
-				placeholder="Project name"
-				required
-				class="w-full px-3 py-2 rounded-lg text-sm outline-none"
-				style="background-color: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text);"
-			/>
-			<input
-				type="text"
-				bind:value={newDesc}
-				placeholder="Description (optional)"
-				class="w-full px-3 py-2 rounded-lg text-sm outline-none"
-				style="background-color: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text);"
-			/>
-			<div class="flex gap-2">
-				<button type="submit" disabled={loading} class="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer" style="background-color: var(--color-primary); color: var(--color-bg);">
-					{loading ? 'Creating...' : 'Create'}
-				</button>
-				<button type="button" onclick={() => showCreate = false} class="px-4 py-2 rounded-lg text-sm cursor-pointer" style="color: var(--color-text-muted);">Cancel</button>
-			</div>
-		</form>
-	{/if}
+<Modal bind:open={showCreate} title="Create Project">
+	<form onsubmit={createProject} class="flex flex-col gap-4">
+		<Input label="Project Name" bind:value={newName} placeholder="my-project" required />
+		<Input label="Description" bind:value={newDesc} placeholder="Optional description" />
+		{#snippet footer()}
+			<Button variant="ghost" onclick={() => showCreate = false}>Cancel</Button>
+			<Button variant="primary" loading={loading} type="submit">Create Project</Button>
+		{/snippet}
+	</form>
+</Modal>
 
+{#if (data.projects ?? []).length === 0}
+	<EmptyState
+		title="No projects yet"
+		description="Create a project to start deploying apps."
+	>
+		{#snippet action()}
+			<Button variant="primary" onclick={() => showCreate = true}>Create your first project</Button>
+		{/snippet}
+	</EmptyState>
+{:else}
 	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-		{#each projects as project}
-			<a href="/projects/{project.id}" class="rounded-lg p-4 transition-colors block" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
-				<div class="flex items-start justify-between">
-					<div>
-						<h3 class="font-semibold">{project.name}</h3>
-						{#if project.description}
-							<p class="text-sm mt-1" style="color: var(--color-text-muted);">{project.description}</p>
-						{/if}
+		{#each data.projects ?? [] as project}
+			<a href="/projects/{project.id}" class="hive-card hive-card-interactive block" style="text-decoration: none; color: inherit;">
+				<div class="hive-card-body">
+					<div class="flex items-start justify-between">
+						<div style="min-width: 0; flex: 1">
+							<h3 style="font-weight: 600; font-size: var(--text-base)">{project.name}</h3>
+							{#if project.description}
+								<p class="text-muted" style="font-size: var(--text-sm); margin-top: var(--space-xs)">{project.description}</p>
+							{/if}
+						</div>
+						<button
+							onclick={(e) => { e.preventDefault(); e.stopPropagation(); deleteProject(project.id); }}
+							class="btn btn-ghost btn-sm text-danger"
+							disabled={deletingId === project.id}
+						>{deletingId === project.id ? 'Deleting...' : 'Delete'}</button>
 					</div>
-					<button
-						onclick={(e) => { e.stopPropagation(); deleteProject(project.id); }}
-						class="text-xs px-2 py-1 rounded cursor-pointer"
-						style="color: var(--color-danger);"
-					>Delete</button>
+					<p class="text-muted" style="font-size: var(--text-xs); margin-top: var(--space-md)">
+						Created {new Date(project.created_at).toLocaleDateString()}
+					</p>
 				</div>
-				<p class="text-xs mt-3" style="color: var(--color-text-muted);">
-					Created {new Date(project.created_at).toLocaleDateString()}
-				</p>
 			</a>
 		{/each}
 	</div>
-
-	{#if projects.length === 0 && !showCreate}
-		<div class="text-center py-12" style="color: var(--color-text-muted);">
-			<p class="text-lg mb-2">No projects yet</p>
-			<p class="text-sm">Create a project to start deploying apps.</p>
-		</div>
-	{/if}
-</div>
+{/if}

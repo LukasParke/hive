@@ -2,7 +2,7 @@ kind: Template
 name: home-assistant
 description: Open source home automation that puts local control and privacy first
 category: automation
-icon: https://www.home-assistant.io/images/home-assistant-logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/home-assistant.svg
 image: ghcr.io/home-assistant/home-assistant:stable
 ports:
   - "8123"

@@ -2,7 +2,7 @@ kind: Template
 name: immich
 description: Self-hosted photo and video backup solution
 category: media
-icon: https://github.com/immich-app/immich/blob/main/docs/docs/public/immich-logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/immich.svg
 image: ghcr.io/immich-app/immich-server:release
 ports:
   - "2283"

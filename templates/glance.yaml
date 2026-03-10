@@ -1,0 +1,18 @@
+kind: Template
+name: glance
+description: A self-hosted dashboard that puts all your feeds in one place. Features RSS feeds, weather, bookmarks, site monitoring, and more in a minimal, fast interface.
+category: monitoring
+tags:
+    - dashboard
+    - monitoring
+    - widgets
+    - rss
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/glance.svg
+version: latest
+links:
+    docs: https://github.com/glanceapp/glance/blob/main/docs/configuration.md
+    github: https://github.com/glanceapp/glance
+    website: https://glance.app/
+image: glanceapp/glance
+ports:
+    - "8080"

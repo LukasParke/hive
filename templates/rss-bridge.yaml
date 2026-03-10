@@ -1,0 +1,18 @@
+kind: Template
+name: rss-bridge
+description: RSS-Bridge is a PHP project capable of generating Atom feeds for websites that don't have one.
+category: media
+tags:
+    - rss
+    - feeds
+    - news
+    - content
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rss-bridge.svg
+version: latest
+links:
+    docs: https://rss-bridge.github.io/rss-bridge/General/Project_goals.html
+    github: https://github.com/RSS-Bridge/rss-bridge
+    website: https://rss-bridge.github.io/rss-bridge/
+image: rssbridge/rss-bridge:latest
+volumes:
+    - rssbridge-config:/config

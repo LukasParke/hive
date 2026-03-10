@@ -1,0 +1,56 @@
+kind: Template
+name: zabbix
+description: Zabbix is an open-source enterprise-grade monitoring platform for networks, servers, virtual machines, and cloud services. This template includes PostgreSQL, Nginx frontend, SNMP traps, and Java gateway.
+category: monitoring
+tags:
+    - monitoring
+    - infrastructure
+    - observability
+    - alerting
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/zabbix.svg
+version: "7.4"
+links:
+    docs: https://www.zabbix.com/documentation/current/en/manual/installation/containers
+    github: https://github.com/zabbix/zabbix-docker
+    website: https://www.zabbix.com/
+image: postgres:16-alpine
+stack: true
+services:
+    - name: postgres
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - zabbix-postgres-data:/var/lib/postgresql/data
+    - name: zabbix-java-gateway
+      image: zabbix/zabbix-java-gateway:alpine-7.4-latest
+    - name: zabbix-server-pgsql
+      image: zabbix/zabbix-server-pgsql:alpine-7.4-latest
+      env:
+        DB_SERVER_HOST: postgres
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+        ZBX_ENABLE_SNMP_TRAPS: "true"
+        ZBX_JAVAGATEWAY: zabbix-java-gateway
+      volumes:
+        - zabbix-server-data:/var/lib/zabbix
+        - zabbix-snmptraps:/var/lib/zabbix/snmptraps
+        - zabbix-mibs:/var/lib/zabbix/mibs
+    - name: zabbix-snmptraps
+      image: zabbix/zabbix-snmptraps:alpine-7.4-latest
+      volumes:
+        - zabbix-snmptraps:/var/lib/zabbix/snmptraps
+        - zabbix-mibs:/var/lib/zabbix/mibs
+    - name: zabbix-web-nginx-pgsql
+      image: zabbix/zabbix-web-nginx-pgsql:alpine-7.4-latest
+      env:
+        DB_SERVER_HOST: postgres
+        PHP_TZ: ""
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+        ZBX_SERVER_HOST: zabbix-server-pgsql
+        ZBX_SERVER_NAME: ""

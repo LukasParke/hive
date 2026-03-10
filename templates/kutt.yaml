@@ -1,0 +1,31 @@
+kind: Template
+name: kutt
+description: Kutt is a modern URL shortener with support for custom domains. Create and edit links, view statistics, manage users, and more.
+category: link-shortener
+tags:
+    - link-shortener
+    - link-sharing
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kutt.svg
+version: latest
+links:
+    docs: https://github.com/thedevs-network/kutt#kuttit
+    github: https://github.com/thedevs-network/kutt
+    website: https://kutt.it
+image: kutt/kutt:main
+volumes:
+    - kutt_db_data:/var/lib/kutt
+env:
+    CONTACT_EMAIL: ""
+    CUSTOM_DOMAIN_USE_HTTPS: ""
+    DB_FILENAME: /var/lib/kutt/data.sqlite
+    DEFAULT_DOMAIN: ""
+    DISALLOW_ANONYMOUS_LINKS: ""
+    JWT_SECRET: ""
+    MAIL_ENABLED: ""
+    MAIL_FROM: ""
+    MAIL_HOST: ""
+    MAIL_PASSWORD: ""
+    MAIL_PORT: ""
+    MAIL_SECURE: ""
+    MAIL_USER: ""
+    TRUST_PROXY: ""

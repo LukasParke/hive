@@ -1,0 +1,37 @@
+kind: Template
+name: lowcoder
+description: Rapid business App Builder for Everyone
+category: development
+tags:
+    - low-code
+    - no-code
+    - development
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/lowcoder.svg
+version: 2.6.4
+links:
+    docs: https://docs.lowcoder.cloud/lowcoder-documentation
+    github: https://github.com/lowcoder-org/lowcoder
+    website: https://www.lowcoder.cloud/
+image: lowcoderorg/lowcoder-ce:2.6.4
+env:
+    API_SERVICE_ENABLED: "true"
+    CORS_ALLOWED_DOMAINS: ""
+    DEFAULT_DEVELOPER_COUNT: "50"
+    DEFAULT_ORG_APP_COUNT: "1000"
+    DEFAULT_ORG_GROUP_COUNT: "100"
+    DEFAULT_ORG_MEMBER_COUNT: "1000"
+    DEFAULT_ORGS_PER_USER: "100"
+    ENABLE_USER_SIGN_UP: ""
+    ENCRYPTION_PASSWORD: ""
+    ENCRYPTION_SALT: ""
+    FRONTEND_ENABLED: "true"
+    LOWCODER_API_KEY_SECRET: ""
+    LOWCODER_API_SERVICE_URL: http://localhost:8080
+    LOWCODER_NODE_SERVICE_URL: http://localhost:6060
+    MONGODB_ENABLED: "true"
+    MONGODB_URL: mongodb://localhost:27017/lowcoder?authSource=admin
+    NODE_SERVICE_ENABLED: "true"
+    PGID: "1000"
+    PUID: "1000"
+    REDIS_ENABLED: "true"
+    REDIS_URL: redis://localhost:6379

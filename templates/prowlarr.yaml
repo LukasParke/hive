@@ -2,7 +2,7 @@ kind: Template
 name: prowlarr
 description: Indexer manager for Sonarr, Radarr, Lidarr, and Readarr
 category: media
-icon: https://raw.githubusercontent.com/Prowlarr/Prowlarr/develop/Logo/128.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/prowlarr.svg
 image: lscr.io/linuxserver/prowlarr:latest
 ports:
   - "9696"

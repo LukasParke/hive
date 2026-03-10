@@ -1,0 +1,159 @@
+kind: Template
+name: peerdb
+description: Data integration platform that synchronizes and federates data across databases with a unified API.
+category: databases
+tags:
+    - database
+    - integration
+    - sync
+    - sql
+    - workflow
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/peerdb.svg
+version: v0.35.5
+links:
+    docs: https://docs.peerdb.io
+    github: https://github.com/peerdb-io/peerdb
+    website: https://peerdb.io
+image: postgres:18-alpine@sha256:eca6fb2d91fda290eb8cfb8ba53dd0dcbf3508a08011e30adb039ea7c8e1e9f2
+stack: true
+services:
+    - name: catalog
+      image: postgres:18-alpine@sha256:eca6fb2d91fda290eb8cfb8ba53dd0dcbf3508a08011e30adb039ea7c8e1e9f2
+      env:
+        PGUSER: ""
+        POSTGRES_DB: ""
+        POSTGRES_INITDB_ARGS: --locale=C.UTF-8
+        POSTGRES_PASSWORD: ""
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      command: -c config_file=/etc/postgresql.conf
+    - name: flow-api
+      image: ghcr.io/peerdb-io/flow-api:stable-v0.35.5
+      env:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_ENDPOINT: ""
+        AWS_REGION: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+        PEERDB_ALLOWED_TARGETS: ""
+        PEERDB_CATALOG_DATABASE: ""
+        PEERDB_CATALOG_HOST: ""
+        PEERDB_CATALOG_PASSWORD: ""
+        PEERDB_CATALOG_PORT: ""
+        PEERDB_CATALOG_USER: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ACCESS_KEY_ID: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ENDPOINT_URL_S3: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_REGION: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_SECRET_ACCESS_KEY: ""
+        PEERDB_CLICKHOUSE_AWS_S3_BUCKET_NAME: ""
+        PEERDB_TEMPORAL_NAMESPACE: default
+        TEMPORAL_CLIENT_CERT: <nil>
+        TEMPORAL_CLIENT_KEY: <nil>
+        TEMPORAL_HOST_PORT: temporal:7233
+    - name: flow-snapshot-worker
+      image: ghcr.io/peerdb-io/flow-snapshot-worker:stable-v0.35.5
+      env:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_ENDPOINT: ""
+        AWS_REGION: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+        PEERDB_CATALOG_DATABASE: ""
+        PEERDB_CATALOG_HOST: ""
+        PEERDB_CATALOG_PASSWORD: ""
+        PEERDB_CATALOG_PORT: ""
+        PEERDB_CATALOG_USER: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ACCESS_KEY_ID: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ENDPOINT_URL_S3: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_REGION: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_SECRET_ACCESS_KEY: ""
+        PEERDB_CLICKHOUSE_AWS_S3_BUCKET_NAME: ""
+        PEERDB_TEMPORAL_NAMESPACE: default
+        TEMPORAL_CLIENT_CERT: <nil>
+        TEMPORAL_CLIENT_KEY: <nil>
+        TEMPORAL_HOST_PORT: temporal:7233
+    - name: flow-worker
+      image: ghcr.io/peerdb-io/flow-worker:stable-v0.35.5
+      env:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_ENDPOINT: ""
+        AWS_REGION: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+        PEERDB_CATALOG_DATABASE: ""
+        PEERDB_CATALOG_HOST: ""
+        PEERDB_CATALOG_PASSWORD: ""
+        PEERDB_CATALOG_PORT: ""
+        PEERDB_CATALOG_USER: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ACCESS_KEY_ID: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ENDPOINT_URL_S3: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_REGION: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_SECRET_ACCESS_KEY: ""
+        PEERDB_CLICKHOUSE_AWS_S3_BUCKET_NAME: ""
+        PEERDB_TEMPORAL_NAMESPACE: default
+        TEMPORAL_CLIENT_CERT: <nil>
+        TEMPORAL_CLIENT_KEY: <nil>
+        TEMPORAL_HOST_PORT: temporal:7233
+    - name: minio
+      image: minio/minio:latest@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+      env:
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ACCESS_KEY_ID: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_ENDPOINT_URL_S3: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_REGION: ""
+        PEERDB_CLICKHOUSE_AWS_CREDENTIALS_AWS_SECRET_ACCESS_KEY: ""
+        PEERDB_CLICKHOUSE_AWS_S3_BUCKET_NAME: ""
+      volumes:
+        - minio-data:/data
+    - name: peerdb
+      image: ghcr.io/peerdb-io/peerdb-server:stable-v0.35.5
+      env:
+        PEERDB_CATALOG_DATABASE: ""
+        PEERDB_CATALOG_HOST: ""
+        PEERDB_CATALOG_PASSWORD: ""
+        PEERDB_CATALOG_PORT: ""
+        PEERDB_CATALOG_USER: ""
+        PEERDB_FLOW_SERVER_ADDRESS: ""
+        PEERDB_PASSWORD: ""
+        RUST_BACKTRACE: "1"
+        RUST_LOG: info
+    - name: peerdb-ui
+      image: ghcr.io/peerdb-io/peerdb-ui:stable-v0.35.5
+      env:
+        DATABASE_URL: ""
+        NEXTAUTH_SECRET: ""
+        NEXTAUTH_URL: ""
+        PEERDB_ALLOWED_TARGETS: ""
+        PEERDB_CATALOG_DATABASE: ""
+        PEERDB_CATALOG_HOST: ""
+        PEERDB_CATALOG_PASSWORD: ""
+        PEERDB_CATALOG_PORT: ""
+        PEERDB_CATALOG_USER: ""
+        PEERDB_CLICKHOUSE_ALLOWED_DOMAINS: ""
+        PEERDB_EXPERIMENTAL_ENABLE_SCRIPTING: ""
+        PEERDB_FLOW_SERVER_HTTP: ""
+    - name: temporal
+      image: temporalio/auto-setup:1.29@sha256:5b3502a3b685f9eff1b925af90c57c9e3dbeccbef367cc28a2a9712c63379312
+      env:
+        DB: postgres12
+        DB_PORT: ""
+        DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/production-sql.yaml
+        POSTGRES_PWD: ""
+        POSTGRES_SEEDS: catalog
+        POSTGRES_USER: ""
+    - name: temporal-admin-tools
+      image: temporalio/admin-tools:1.25.2-tctl-1.18.1-cli-1.1.1@sha256:da0c7a7982b571857173ab8f058e7f139b3054800abb4dcb100445d29a563ee8
+      env:
+        TEMPORAL_ADDRESS: temporal:7233
+        TEMPORAL_CLI_ADDRESS: temporal:7233
+        TEMPORAL_CLI_SHOW_STACKS: "1"
+    - name: temporal-ui
+      image: temporalio/ui:2.43.3@sha256:31f0d8c1ed0bfc49c9c20ea9613ee9dd5c52f5f989bacb8a30210f847028e9cd
+      env:
+        TEMPORAL_ADDRESS: temporal:7233
+        TEMPORAL_CORS_ORIGINS: http://localhost:3000
+        TEMPORAL_CSRF_COOKIE_INSECURE: "true"

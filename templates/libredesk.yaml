@@ -1,0 +1,44 @@
+kind: Template
+name: libredesk
+description: Open source, self-hosted customer support desk. Single binary app.
+category: storage
+tags:
+    - storage
+    - object-storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/libredesk.svg
+version: latest
+links:
+    docs: https://docs.libredesk.io/introduction
+    github: https://github.com/abhinavxd/libredesk
+    website: https://libredesk.io
+image: postgres:17-alpine
+ports:
+    - "5432"
+stack: true
+services:
+    - name: db
+      image: postgres:17-alpine
+      ports:
+        - "5432"
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres-data:/var/lib/postgresql/data
+    - name: libredesk
+      image: libredesk/libredesk:latest
+      ports:
+        - "9000"
+      env:
+        LIBREDESK_SYSTEM_USER_PASSWORD: ""
+      command:
+        - sh
+        - -c
+        - ./libredesk --install --idempotent-install --yes --config /libredesk/config.toml && ./libredesk --upgrade --yes --config /libredesk/config.toml && ./libredesk --config /libredesk/config.toml
+    - name: redis
+      image: redis:7-alpine
+      ports:
+        - "6379"
+      volumes:
+        - redis-data:/data

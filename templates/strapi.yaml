@@ -1,0 +1,43 @@
+kind: Template
+name: strapi
+description: Open-source headless CMS to build powerful APIs with built-in content management.
+category: cms
+tags:
+    - headless
+    - cms
+    - content-management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/strapi.svg
+version: v5.33.0
+links:
+    discord: https://discord.com/invite/strapi
+    docs: https://docs.strapi.io
+    github: https://github.com/strapi/strapi
+    website: https://strapi.io
+image: elestio/strapi-production:v5.33.0
+stack: true
+services:
+    - name: strapi
+      image: elestio/strapi-production:v5.33.0
+      env:
+        ADMIN_JWT_SECRET: ""
+        DATABASE_CLIENT: postgres
+        DATABASE_HOST: strapi_postgres
+        DATABASE_NAME: strapi
+        DATABASE_PASSWORD: ""
+        DATABASE_PORT: "5432"
+        DATABASE_USERNAME: strapi
+        FAST_REFRESH: "true"
+        JWT_SECRET: ""
+        NODE_ENV: production
+        STRAPI_PLUGIN_I18N_INIT_LOCALE_CODE: en
+        STRAPI_TELEMETRY_DISABLED: "true"
+      volumes:
+        - strapi_data:/srv/app
+    - name: strapi_postgres
+      image: postgres:18
+      env:
+        POSTGRES_DB: strapi
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: strapi
+      volumes:
+        - strapi_postgres_data:/var/lib/postgresql

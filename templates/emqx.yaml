@@ -1,0 +1,20 @@
+kind: Template
+name: emqx
+description: A scalable and reliable MQTT broker for AI, IoT, IIoT and connected vehicles
+category: home-automation
+tags:
+    - broker
+    - iot
+    - mqtt
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/emqx.svg
+version: 6.0.1
+links:
+    docs: https://docs.emqx.com
+    github: https://github.com/emqx/emqx
+    website: https://www.emqx.com
+image: emqx/emqx-enterprise:6.0.1
+volumes:
+    - emqx_data:/opt/emqx/data
+    - emqx_log:/opt/emqx/log
+env:
+    EMQX_NODE_NAME: emqx@node1.emqx.com

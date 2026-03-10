@@ -1,0 +1,17 @@
+kind: Template
+name: commafeed
+description: CommaFeed is an open-source feed reader and news aggregator, designed to be lightweight and extensible, with PostgreSQL as its database.
+category: media
+tags:
+    - feed-reader
+    - news-aggregator
+    - rss
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/commafeed.svg
+version: latest
+links:
+    docs: https://github.com/Athou/commafeed/wiki
+    github: https://github.com/Athou/commafeed
+    website: https://www.commafeed.com/
+image: athou/commafeed:latest-h2
+ports:
+    - "8082"

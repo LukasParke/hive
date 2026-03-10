@@ -1,0 +1,47 @@
+kind: Template
+name: chevereto
+description: Chevereto is a powerful, self-hosted image and video hosting platform designed for individuals, communities, and businesses. It allows users to upload, organize, and share media effortlessly.
+category: image hosting
+tags:
+    - Image Hosting
+    - File Management
+    - Open Source
+    - Multi-User
+    - Private Albums
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/chevereto.svg
+version: "4"
+links:
+    docs: https://v4-docs.chevereto.com/
+    github: https://github.com/chevereto/chevereto
+    website: https://chevereto.com/
+image: chevereto/chevereto:4
+ports:
+    - "80"
+stack: true
+services:
+    - name: chevereto
+      image: chevereto/chevereto:4
+      ports:
+        - "80"
+      env:
+        CHEVERETO_DB_HOST: mysql
+        CHEVERETO_DB_NAME: chevereto
+        CHEVERETO_DB_PASS: ""
+        CHEVERETO_DB_PORT: "3306"
+        CHEVERETO_DB_USER: mysql
+        CHEVERETO_HOSTNAME: ""
+        CHEVERETO_HOSTNAME_PATH: /
+        CHEVERETO_HTTPS: "0"
+        CHEVERETO_MAX_POST_SIZE: 2G
+        CHEVERETO_MAX_UPLOAD_SIZE: 2G
+      volumes:
+        - storage:/var/www/html/images/
+    - name: mysql
+      image: mysql:8
+      env:
+        MYSQL_DATABASE: chevereto
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: mysql
+      volumes:
+        - mysql:/var/lib/mysql

@@ -1,0 +1,23 @@
+kind: Template
+name: enshrouded
+description: Enshrouded steam dedicated server.
+category: gaming
+tags:
+    - gaming
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/enshrouded.svg
+version: 1.0.0
+links:
+    github: https://github.com/mornedhels/enshrouded-server
+image: mornedhels/enshrouded-server:latest
+ports:
+    - "15637"
+    - "27015"
+volumes:
+    - enshrouded-persistent-data:/opt/enshrouded
+env:
+    PGID: "4711"
+    PUID: "4711"
+    SERVER_NAME: ""
+    SERVER_PASSWORD: ""
+    SERVER_SLOT_COUNT: "6"
+    UPDATE_CRON: 0 3 * * *

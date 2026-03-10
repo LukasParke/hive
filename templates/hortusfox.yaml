@@ -1,0 +1,47 @@
+kind: Template
+name: hortusfox
+description: HortusFox is an open source task and photo management app, designed for photographers and creatives to manage projects, tasks, and images effectively.
+category: productivity
+tags:
+    - productivity
+    - photo
+    - task-management
+    - php
+    - mariadb
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/hortusfox.svg
+version: "5.0"
+links:
+    discord: https://discord.gg/kc6xGmjzVS
+    docs: https://github.com/danielbrendel/hortusfox-web#readme
+    github: https://github.com/danielbrendel/hortusfox-web
+    website: https://www.hortusfox.com
+image: ghcr.io/danielbrendel/hortusfox-web:latest
+stack: true
+services:
+    - name: app
+      image: ghcr.io/danielbrendel/hortusfox-web:latest
+      env:
+        APP_ADMIN_EMAIL: ""
+        APP_ADMIN_PASSWORD: ""
+        APP_TIMEZONE: ""
+        DB_CHARSET: utf8mb4
+        DB_DATABASE: ""
+        DB_HOST: db
+        DB_PASSWORD: ""
+        DB_PORT: "3306"
+        DB_USERNAME: ""
+      volumes:
+        - app_images:/var/www/html/public/img
+        - app_logs:/var/www/html/app/logs
+        - app_backup:/var/www/html/public/backup
+        - app_themes:/var/www/html/public/themes
+        - app_migrate:/var/www/html/app/migrations
+    - name: db
+      image: mariadb:11
+      env:
+        MARIADB_DATABASE: ""
+        MARIADB_PASSWORD: ""
+        MARIADB_ROOT_PASSWORD: ""
+        MARIADB_USER: ""
+      volumes:
+        - db_data:/var/lib/mysql

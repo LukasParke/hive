@@ -1,0 +1,21 @@
+kind: Template
+name: kokoro-web
+description: Kokoro Web provides an interface for text-to-speech using advanced AI voice synthesis. It allows model caching and API integration with authentication.
+category: text-to-speech
+tags:
+    - text-to-speech
+    - ai
+    - voice
+    - web
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kokoro-web.svg
+version: latest
+links:
+    docs: https://github.com/eduardolat/kokoro-web#readme
+    github: https://github.com/eduardolat/kokoro-web
+    website: https://github.com/eduardolat/kokoro-web
+image: ghcr.io/eduardolat/kokoro-web:latest
+volumes:
+    - kokoro-cache:/kokoro/cache
+env:
+    KW_PUBLIC_NO_TRACK: ""
+    KW_SECRET_API_KEY: ""

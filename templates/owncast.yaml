@@ -1,0 +1,23 @@
+kind: Template
+name: owncast
+description: Owncast is a self-hosted live video streaming and chat server for use with existing broadcasting software.
+category: media
+tags:
+    - streaming
+    - live-video
+    - chat
+    - broadcasting
+    - self-hosted
+    - rtmp
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/owncast.svg
+version: latest
+links:
+    docs: https://owncast.online/docs/
+    github: https://github.com/owncast/owncast
+    website: https://owncast.online/
+image: owncast/owncast:latest
+ports:
+    - "8080"
+    - "1935"
+volumes:
+    - owncast-data:/app/data

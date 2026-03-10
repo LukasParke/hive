@@ -1,0 +1,22 @@
+kind: Template
+name: crowdsec
+description: CrowdSec provides open source solution for detecting and blocking malicious IPs, safeguarding both infrastructure and application security.
+category: security
+tags:
+    - security
+    - firewall
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/crowdsec.svg
+version: latest
+links:
+    docs: https://docs.crowdsec.net
+    github: https://github.com/crowdsecurity/crowdsec
+    website: https://crowdsec.net/
+image: crowdsecurity/crowdsec:latest
+volumes:
+    - crowdsec-db:/var/lib/crowdsec/data/
+    - crowdsec-config:/etc/crowdsec/
+    - /etc/dokploy/traefik/dynamic/access.log:/var/log/traefik/access.log:ro
+    - :/var/log/ssh/auth.log:ro
+env:
+    COLLECTIONS: crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve
+    GID: "1000"

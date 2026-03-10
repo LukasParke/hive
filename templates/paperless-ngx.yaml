@@ -2,7 +2,7 @@ kind: Template
 name: paperless-ngx
 description: Document management system to archive and organize documents
 category: productivity
-icon: https://raw.githubusercontent.com/paperless-ngx/paperless-ngx/main/src-ui/src/assets/icons/icon-192x192.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/paperless-ngx.svg
 image: ghcr.io/paperless-ngx/paperless-ngx:latest
 ports:
   - "8000"

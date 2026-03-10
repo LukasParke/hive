@@ -1,0 +1,20 @@
+kind: Template
+name: lobe-chat
+description: Lobe Chat - an open-source, modern-design AI chat framework.
+category: communication
+tags:
+    - IA
+    - chat
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/lobe-chat.svg
+version: v1.26.1
+links:
+    docs: https://lobehub.com/docs/self-hosting/platform/docker-compose
+    github: https://github.com/lobehub/lobe-chat
+    website: https://chat-preview.lobehub.com/
+image: lobehub/lobe-chat:v1.26.1
+ports:
+    - "3210"
+env:
+    ACCESS_CODE: lobe66
+    OPENAI_API_KEY: sk-xxxx
+    OPENAI_PROXY_URL: https://api-proxy.com/v1

@@ -2,7 +2,7 @@ kind: Template
 name: unifi-controller
 description: Ubiquiti UniFi Network Application for managing UniFi devices
 category: networking
-icon: https://ui.com/favicon.ico
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/unifi.svg
 image: lscr.io/linuxserver/unifi-network-application:latest
 ports:
   - "8443"

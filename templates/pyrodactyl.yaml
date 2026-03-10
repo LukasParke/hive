@@ -1,0 +1,48 @@
+kind: Template
+name: pyrodactyl
+description: 'Pyrodactyl is the Pterodactyl-based game server panel that''s faster, smaller, safer, and more accessible than Pelican. '
+category: self-hosted
+tags:
+    - self-hosted
+    - open-source
+    - management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/pyrodactyl.svg
+version: main
+links:
+    docs: https://pyrodactyl.dev/docs
+    github: https://github.com/pyrohost/pyrodactyl
+    website: https://pyrodactyl.dev
+image: redis:alpine
+stack: true
+services:
+    - name: cache
+      image: redis:alpine
+    - name: database
+      image: mariadb:11
+      env:
+        MYSQL_DATABASE: panel
+        MYSQL_PASSWORD: <nil>
+        MYSQL_ROOT_PASSWORD: <nil>
+        MYSQL_USER: pterodactyl
+      volumes:
+        - pterodb:/var/lib/mysql
+      command: --default-authentication-plugin=mysql_native_password
+    - name: panel
+      image: ghcr.io/pyrodactyl-oss/pyrodactyl:latest
+      env:
+        APP_ENV: production
+        APP_ENVIRONMENT_ONLY: "false"
+        APP_URL: https://
+        CACHE_DRIVER: <nil>
+        DB_CONNECTION: mariadb
+        DB_HOST: <nil>
+        DB_PASSWORD: ""
+        DB_PORT: <nil>
+        QUEUE_DRIVER: <nil>
+        REDIS_HOST: <nil>
+        SESSION_DRIVER: <nil>
+      volumes:
+        - pterovar:/app/var/
+        - pteronginx:/etc/nginx/http.d/
+        - pterocerts:/etc/letsencrypt/
+        - pterologs:/app/storage/logs

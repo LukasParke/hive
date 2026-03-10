@@ -1,0 +1,26 @@
+kind: Template
+name: crawl4ai
+description: Crawl4AI is a modern AI-powered web crawler with support for screenshots, PDFs, JavaScript execution, and LLM-based extraction. Includes an interactive playground and MCP (Model Context Protocol) integration.
+category: crawler
+tags:
+    - crawler
+    - scraping
+    - AI
+    - LLM
+    - API
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/crawl4ai.svg
+version: 0.7.3
+links:
+    docs: https://github.com/unclecode/crawl4ai#readme
+    github: https://github.com/unclecode/crawl4ai
+    website: https://crawl4ai.com
+image: unclecode/crawl4ai:latest
+env:
+    ANTHROPIC_API_KEY: ""
+    DEEPSEEK_API_KEY: ""
+    GEMINI_API_TOKEN: ""
+    GROQ_API_KEY: ""
+    LLM_PROVIDER: ""
+    MISTRAL_API_KEY: ""
+    OPENAI_API_KEY: ""
+    TOGETHER_API_KEY: ""

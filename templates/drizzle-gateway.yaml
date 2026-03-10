@@ -1,0 +1,20 @@
+kind: Template
+name: drizzle-gateway
+description: Drizzle Gateway is a self-hosted database gateway that allows you to connect to your databases from anywhere.
+category: databases
+tags:
+    - database
+    - gateway
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/drizzle-gateway.svg
+version: latest
+links:
+    docs: https://drizzle-team.github.io/docs
+    github: https://github.com/drizzle-team/drizzle-gateway
+    website: https://drizzle-team.github.io/
+image: ghcr.io/drizzle-team/gateway:latest
+volumes:
+    - drizzle-gateway:/app
+env:
+    MASTERPASS: ""
+    PORT: "4983"
+    STORE_PATH: /app

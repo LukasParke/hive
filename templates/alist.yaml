@@ -1,0 +1,21 @@
+kind: Template
+name: alist
+description: "\U0001F5C2️A file list/WebDAV program that supports multiple storages, powered by Gin and Solidjs."
+category: storage
+tags:
+    - file
+    - webdav
+    - storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/alist.svg
+version: v3.55.0
+links:
+    docs: https://alistgo.com/guide/install/docker.html
+    github: https://github.com/AlistGo/alist
+    website: https://alistgo.com/
+image: xhofe/alist:v3.55.0
+volumes:
+    - alist-data:/opt/alist/data
+env:
+    PGID: "0"
+    PUID: "0"
+    UMASK: "022"

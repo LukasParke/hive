@@ -1,0 +1,72 @@
+kind: Template
+name: automatisch
+description: Automatisch is a powerful, self-hosted workflow automation tool designed for connecting your apps and automating repetitive tasks. With Automatisch, you can create workflows to sync data, send notifications, and perform various actions seamlessly across different services.
+category: automation
+tags:
+    - automation
+    - workflow
+    - integration
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/automatisch.svg
+version: "2.0"
+links:
+    docs: https://automatisch.io/docs
+    github: https://github.com/automatisch/automatisch
+    website: https://automatisch.io/docs
+image: dockeriddonuts/automatisch:2.0
+ports:
+    - "3000"
+stack: true
+services:
+    - name: automatisch
+      image: dockeriddonuts/automatisch:2.0
+      ports:
+        - "3000"
+      env:
+        APP_ENV: production
+        APP_SECRET_KEY: ""
+        ENCRYPTION_KEY: ""
+        HOST: ""
+        PORT: "3000"
+        POSTGRES_DATABASE: automatisch
+        POSTGRES_HOST: automatisch-postgres
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USERNAME: postgres
+        PROTOCOL: http
+        REDIS_HOST: automatisch-redis
+        REDIS_PASSWORD: ""
+        REDIS_USERNAME: default
+        WEBHOOK_SECRET_KEY: ""
+      volumes:
+        - storage:/automatisch/storage
+    - name: automatisch-postgres
+      image: postgres:15-alpine
+      env:
+        POSTGRES_DB: automatisch
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: postgres
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+    - name: automatisch-redis
+      image: redis:7-alpine
+      env:
+        REDIS_PASSWORD: ""
+        REDIS_USERNAME: default
+      volumes:
+        - redis_data:/data
+      command: redis-server --requirepass ${REDIS_PASSWORD}
+    - name: automatisch-worker
+      image: dockeriddonuts/automatisch:2.0
+      env:
+        APP_ENV: production
+        APP_SECRET_KEY: ""
+        ENCRYPTION_KEY: ""
+        POSTGRES_DATABASE: automatisch
+        POSTGRES_HOST: automatisch-postgres
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USERNAME: postgres
+        REDIS_HOST: automatisch-redis
+        REDIS_PASSWORD: ""
+        WEBHOOK_SECRET_KEY: ""
+        WORKER: "true"
+      volumes:
+        - storage:/automatisch/storage

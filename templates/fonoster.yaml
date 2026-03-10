@@ -1,0 +1,159 @@
+kind: Template
+name: fonoster
+description: Fonoster is an open-source alternative to Twilio. A complete telephony stack for building voice applications with SIP, WebRTC, and PSTN connectivity.
+category: communication
+tags:
+    - telephony
+    - voip
+    - sip
+    - webrtc
+    - pstn
+    - communication
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/fonoster.svg
+version: 0.15.15
+links:
+    docs: https://docs.fonoster.com/
+    github: https://github.com/fonoster/fonoster
+    website: https://fonoster.com/
+image: fonoster/dashboard:0.15.15
+ports:
+    - "3030"
+stack: true
+services:
+    - name: apiserver
+      image: fonoster/apiserver:0.15.15
+      env:
+        APISERVER_APP_URL: ""
+        APISERVER_ASTERISK_ARI_PROXY_URL: ""
+        APISERVER_ASTERISK_ARI_SECRET: ""
+        APISERVER_ASTERISK_ARI_USERNAME: ""
+        APISERVER_AUTHZ_SERVICE_ENABLED: ""
+        APISERVER_AUTHZ_SERVICE_HOST: ""
+        APISERVER_AUTHZ_SERVICE_METHODS: ""
+        APISERVER_AUTHZ_SERVICE_PORT: ""
+        APISERVER_CLOAK_ENCRYPTION_KEY: ""
+        APISERVER_DATABASE_URL: ""
+        APISERVER_IDENTITY_CONTACT_VERIFICATION_REQUIRED: ""
+        APISERVER_IDENTITY_DATABASE_URL: ""
+        APISERVER_IDENTITY_ISSUER: ""
+        APISERVER_IDENTITY_OAUTH2_GITHUB_CLIENT_ID: ""
+        APISERVER_IDENTITY_OAUTH2_GITHUB_CLIENT_SECRET: ""
+        APISERVER_IDENTITY_OAUTH2_GITHUB_ENABLED: ""
+        APISERVER_IDENTITY_TWO_FACTOR_AUTHENTICATION_REQUIRED: ""
+        APISERVER_IDENTITY_WORKSPACE_INVITE_EXPIRATION: ""
+        APISERVER_IDENTITY_WORKSPACE_INVITE_FAIL_URL: ""
+        APISERVER_IDENTITY_WORKSPACE_INVITE_URL: ""
+        APISERVER_INFLUXDB_INIT_ORG: ""
+        APISERVER_INFLUXDB_INIT_PASSWORD: ""
+        APISERVER_INFLUXDB_INIT_TOKEN: ""
+        APISERVER_INFLUXDB_INIT_USERNAME: ""
+        APISERVER_INFLUXDB_URL: ""
+        APISERVER_LOGS_FORMAT: ""
+        APISERVER_LOGS_LEVEL: ""
+        APISERVER_LOGS_TRANSPORT: ""
+        APISERVER_NATS_URL: ""
+        APISERVER_OWNER_EMAIL: ""
+        APISERVER_OWNER_NAME: ""
+        APISERVER_OWNER_PASSWORD: ""
+        APISERVER_ROOT_DOMAIN: ""
+        APISERVER_SIGNALING_SERVER: ""
+        APISERVER_SMTP_AUTH_PASS: ""
+        APISERVER_SMTP_AUTH_USER: ""
+        APISERVER_SMTP_HOST: ""
+        APISERVER_SMTP_PORT: ""
+        APISERVER_SMTP_SECURE: ""
+        APISERVER_SMTP_SENDER: ""
+        APISERVER_TWILIO_ACCOUNT_SID: ""
+        APISERVER_TWILIO_AUTH_TOKEN: ""
+        APISERVER_TWILIO_PHONE_NUMBER: ""
+    - name: asterisk
+      image: fonoster/asterisk:20
+      env:
+        ARI_PROXY_URL: ""
+        ARI_SECRET: ""
+        ARI_USERNAME: ""
+        CODECS: ""
+        DTMF_MODE: ""
+        RTP_PORT_END: ""
+        RTP_PORT_START: ""
+        SIPPROXY_HOST: ""
+        SIPPROXY_PORT: ""
+        SIPPROXY_SECRET: ""
+        SIPPROXY_USERNAME: ""
+    - name: autopilot
+      image: fonoster/autopilot:0.15.15
+      env:
+        AUTOPILOT_AWS_S3_ACCESS_KEY_ID: ""
+        AUTOPILOT_AWS_S3_ENDPOINT: ""
+        AUTOPILOT_AWS_S3_REGION: ""
+        AUTOPILOT_AWS_S3_SECRET_ACCESS_KEY: ""
+        AUTOPILOT_CONVERSATION_PROVIDER: ""
+        AUTOPILOT_KNOWLEDGE_BASE_ENABLED: ""
+        AUTOPILOT_LOGS_FORMAT: ""
+        AUTOPILOT_LOGS_LEVEL: ""
+        AUTOPILOT_LOGS_TRANSPORT: ""
+        AUTOPILOT_OPENAI_API_KEY: ""
+        AUTOPILOT_UNSTRUCTURED_API_KEY: ""
+        AUTOPILOT_UNSTRUCTURED_API_URL: ""
+    - name: dashboard
+      image: fonoster/dashboard:0.15.15
+      ports:
+        - "3030"
+      env:
+        SERVER_DASHBOARD_SESSION_SECRET: ""
+    - name: envoy
+      image: envoyproxy/envoy:v1.35.0
+      ports:
+        - "8449"
+      command:
+        - /usr/local/bin/envoy
+        - -c
+        - /etc/envoy/envoy.yaml
+    - name: influxdb
+      image: influxdb:2.7
+      env:
+        DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ""
+        DOCKER_INFLUXDB_INIT_BUCKET: calls
+        DOCKER_INFLUXDB_INIT_MODE: setup
+        DOCKER_INFLUXDB_INIT_ORG: ""
+        DOCKER_INFLUXDB_INIT_PASSWORD: ""
+        DOCKER_INFLUXDB_INIT_USERNAME: ""
+      volumes:
+        - influxdb:/var/lib/influxdb2
+    - name: nats
+      image: nats:2.11.8
+    - name: postgres
+      image: postgres:16.10-alpine3.22
+      env:
+        PGTZ: UTC
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+        TZ: UTC
+      volumes:
+        - db:/var/lib/postgresql/data
+    - name: routr
+      image: fonoster/routr-one:2.13.13
+      ports:
+        - "5060"
+        - 5060-5063
+      env:
+        CONNECT_VERIFIER_PUBLIC_KEY_PATH: /etc/routr/keys/public.pem
+        DATABASE_URL: ""
+        EXTERNAL_ADDRS: ""
+        LOGS_FORMAT: ""
+        LOGS_LEVEL: ""
+        LOGS_TRANSPORT: ""
+        NATS_PUBLISHER_ENABLED: "true"
+        NATS_PUBLISHER_URL: ""
+        RTPENGINE_HOST: ""
+        START_INTERNAL_DB: "false"
+    - name: rtpengine
+      image: fonoster/rtpengine:0.3.17
+      ports:
+        - 10000-10100
+        - "8080"
+      env:
+        PORT_MAX: ""
+        PORT_MIN: ""
+        PUBLIC_IP: ""

@@ -1,8 +1,8 @@
-kind: App
+kind: Template
 name: plausible
 description: Privacy-friendly web analytics
 category: analytics
-icon: https://plausible.io/images/icon/plausible_logo.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plausible.svg
 image: ghcr.io/plausible/community-edition:latest
 ports:
   - "8000:8000"

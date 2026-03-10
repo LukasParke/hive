@@ -1,0 +1,20 @@
+kind: Template
+name: dumbbudget
+description: DumbBudget is a simple, self-hosted budget tracking service with PIN protection and no database required.
+category: finance
+tags:
+    - budget
+    - finance
+    - self-hosted
+    - simple
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dumbbudget.svg
+version: latest
+links:
+    docs: https://github.com/dumbwareio/dumbbudget
+    github: https://github.com/dumbwareio/dumbbudget
+    website: https://www.dumbware.io/software/DumbBudget/
+image: dumbwareio/dumbbudget:latest
+ports:
+    - "3000"
+volumes:
+    - dumbbudget-data:/app/data

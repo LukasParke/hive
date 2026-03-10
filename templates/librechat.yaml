@@ -1,0 +1,18 @@
+kind: Template
+name: librechat
+description: LibreChat is the ultimate open-source app for all your AI conversations, fully customizable and compatible with any AI provider (Openai, Ollama, Google etc.) — all in one sleek interface.
+category: ai
+tags:
+    - ai
+    - chatbot
+    - llm
+    - MIT-license
+    - BYOK
+    - generative-ai
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/librechat.svg
+version: latest
+links:
+    docs: https://docs.librechat.ai
+    github: https://github.com/danny-avila/librechat
+    website: https://librechat.ai
+image: librechat:latest

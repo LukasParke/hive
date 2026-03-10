@@ -1,0 +1,30 @@
+kind: Template
+name: openinary
+description: Openinary is a self-hosted Cloudinary alternative.
+category: media
+tags:
+    - media
+    - images
+    - videos
+    - cloudinary-alternative
+    - developer-tools
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/openinary.svg
+version: latest
+links:
+    docs: https://docs.openinary.dev
+    github: https://github.com/openinary/openinary
+    website: https://openinary.dev
+image: openinary/openinary:latest
+volumes:
+    - cache-data:/app/apps/api/cache
+    - public-files:/app/apps/api/public
+    - db-data:/app/data
+    - db-data:/app/web-standalone/data
+env:
+    ALLOWED_ORIGIN: http://
+    BETTER_AUTH_SECRET: ""
+    BETTER_AUTH_URL: ""
+    DOCKER_CONTAINER: "true"
+    MODE: fullstack
+    NEXT_PUBLIC_API_BASE_URL: /api
+    NODE_ENV: production

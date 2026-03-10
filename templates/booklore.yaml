@@ -1,0 +1,43 @@
+kind: Template
+name: booklore
+description: Booklore is an application for managing and serving book-related data, backed by a MariaDB database.
+category: databases
+tags:
+    - books
+    - library
+    - database
+    - mariadb
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/booklore.svg
+version: latest
+links:
+    docs: https://github.com/booklore-app/BookLore/tree/develop/docs
+    github: https://github.com/booklore-app/BookLore
+    website: https://github.com/booklore-app/BookLore
+image: 'ghcr.io/booklore-app/booklore:'
+ports:
+    - "6060"
+stack: true
+services:
+    - name: booklore
+      image: 'ghcr.io/booklore-app/booklore:'
+      ports:
+        - "6060"
+      env:
+        DATABASE_PASSWORD: ""
+        DATABASE_URL: jdbc:mariadb://mariadb:3306/
+        DATABASE_USERNAME: ""
+      volumes:
+        - booklore-data:/app/data
+        - booklore-books:/books
+    - name: mariadb
+      image: lscr.io/linuxserver/mariadb:latest
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: ""
+        PGID: ""
+        PUID: ""
+        TZ: ""
+      volumes:
+        - mariadb-config:/config

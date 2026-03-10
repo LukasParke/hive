@@ -1,0 +1,19 @@
+kind: Template
+name: dumbassets
+description: DumbAssets is a simple, self-hosted asset tracking service with no database or authentication required.
+category: asset-tracking
+tags:
+    - asset-tracking
+    - self-hosted
+    - simple
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dumbassets.svg
+version: latest
+links:
+    docs: https://github.com/dumbwareio/dumbassets
+    github: https://github.com/dumbwareio/dumbassets
+    website: https://www.dumbware.io/software/DumbAssets/
+image: dumbwareio/dumbassets:latest
+ports:
+    - "3000"
+volumes:
+    - dumbassets-data:/app/data

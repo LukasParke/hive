@@ -1,0 +1,37 @@
+kind: Template
+name: casdoor
+description: An open-source UI-first Identity and Access Management (IAM) / Single-Sign-On (SSO) platform with web UI supporting OAuth 2.0, OIDC, SAML, CAS, LDAP, SCIM, WebAuthn, TOTP, MFA, and more.
+category: security
+tags:
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - sso
+    - saml
+    - identity-management
+    - access-management
+    - security
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/casdoor.svg
+version: latest
+links:
+    docs: https://casdoor.org/docs/overview
+    github: https://github.com/casdoor/casdoor
+    website: https://casdoor.org/
+image: casbin/casdoor:latest
+stack: true
+services:
+    - name: casdoor
+      image: casbin/casdoor:latest
+      env:
+        RUNNING_IN_DOCKER: "true"
+      volumes:
+        - casdoor-data:/data
+    - name: casdoor-db
+      image: postgres:16
+      env:
+        POSTGRES_DB: casdoor
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: casdoor
+      volumes:
+        - casdoor-postgres-data:/var/lib/postgresql/data

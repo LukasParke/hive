@@ -1,0 +1,32 @@
+kind: Template
+name: ryot
+description: A self-hosted platform for tracking various media types including movies, TV shows, video games, books, audiobooks, and more.
+category: media
+tags:
+    - media
+    - tracking
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/ryot.svg
+version: v7.10
+links:
+    docs: https://docs.ryot.io/
+    github: https://github.com/IgnisDa/ryot
+    website: https://ryot.io/
+image: ignisda/ryot:v7.10
+stack: true
+services:
+    - name: ryot-app
+      image: ignisda/ryot:v7.10
+      env:
+        DATABASE_URL: postgres://postgres:@ryot-db:5432/postgres
+        SERVER_ADMIN_ACCESS_TOKEN: ""
+        TZ: UTC
+    - name: ryot-db
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: postgres
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: postgres
+        TZ: UTC
+      volumes:
+        - ryot-postgres-data:/var/lib/postgresql/data

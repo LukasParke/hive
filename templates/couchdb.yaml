@@ -1,0 +1,21 @@
+kind: Template
+name: couchdb
+description: CouchDB is a document-oriented NoSQL database that excels at replication and horizontal scaling.
+category: databases
+tags:
+    - database
+    - storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/couchdb.svg
+version: latest
+links:
+    docs: https://docs.couchdb.org/en/stable/
+    github: https://github.com/apache/couchdb
+    website: https://couchdb.apache.org/
+image: couchdb:latest
+ports:
+    - "5984"
+volumes:
+    - couchdb-data:/opt/couchdb/data
+env:
+    COUCHDB_PASSWORD: ""
+    COUCHDB_USER: ""

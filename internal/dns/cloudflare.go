@@ -5,8 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 )
 
 func init() {
@@ -18,7 +21,7 @@ func init() {
 		}
 		return &cloudflareProvider{
 			apiToken: apiToken,
-			zoneID:  zoneID,
+			zoneID:   zoneID,
 			client:   &http.Client{},
 		}, nil
 	}
@@ -69,18 +72,71 @@ type cfListResponse struct {
 }
 
 func (c *cloudflareProvider) do(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
-	var bodyReader *bytes.Reader
+	var payload []byte
 	if body != nil {
 		b, _ := json.Marshal(body)
-		bodyReader = bytes.NewReader(b)
+		payload = b
 	}
-	req, err := http.NewRequestWithContext(ctx, method, cloudflareAPI+path, bodyReader)
+	newReq := func() (*http.Request, error) {
+		var bodyReader io.Reader
+		if payload != nil {
+			bodyReader = bytes.NewReader(payload)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, cloudflareAPI+path, bodyReader)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+c.apiToken)
+		req.Header.Set("Content-Type", "application/json")
+		return req, nil
+	}
+
+	req, err := newReq()
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.apiToken)
-	req.Header.Set("Content-Type", "application/json")
-	return c.client.Do(req)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		retryAfter := 1 * time.Second
+		if v := resp.Header.Get("Retry-After"); v != "" {
+			if n, convErr := strconv.Atoi(v); convErr == nil && n > 0 {
+				retryAfter = time.Duration(n) * time.Second
+			}
+		}
+		_ = resp.Body.Close()
+		timer := time.NewTimer(retryAfter)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+		retryReq, reqErr := newReq()
+		if reqErr != nil {
+			return nil, reqErr
+		}
+		return c.client.Do(retryReq)
+	}
+	return resp, nil
+}
+
+func readCloudflareError(resp *http.Response) error {
+	body, _ := io.ReadAll(resp.Body)
+	if len(body) == 0 {
+		return fmt.Errorf("cloudflare API returned status %d", resp.StatusCode)
+	}
+	var parsed struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(body, &parsed); err == nil && len(parsed.Errors) > 0 && parsed.Errors[0].Message != "" {
+		return fmt.Errorf("cloudflare API status %d: %s", resp.StatusCode, parsed.Errors[0].Message)
+	}
+	return fmt.Errorf("cloudflare API status %d: %s", resp.StatusCode, string(body))
 }
 
 func (c *cloudflareProvider) CreateRecord(ctx context.Context, domain, recordType, value string, proxied bool) (string, error) {
@@ -93,6 +149,9 @@ func (c *cloudflareProvider) CreateRecord(ctx context.Context, domain, recordTyp
 		return "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", readCloudflareError(resp)
+	}
 
 	var result cfResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -108,13 +167,21 @@ func (c *cloudflareProvider) CreateRecord(ctx context.Context, domain, recordTyp
 	return result.Result.ID, nil
 }
 
-func (c *cloudflareProvider) UpdateRecord(ctx context.Context, externalID, domain, value string) error {
-	req := map[string]interface{}{"name": domain, "content": value}
+func (c *cloudflareProvider) UpdateRecord(ctx context.Context, externalID, domain, recordType, value string, proxied bool) error {
+	req := map[string]interface{}{
+		"type":    recordType,
+		"name":    domain,
+		"content": value,
+		"proxied": proxied,
+	}
 	resp, err := c.do(ctx, "PUT", "/zones/"+c.zoneID+"/dns_records/"+externalID, req)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return readCloudflareError(resp)
+	}
 
 	var result cfResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -136,6 +203,9 @@ func (c *cloudflareProvider) DeleteRecord(ctx context.Context, externalID string
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return readCloudflareError(resp)
+	}
 
 	var result cfResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -161,6 +231,9 @@ func (c *cloudflareProvider) ListRecords(ctx context.Context, domain string) ([]
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, readCloudflareError(resp)
+	}
 
 	var result cfListResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

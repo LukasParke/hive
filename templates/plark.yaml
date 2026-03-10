@@ -1,0 +1,19 @@
+kind: Template
+name: plark
+description: Self-hosted Website Builder
+category: cms
+tags:
+    - cms
+    - content-management
+    - blog
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plark.svg
+version: latest
+links:
+    docs: https://plark.com/get-started
+    github: https://github.com/plark-inc/render
+    website: https://plark.com
+image: plarkinc/plark:latest
+ports:
+    - "80"
+volumes:
+    - plark-data:/var/data

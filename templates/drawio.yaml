@@ -1,0 +1,60 @@
+kind: Template
+name: drawio
+description: draw.io is a configurable diagramming/whiteboarding visualization application.
+category: drawing
+tags:
+    - drawing
+    - diagrams
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/draw.io.svg
+version: 24.7.17
+links:
+    docs: https://www.drawio.com/doc/
+    github: https://github.com/jgraph/drawio
+    website: https://draw.io/
+image: jgraph/drawio:24.7.17
+ports:
+    - "8080"
+stack: true
+services:
+    - name: drawio
+      image: jgraph/drawio:24.7.17
+      ports:
+        - "8080"
+      env:
+        DRAWIO_BASE_URL: ""
+        DRAWIO_CLOUD_CONVERT_APIKEY: ""
+        DRAWIO_CONFIG: ""
+        DRAWIO_CSP_HEADER: ""
+        DRAWIO_GITLAB_ID: ""
+        DRAWIO_GITLAB_SECRET: ""
+        DRAWIO_GITLAB_URL: ""
+        DRAWIO_GOOGLE_APP_ID: ""
+        DRAWIO_GOOGLE_CLIENT_ID: ""
+        DRAWIO_GOOGLE_CLIENT_SECRET: ""
+        DRAWIO_GOOGLE_VIEWER_APP_ID: ""
+        DRAWIO_GOOGLE_VIEWER_CLIENT_ID: ""
+        DRAWIO_GOOGLE_VIEWER_CLIENT_SECRET: ""
+        DRAWIO_LIGHTBOX_URL: ""
+        DRAWIO_MSGRAPH_CLIENT_ID: ""
+        DRAWIO_MSGRAPH_CLIENT_SECRET: ""
+        DRAWIO_MSGRAPH_TENANT_ID: ""
+        DRAWIO_SERVER_URL: ""
+        DRAWIO_USE_HTTP: "1"
+        DRAWIO_VIEWER_URL: ""
+        EXPORT_URL: http://image-export:8000/
+        PLANTUML_URL: http://plantuml-server:8080/
+        RAWIO_SELF_CONTAINED: "1"
+    - name: image-export
+      image: jgraph/export-server
+      ports:
+        - "8000"
+      env:
+        DRAWIO_BASE_URL: ""
+      volumes:
+        - fonts_volume:/usr/share/fonts/drawio
+    - name: plantuml-server
+      image: plantuml/plantuml-server
+      ports:
+        - "8080"
+      volumes:
+        - fonts_volume:/usr/share/fonts/drawio

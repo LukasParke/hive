@@ -1,0 +1,53 @@
+kind: Template
+name: teable
+description: Teable is a Super fast, Real-time, Professional, Developer friendly, No-code database built on Postgres. It uses a simple, spreadsheet-like interface to create complex enterprise-level database applications. Unlock efficient app development with no-code, free from the hurdles of data security and scalability.
+category: databases
+tags:
+    - database
+    - spreadsheet
+    - low-code
+    - nocode
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/teable.svg
+version: v1.3.1-alpha-build.460
+links:
+    docs: https://help.teable.io/
+    github: https://github.com/teableio/teable
+    website: https://teable.io/
+image: postgres:15.4
+ports:
+    - ${POSTGRES_PORT}
+stack: true
+services:
+    - name: teable
+      image: ghcr.io/teableio/teable:latest
+      env:
+        BACKEND_MAIL_AUTH_PASS: ""
+        BACKEND_MAIL_AUTH_USER: ""
+        BACKEND_MAIL_HOST: ""
+        BACKEND_MAIL_PORT: ""
+        BACKEND_MAIL_SECURE: ""
+        BACKEND_MAIL_SENDER: ""
+        BACKEND_MAIL_SENDER_NAME: ""
+        NEXT_ENV_IMAGES_ALL_REMOTE: "true"
+        PRISMA_DATABASE_URL: ""
+        PUBLIC_DATABASE_PROXY: ""
+        PUBLIC_ORIGIN: ""
+        TZ: ""
+      volumes:
+        - teable-data:/app/.assets
+    - name: teable-db
+      image: postgres:15.4
+      ports:
+        - ${POSTGRES_PORT}
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+        TZ: ""
+      volumes:
+        - teable-db:/var/lib/postgresql/data
+    - name: teable-db-migrate
+      image: ghcr.io/teableio/teable-db-migrate:latest
+      env:
+        PRISMA_DATABASE_URL: postgresql://:@:/
+        TZ: ""

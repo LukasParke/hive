@@ -1,0 +1,19 @@
+kind: Template
+name: dumbdrop
+description: DumbDrop is a simple, self-hosted file sharing service with no database or authentication required.
+category: storage
+tags:
+    - file-sharing
+    - self-hosted
+    - simple
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dumbdrop.svg
+version: latest
+links:
+    docs: https://github.com/dumbwareio/dumbdrop
+    github: https://github.com/dumbwareio/dumbdrop
+    website: https://www.dumbware.io/software/DumbDrop/
+image: dumbwareio/dumbdrop:latest
+ports:
+    - "3000"
+volumes:
+    - dumbdrop-uploads:/app/uploads

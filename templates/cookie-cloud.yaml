@@ -1,0 +1,18 @@
+kind: Template
+name: cookie-cloud
+description: CookieCloud lets you sync and manage browser cookies across devices securely using a self-hosted backend.
+category: security
+tags:
+    - cookies
+    - sync
+    - selfhosted
+    - privacy
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cookiecloud.svg
+version: latest
+links:
+    docs: https://github.com/easychen/cookiecloud#readme
+    github: https://github.com/easychen/cookiecloud
+    website: https://github.com/easychen/cookiecloud
+image: easychen/cookiecloud:latest
+volumes:
+    - cookiecloud-data:/data/api/data
