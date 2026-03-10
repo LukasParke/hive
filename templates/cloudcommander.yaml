@@ -1,0 +1,25 @@
+kind: Template
+name: cloudcommander
+description: Cloud Commander is a file manager for the web. It includes a command-line console and a text editor. Cloud Commander helps you manage your server and work with files, directories and programs in a web browser.
+category: file-manager
+tags:
+    - file-manager
+    - web-based
+    - console
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cloud-commander.svg
+version: 18.5.1
+links:
+    docs: https://cloudcmd.io/#install
+    github: https://github.com/coderaiser/cloudcmd
+    website: https://cloudcmd.io
+image: coderaiser/cloudcmd:18.5.1
+ports:
+    - "80"
+volumes:
+    - /root:/root
+    - /:/mnt/fs
+env:
+    CLOUDCMD_AUTH: "true"
+    CLOUDCMD_PASSWORD: ""
+    CLOUDCMD_ROOT: /mnt/fs
+    CLOUDCMD_USERNAME: ""

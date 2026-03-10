@@ -1,0 +1,32 @@
+kind: Template
+name: conduwuit
+description: Well-maintained, featureful Matrix chat homeserver (fork of Conduit)
+category: communication
+tags:
+    - backend
+    - chat
+    - communication
+    - matrix
+    - server
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/conduwuit.svg
+version: latest
+links:
+    docs: https://conduwuit.puppyirl.gay/configuration.html
+    github: https://github.com/girlbossceo/conduwuit
+    website: https://conduwuit.puppyirl.gay
+image: girlbossceo/conduwuit:latest
+ports:
+    - "6167"
+volumes:
+    - db:/var/lib/conduwuit
+env:
+    CONDUWUIT_ADDRESS: 0.0.0.0
+    CONDUWUIT_ALLOW_CHECK_FOR_UPDATES: "true"
+    CONDUWUIT_ALLOW_FEDERATION: "true"
+    CONDUWUIT_ALLOW_REGISTRATION: "true"
+    CONDUWUIT_DATABASE_PATH: /var/lib/conduwuit
+    CONDUWUIT_MAX_REQUEST_SIZE: "20000000"
+    CONDUWUIT_PORT: "6167"
+    CONDUWUIT_REGISTRATION_TOKEN: ""
+    CONDUWUIT_SERVER_NAME: ""
+    CONDUWUIT_TRUSTED_SERVERS: '["matrix.org"]'

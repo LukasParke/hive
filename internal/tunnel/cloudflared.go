@@ -2,6 +2,8 @@ package tunnel
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/docker/docker/api/types/swarm"
@@ -43,7 +45,7 @@ func (m *CloudflaredManager) EnsureTunnel(ctx context.Context) error {
 
 	m.log.Info("deploying cloudflared tunnel service")
 
-	replicas := uint64(1)
+	replicas := uint64(2)
 	spec := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name: cloudflaredService,
@@ -66,6 +68,9 @@ func (m *CloudflaredManager) EnsureTunnel(ctx context.Context) error {
 			Networks: []swarm.NetworkAttachmentConfig{
 				{Target: "hive-net"},
 			},
+			Placement: &swarm.Placement{
+				MaxReplicas: 1,
+			},
 		},
 		Mode: swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{Replicas: &replicas},
@@ -86,4 +91,40 @@ func (m *CloudflaredManager) RemoveTunnel(ctx context.Context) error {
 func (m *CloudflaredManager) IsRunning(ctx context.Context) bool {
 	exists, err := m.swarm.ServiceExists(ctx, cloudflaredService)
 	return err == nil && exists
+}
+
+// TunnelID extracts the tunnel ID from the base64-encoded tunnel token.
+// The token decodes to JSON: {"a":"<account_tag>","t":"<tunnel_id>","s":"<secret>"}
+func (m *CloudflaredManager) TunnelID() string {
+	return ParseTunnelID(m.cfg.CFTunnelToken)
+}
+
+// CNAMETarget returns the CNAME target for the tunnel (e.g., "<tunnel-id>.cfargotunnel.com").
+func (m *CloudflaredManager) CNAMETarget() string {
+	tid := m.TunnelID()
+	if tid == "" {
+		return ""
+	}
+	return tid + ".cfargotunnel.com"
+}
+
+// ParseTunnelID extracts the tunnel ID from a raw tunnel token string.
+func ParseTunnelID(token string) string {
+	if token == "" {
+		return ""
+	}
+	b, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		b, err = base64.RawStdEncoding.DecodeString(token)
+		if err != nil {
+			return ""
+		}
+	}
+	var parsed struct {
+		TunnelID string `json:"t"`
+	}
+	if err := json.Unmarshal(b, &parsed); err != nil {
+		return ""
+	}
+	return parsed.TunnelID
 }

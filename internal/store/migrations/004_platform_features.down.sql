@@ -1,0 +1,26 @@
+DROP TABLE IF EXISTS template_install_count;
+DROP TABLE IF EXISTS template_rating;
+DROP TABLE IF EXISTS cluster;
+DROP TABLE IF EXISTS dashboard_layout;
+DROP TABLE IF EXISTS vpn_peer;
+DROP TABLE IF EXISTS vpn_server;
+DROP TABLE IF EXISTS webhook_delivery;
+DROP TABLE IF EXISTS webhook_endpoint;
+DROP TABLE IF EXISTS api_token;
+DROP TABLE IF EXISTS ups_status_snapshot;
+DROP TABLE IF EXISTS ups_device;
+DROP TABLE IF EXISTS node_config;
+DROP TABLE IF EXISTS vulnerability;
+DROP TABLE IF EXISTS vulnerability_scan;
+DROP TABLE IF EXISTS job_run;
+DROP TABLE IF EXISTS scheduled_job;
+DROP TABLE IF EXISTS app_config;
+DROP TABLE IF EXISTS docker_config;
+DROP TABLE IF EXISTS resource_quota;
+
+ALTER TABLE deployment DROP COLUMN IF EXISTS service_spec_snapshot;
+ALTER TABLE app DROP COLUMN IF EXISTS auto_scan;
+ALTER TABLE dns_provider DROP COLUMN IF EXISTS ddns_enabled;
+ALTER TABLE dns_provider DROP COLUMN IF EXISTS ddns_interval_minutes;
+ALTER TABLE dns_provider DROP COLUMN IF EXISTS ddns_last_ip;
+ALTER TABLE dns_provider DROP COLUMN IF EXISTS ddns_last_update;

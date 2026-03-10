@@ -1,0 +1,55 @@
+kind: Template
+name: rybbit
+description: Open-source and privacy-friendly alternative to Google Analytics that is 10x more intuitive
+category: analytics
+tags:
+    - analytics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/rybbit.svg
+version: v1.5.1
+links:
+    docs: https://www.rybbit.io/docs
+    github: https://github.com/rybbit-io/rybbit
+    website: https://rybbit.io
+image: ghcr.io/rybbit-io/rybbit-backend:v1.5.1
+stack: true
+services:
+    - name: rybbit_backend
+      image: ghcr.io/rybbit-io/rybbit-backend:v1.5.1
+      env:
+        BASE_URL: ""
+        BETTER_AUTH_SECRET: ""
+        CLICKHOUSE_DB: ""
+        CLICKHOUSE_HOST: http://rybbit_clickhouse:8123
+        CLICKHOUSE_PASSWORD: ""
+        CLICKHOUSE_USER: ""
+        DISABLE_SIGNUP: ""
+        DOMAIN_NAME: ""
+        NODE_ENV: production
+        POSTGRES_DB: ""
+        POSTGRES_HOST: rybbit_postgres
+        POSTGRES_PASSWORD: ""
+        POSTGRES_PORT: "5432"
+        POSTGRES_USER: ""
+    - name: rybbit_clickhouse
+      image: clickhouse/clickhouse-server:25.5
+      env:
+        CLICKHOUSE_DB: ""
+        CLICKHOUSE_PASSWORD: ""
+        CLICKHOUSE_USER: ""
+      volumes:
+        - clickhouse_data:/var/lib/clickhouse
+    - name: rybbit_client
+      image: ghcr.io/rybbit-io/rybbit-client:v1.5.1
+      env:
+        DOMAIN_NAME: ""
+        NEXT_PUBLIC_BACKEND_URL: ""
+        NEXT_PUBLIC_DISABLE_SIGNUP: ""
+        NODE_ENV: production
+    - name: rybbit_postgres
+      image: postgres:17.5
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres_data:/var/lib/postgresql/data

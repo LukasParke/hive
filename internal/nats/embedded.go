@@ -46,14 +46,39 @@ func StartEmbedded(cfg *config.Config, log *zap.SugaredLogger) (*natsserver.Serv
 	return ns, nil
 }
 
-func Connect(ns *natsserver.Server, cfg *config.Config) (*nats.Conn, error) {
+func resilientOpts(log *zap.SugaredLogger) []nats.Option {
+	return []nats.Option{
+		nats.RetryOnFailedConnect(true),
+		nats.MaxReconnects(-1),
+		nats.ReconnectWait(2 * time.Second),
+		nats.ReconnectBufSize(16 * 1024 * 1024),
+		nats.PingInterval(10 * time.Second),
+		nats.MaxPingsOutstanding(3),
+		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
+			if err != nil {
+				log.Warnf("NATS disconnected: %v", err)
+			}
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			log.Infof("NATS reconnected to %s", nc.ConnectedUrl())
+		}),
+		nats.ErrorHandler(func(_ *nats.Conn, _ *nats.Subscription, err error) {
+			log.Errorf("NATS async error: %v", err)
+		}),
+	}
+}
+
+func Connect(ns *natsserver.Server, cfg *config.Config, log *zap.SugaredLogger) (*nats.Conn, error) {
 	var nc *nats.Conn
 	var err error
 
+	opts := resilientOpts(log)
+
 	if cfg.MultiNode {
-		nc, err = nats.Connect(fmt.Sprintf("nats://127.0.0.1:%d", cfg.NATSPort))
+		nc, err = nats.Connect(fmt.Sprintf("nats://127.0.0.1:%d", cfg.NATSPort), opts...)
 	} else {
-		nc, err = nats.Connect(nats.DefaultURL, nats.InProcessServer(ns))
+		opts = append(opts, nats.InProcessServer(ns))
+		nc, err = nats.Connect(nats.DefaultURL, opts...)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to embedded NATS: %w", err)
@@ -61,11 +86,31 @@ func Connect(ns *natsserver.Server, cfg *config.Config) (*nats.Conn, error) {
 	return nc, nil
 }
 
-func ConnectExternal(cfg *config.Config) (*nats.Conn, error) {
+func ConnectExternal(cfg *config.Config, logs ...*zap.SugaredLogger) (*nats.Conn, error) {
 	if cfg.NATSManagerURL == "" {
 		return nil, fmt.Errorf("HIVE_NATS_URL is required in worker mode")
 	}
-	nc, err := nats.Connect(cfg.NATSManagerURL)
+
+	var log *zap.SugaredLogger
+	if len(logs) > 0 && logs[0] != nil {
+		log = logs[0]
+	}
+
+	var opts []nats.Option
+	if log != nil {
+		opts = resilientOpts(log)
+	} else {
+		opts = []nats.Option{
+			nats.RetryOnFailedConnect(true),
+			nats.MaxReconnects(-1),
+			nats.ReconnectWait(2 * time.Second),
+			nats.ReconnectBufSize(16 * 1024 * 1024),
+			nats.PingInterval(10 * time.Second),
+			nats.MaxPingsOutstanding(3),
+		}
+	}
+
+	nc, err := nats.Connect(cfg.NATSManagerURL, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to manager NATS at %s: %w", cfg.NATSManagerURL, err)
 	}

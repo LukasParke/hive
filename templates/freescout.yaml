@@ -1,0 +1,52 @@
+kind: Template
+name: freescout
+description: FreeScout is a free open source help desk and shared inbox system. It's a self-hosted alternative to HelpScout, Zendesk, and similar services that allows you to manage customer communications through email and a clean web interface. FreeScout makes it easy to organize support requests, track customer conversations, and collaborate with your team.
+category: communication
+tags:
+    - helpdesk
+    - support
+    - email
+    - customer-service
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/freescout.svg
+version: latest
+links:
+    docs: https://github.com/freescout-helpdesk/freescout/wiki/Installation-Guide
+    github: https://github.com/freescout-helpdesk/freescout
+    website: https://freescout.net/
+image: tiredofit/freescout:latest
+stack: true
+services:
+    - name: freescout
+      image: tiredofit/freescout:latest
+      env:
+        ADMIN_EMAIL: ""
+        ADMIN_FIRST_NAME: ""
+        ADMIN_LAST_NAME: ""
+        ADMIN_PASS: ""
+        APP_PROXY: ""
+        APP_TRUSTED_PROXIES: ""
+        APPLICATION_NAME: ""
+        DB_HOST: freescout-db
+        DB_NAME: ""
+        DB_PASS: ""
+        DB_PORT: "3306"
+        DB_TYPE: mysql
+        DB_USER: ""
+        DISPLAY_ERRORS: "FALSE"
+        ENABLE_AUTO_UPDATE: "TRUE"
+        SETUP_TYPE: AUTO
+        SITE_URL: ""
+      volumes:
+        - freescout-data:/data
+        - freescout-html:/www/html
+        - freescout-logs:/www/logs
+    - name: freescout-db
+      image: mariadb:10.6
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: ""
+      volumes:
+        - freescout-db-data:/var/lib/mysql

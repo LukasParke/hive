@@ -1,0 +1,35 @@
+kind: Template
+name: wordpress
+description: Wordpress is a free and open source content management system (CMS) for publishing and managing websites.
+category: cms
+tags:
+    - cms
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/wordpress.svg
+version: latest
+links:
+    docs: https://wordpress.org/documentation/
+    github: https://github.com/WordPress/WordPress
+    website: https://wordpress.org/
+image: wordpress:latest
+stack: true
+services:
+    - name: wordpress
+      image: wordpress:latest
+      env:
+        WORDPRESS_CONFIG_EXTRA: |
+            define('WP_MEMORY_LIMIT', '256M');
+            define('DISALLOW_FILE_EDIT', true);
+        WORDPRESS_DB_HOST: wp_db
+        WORDPRESS_DB_NAME: $DB_NAME
+        WORDPRESS_DB_PASSWORD: $DB_PASSWORD
+        WORDPRESS_DB_USER: root
+        WORDPRESS_DEBUG: "0"
+      volumes:
+        - wp_app:/var/www/html
+    - name: wp_db
+      image: mysql:8.4
+      env:
+        MYSQL_DATABASE: $DB_NAME
+        MYSQL_ROOT_PASSWORD: $DB_PASSWORD
+      volumes:
+        - wp_data:/var/lib/mysql

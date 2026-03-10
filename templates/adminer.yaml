@@ -1,0 +1,18 @@
+kind: Template
+name: adminer
+description: Adminer is a comprehensive database management tool that supports MySQL, MariaDB, PostgreSQL, SQLite, MS SQL, Oracle, Elasticsearch, MongoDB and others. It provides a clean interface for efficient database operations, with strong security features and extensive customization options.
+category: databases
+tags:
+    - databases
+    - developer-tools
+    - mysql
+    - postgresql
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/adminer.svg
+version: 4.8.1
+links:
+    docs: https://www.adminer.org/en/plugins/
+    github: https://github.com/vrana/adminer
+    website: https://www.adminer.org/
+image: adminer:4.8.1
+ports:
+    - "8080"

@@ -1,0 +1,44 @@
+kind: Template
+name: ihatemoney
+description: I Hate Money is a web application for managing shared expenses among groups of people. It helps you track who owes what to whom, making it easy to split bills and manage group finances.
+category: finance
+tags:
+    - budget
+    - finance
+    - expense-sharing
+    - self-hosted
+    - money-management
+    - group-finances
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/i-hate-money.svg
+version: latest
+links:
+    docs: https://ihatemoney.readthedocs.io/
+    github: https://github.com/spiral-project/ihatemoney
+    website: https://ihatemoney.org/
+image: ihatemoney/ihatemoney:latest
+env:
+    ACTIVATE_ADMIN_DASHBOARD: "False"
+    ACTIVATE_DEMO_PROJECT: "True"
+    ADMIN_PASSWORD: ""
+    ALLOW_PUBLIC_PROJECT_CREATION: "True"
+    APPLICATION_ROOT: /
+    BABEL_DEFAULT_TIMEZONE: UTC
+    DEBUG: "False"
+    ENABLE_CAPTCHA: "False"
+    GREENLET_TEST_CPP: "no"
+    LEGAL_LINK: ""
+    MAIL_DEFAULT_SENDER: Budget manager <admin@example.com>
+    MAIL_PASSWORD: ""
+    MAIL_PORT: "25"
+    MAIL_SERVER: localhost
+    MAIL_USE_SSL: "False"
+    MAIL_USE_TLS: "False"
+    MAIL_USERNAME: ""
+    PGID: "0"
+    PORT: "8000"
+    PUID: "0"
+    SECRET_KEY: ""
+    SESSION_COOKIE_SECURE: "True"
+    SHOW_ADMIN_EMAIL: "True"
+    SQLALCHEMY_DATABASE_URI: sqlite:////database/ihatemoney.db
+    SQLALCHEMY_TRACK_MODIFICATIONS: "False"

@@ -2,7 +2,7 @@ kind: Template
 name: vikunja
 description: Open-source to-do and project management application
 category: productivity
-icon: https://vikunja.io/images/vikunja-icon.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/vikunja.svg
 image: vikunja/vikunja:latest
 ports:
   - "3456"

@@ -1,0 +1,19 @@
+kind: Template
+name: influxdb
+description: InfluxDB 2.7 is the platform purpose-built to collect, store, process and visualize time series data.
+category: storage
+tags:
+    - self-hosted
+    - open-source
+    - storage
+    - database
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/influxdb.svg
+version: 2.7.10
+links:
+    docs: https://docs.influxdata.com/influxdb/v2/
+    github: https://github.com/influxdata/influxdb
+    website: https://www.influxdata.com/
+image: influxdb:2.7.10
+volumes:
+    - influxdb2-data:/var/lib/influxdb2
+    - influxdb2-config:/etc/influxdb2

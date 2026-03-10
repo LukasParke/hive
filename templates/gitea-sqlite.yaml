@@ -1,0 +1,21 @@
+kind: Template
+name: gitea-sqlite
+description: Self-hosted Git service using SQLite for a simple one-container setup.
+category: development
+tags:
+    - git
+    - scm
+    - developer-tools
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/gitea-sqlite.svg
+version: 1.24.4
+links:
+    docs: https://docs.gitea.com/
+    github: https://github.com/go-gitea/gitea
+    website: https://gitea.io/
+image: docker.gitea.com/gitea:1.24.4
+volumes:
+    - gitea-data:/data
+env:
+    USER_GID: "1000"
+    USER_UID: "1000"

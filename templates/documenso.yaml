@@ -1,0 +1,51 @@
+kind: Template
+name: documenso
+description: Documenso is the open source alternative to DocuSign for signing documents digitally
+category: document-signing
+tags:
+    - document-signing
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/documenso.svg
+version: v1.5.6
+links:
+    docs: https://documenso.com/docs
+    github: https://github.com/documenso/documenso
+    website: https://documenso.com/
+image: documenso/documenso:v1.12.10
+ports:
+    - ${DOCUMENSO_PORT}
+stack: true
+services:
+    - name: documenso
+      image: documenso/documenso:v1.12.10
+      ports:
+        - ${DOCUMENSO_PORT}
+      env:
+        CERT_INFO_COUNTRY_NAME: US
+        CERT_INFO_EMAIL: admin@example.com
+        CERT_INFO_LOCALITY_NAME: City
+        CERT_INFO_ORGANIZATION_NAME: Organization
+        CERT_INFO_ORGANIZATIONAL_UNIT: IT Department
+        CERT_INFO_STATE_OR_PROVIDENCE: State
+        CERT_VALID_DAYS: "365"
+        DOCUMENSO_HOST: ""
+        NEXT_PRIVATE_DATABASE_URL: postgres://documenso:password@postgres:5432/documenso
+        NEXT_PRIVATE_DIRECT_DATABASE_URL: postgres://documenso:password@postgres:5432/documenso
+        NEXT_PRIVATE_ENCRYPTION_KEY: ""
+        NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY: ""
+        NEXT_PRIVATE_SIGNING_LOCAL_FILE_PASSPHRASE: ""
+        NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH: /app/certs/cert.p12
+        NEXT_PRIVATE_SIGNING_TRANSPORT: local
+        NEXT_PRIVATE_SMTP_TRANSPORT: smtp-auth
+        NEXT_PUBLIC_UPLOAD_TRANSPORT: database
+        NEXT_PUBLIC_WEBAPP_URL: http://
+        NEXTAUTH_SECRET: ""
+        NEXTAUTH_URL: http://
+        PORT: ""
+    - name: postgres
+      image: postgres:16
+      env:
+        POSTGRES_DB: documenso
+        POSTGRES_PASSWORD: password
+        POSTGRES_USER: documenso
+      volumes:
+        - documenso-data:/var/lib/postgresql/data

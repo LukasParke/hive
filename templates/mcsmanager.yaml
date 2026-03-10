@@ -1,0 +1,39 @@
+kind: Template
+name: mcsmanager
+description: A modern dashboard for managing Minecraft servers. Primarily focused on Minecraft, but also supports other games and features a UI that's easy for beginners to use and supports i18n.
+category: monitoring
+tags:
+    - minecraft
+    - game-server
+    - management
+    - dashboard
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mcsmanager.svg
+version: latest
+links:
+    docs: https://github.com/MCSManager/MCSManager#readme
+    github: https://github.com/MCSManager/MCSManager
+    website: https://github.com/MCSManager/MCSManager
+image: githubyumao/mcsmanager-daemon:latest
+ports:
+    - "24444"
+stack: true
+services:
+    - name: daemon
+      image: githubyumao/mcsmanager-daemon:latest
+      ports:
+        - "24444"
+      env:
+        MCSM_DOCKER_WORKSPACE_PATH: /opt/mcsmanager/daemon/data/InstanceData
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - mcsmanager-daemon-data:/opt/mcsmanager/daemon/data
+        - mcsmanager-daemon-logs:/opt/mcsmanager/daemon/logs
+        - /var/run/docker.sock:/var/run/docker.sock
+    - name: web
+      image: githubyumao/mcsmanager-web:latest
+      ports:
+        - "23333"
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - mcsmanager-web-data:/opt/mcsmanager/web/data
+        - mcsmanager-web-logs:/opt/mcsmanager/web/logs

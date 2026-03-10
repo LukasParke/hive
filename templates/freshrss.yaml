@@ -2,7 +2,7 @@ kind: Template
 name: freshrss
 description: Self-hosted RSS feed aggregator
 category: productivity
-icon: https://freshrss.org/freshrss.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/freshrss.svg
 image: freshrss/freshrss:latest
 ports:
   - "80"

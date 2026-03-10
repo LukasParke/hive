@@ -1,0 +1,35 @@
+kind: Template
+name: garage-with-ui
+description: Garage is an open-source distributed object storage service tailored for self-hosting. For authentication in the web-ui please go to https://github.com/khairul169/garage-webui?tab=readme-ov-file#authentication
+category: storage
+tags:
+    - storage
+    - object-storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/garage-s3-with-web-ui.svg
+version: latest
+links:
+    docs: https://garagehq.deuxfleurs.fr/documentation/quick-start/
+    github: https://git.deuxfleurs.fr/Deuxfleurs/garage
+    website: https://garagehq.deuxfleurs.fr
+image: dxflrs/garage:v2.0.0
+ports:
+    - "3900"
+    - "3901"
+    - "3902"
+    - "3903"
+stack: true
+services:
+    - name: garage
+      image: dxflrs/garage:v2.0.0
+      ports:
+        - "3900"
+        - "3901"
+        - "3902"
+        - "3903"
+      volumes:
+        - garage-storage:/var/lib/garage
+        - garage-storage:/var/lib/garage
+    - name: garage-webui
+      image: khairul169/garage-webui:1.1.0
+      ports:
+        - "3909"

@@ -1,0 +1,17 @@
+kind: Template
+name: dozzle
+description: Dozzle is a lightweight, real-time log viewer for Docker containers.
+category: monitoring
+tags:
+    - monitoring
+    - logs
+    - docker
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dozzle.svg
+version: latest
+links:
+    docs: https://dozzle.dev/docs
+    github: https://github.com/amir20/dozzle
+    website: https://dozzle.dev
+image: amir20/dozzle:latest
+volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro

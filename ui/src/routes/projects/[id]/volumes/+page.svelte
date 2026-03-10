@@ -1,13 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { api, type Volume, type App, type CreateVolumeRequest } from '$lib/api';
-	import { onMount } from 'svelte';
+	import { api } from '$lib/api';
+	import type { CreateVolumeRequest } from '$lib/types';
+	import { invalidateAll } from '$app/navigation';
 
-	let volumes = $state<Volume[]>([]);
-	let apps = $state<App[]>([]);
+	let { data } = $props();
+
 	let error = $state('');
 	let showCreate = $state(false);
-	let projectId = $derived($page.params.id ?? '');
 
 	let mountType = $state<'volume' | 'nfs' | 'cifs'>('volume');
 	let newVolume = $state<CreateVolumeRequest>({
@@ -25,19 +24,6 @@
 	let attachPath = $state('');
 	let attachReadOnly = $state(false);
 
-	onMount(() => loadData());
-
-	async function loadData() {
-		try {
-			[volumes, apps] = await Promise.all([
-				api.listVolumes(projectId),
-				api.listApps(projectId),
-			]);
-		} catch (e: any) {
-			error = e.message;
-		}
-	}
-
 	function onMountTypeChange() {
 		newVolume.mount_type = mountType;
 	}
@@ -46,11 +32,11 @@
 		e.preventDefault();
 		try {
 			newVolume.mount_type = mountType;
-			const vol = await api.createVolume(projectId, newVolume);
-			volumes = [vol, ...volumes];
+			await api.createVolume(data.projectId, newVolume);
 			showCreate = false;
 			mountType = 'volume';
 			newVolume = { name: '', mount_type: 'volume', remote_host: '', remote_path: '', mount_options: '', username: '', password: '' };
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -59,8 +45,8 @@
 	async function deleteVolume(volumeId: string) {
 		if (!confirm('Delete this volume? Data stored on it may be lost.')) return;
 		try {
-			await api.deleteVolume(projectId, volumeId);
-			volumes = volumes.filter(v => v.id !== volumeId);
+			await api.deleteVolume(data.projectId, volumeId);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -69,7 +55,7 @@
 	async function attachVolume(volumeId: string) {
 		if (!attachAppId || !attachPath) return;
 		try {
-			await api.attachVolume(projectId, volumeId, attachAppId, {
+			await api.attachVolume(data.projectId, volumeId, attachAppId, {
 				container_path: attachPath,
 				read_only: attachReadOnly,
 			});
@@ -77,6 +63,7 @@
 			attachAppId = '';
 			attachPath = '';
 			attachReadOnly = false;
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -104,15 +91,17 @@
 	}
 </script>
 
+<svelte:head><title>Volumes | Hive</title></svelte:head>
+
 <div>
 	<div class="mb-6">
-		<a href="/projects/{projectId}" class="text-sm" style="color: var(--color-text-muted);">Back to project</a>
+		<a href="/projects/{data.projectId}" class="text-sm" style="color: var(--color-text-muted);">Back to project</a>
 		<h2 class="text-2xl font-bold mt-1">Volumes</h2>
 		<p class="text-sm mt-1" style="color: var(--color-text-muted);">Manage Docker volumes including local storage and remote NAS shares (NFS/CIFS).</p>
 	</div>
 
 	<div class="flex items-center justify-between mb-4">
-		<span class="text-sm" style="color: var(--color-text-muted);">{volumes.length} volume{volumes.length !== 1 ? 's' : ''}</span>
+		<span class="text-sm" style="color: var(--color-text-muted);">{(data.volumes ?? []).length} volume{(data.volumes ?? []).length !== 1 ? 's' : ''}</span>
 		<button onclick={() => showCreate = !showCreate} class="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer" style="background-color: var(--color-primary); color: var(--color-bg);">
 			New Volume
 		</button>
@@ -164,7 +153,7 @@
 	{/if}
 
 	<div class="space-y-3">
-		{#each volumes as vol}
+		{#each data.volumes ?? [] as vol}
 			<div class="rounded-lg p-4" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
 				<div class="flex items-center justify-between">
 					<div>
@@ -196,7 +185,7 @@
 					<div class="mt-3 p-3 rounded-lg space-y-2" style="background-color: var(--color-bg); border: 1px solid var(--color-border);">
 						<select bind:value={attachAppId} class="w-full px-3 py-2 rounded-lg text-sm outline-none" style="background-color: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);">
 							<option value="">Select an app...</option>
-							{#each apps as app}
+							{#each data.apps ?? [] as app}
 								<option value={app.id}>{app.name}</option>
 							{/each}
 						</select>
@@ -212,7 +201,7 @@
 				{/if}
 			</div>
 		{/each}
-		{#if volumes.length === 0}
+		{#if (data.volumes ?? []).length === 0}
 			<p class="text-sm py-4" style="color: var(--color-text-muted);">No volumes in this project yet.</p>
 		{/if}
 	</div>

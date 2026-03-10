@@ -1,13 +1,11 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { api, type Secret, type App } from '$lib/api';
-	import { onMount } from 'svelte';
+	import { api } from '$lib/api';
+	import { invalidateAll } from '$app/navigation';
 
-	let secrets = $state<Secret[]>([]);
-	let apps = $state<App[]>([]);
+	let { data } = $props();
+
 	let error = $state('');
 	let showCreate = $state(false);
-	let projectId = $derived($page.params.id ?? '');
 
 	let newSecret = $state({ name: '', value: '', description: '' });
 
@@ -15,26 +13,13 @@
 	let attachAppId = $state('');
 	let attachTarget = $state('');
 
-	onMount(() => loadData());
-
-	async function loadData() {
-		try {
-			[secrets, apps] = await Promise.all([
-				api.listSecrets(projectId),
-				api.listApps(projectId),
-			]);
-		} catch (e: any) {
-			error = e.message;
-		}
-	}
-
 	async function createSecret(e: Event) {
 		e.preventDefault();
 		try {
-			const secret = await api.createSecret(projectId, newSecret);
-			secrets = [secret, ...secrets];
+			await api.createSecret(data.projectId, newSecret);
 			showCreate = false;
 			newSecret = { name: '', value: '', description: '' };
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -43,8 +28,8 @@
 	async function deleteSecret(secretId: string) {
 		if (!confirm('Delete this secret? It will be removed from Docker and all attached apps.')) return;
 		try {
-			await api.deleteSecret(projectId, secretId);
-			secrets = secrets.filter(s => s.id !== secretId);
+			await api.deleteSecret(data.projectId, secretId);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -53,12 +38,13 @@
 	async function attachSecret(secretId: string) {
 		if (!attachAppId) return;
 		try {
-			await api.attachSecret(projectId, secretId, attachAppId, {
+			await api.attachSecret(data.projectId, secretId, attachAppId, {
 				target: attachTarget || undefined,
 			});
 			attachingSecretId = null;
 			attachAppId = '';
 			attachTarget = '';
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -66,7 +52,8 @@
 
 	async function detachSecret(secretId: string, appId: string) {
 		try {
-			await api.detachSecret(projectId, secretId, appId);
+			await api.detachSecret(data.projectId, secretId, appId);
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -77,15 +64,17 @@
 	}
 </script>
 
+<svelte:head><title>Secrets | Hive</title></svelte:head>
+
 <div>
 	<div class="mb-6">
-		<a href="/projects/{projectId}" class="text-sm" style="color: var(--color-text-muted);">Back to project</a>
+		<a href="/projects/{data.projectId}" class="text-sm" style="color: var(--color-text-muted);">Back to project</a>
 		<h2 class="text-2xl font-bold mt-1">Secrets</h2>
 		<p class="text-sm mt-1" style="color: var(--color-text-muted);">Manage Docker Swarm secrets for this project. Secret values are stored securely in Docker and never exposed through the API.</p>
 	</div>
 
 	<div class="flex items-center justify-between mb-4">
-		<span class="text-sm" style="color: var(--color-text-muted);">{secrets.length} secret{secrets.length !== 1 ? 's' : ''}</span>
+		<span class="text-sm" style="color: var(--color-text-muted);">{(data.secrets ?? []).length} secret{(data.secrets ?? []).length !== 1 ? 's' : ''}</span>
 		<button onclick={() => showCreate = !showCreate} class="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer" style="background-color: var(--color-primary); color: var(--color-bg);">
 			New Secret
 		</button>
@@ -104,7 +93,7 @@
 	{/if}
 
 	<div class="space-y-3">
-		{#each secrets as secret}
+		{#each data.secrets ?? [] as secret}
 			<div class="rounded-lg p-4" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
 				<div class="flex items-center justify-between">
 					<div>
@@ -132,7 +121,7 @@
 					<div class="mt-3 p-3 rounded-lg space-y-2" style="background-color: var(--color-bg); border: 1px solid var(--color-border);">
 						<select bind:value={attachAppId} class="w-full px-3 py-2 rounded-lg text-sm outline-none" style="background-color: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);">
 							<option value="">Select an app...</option>
-							{#each apps as app}
+							{#each data.apps ?? [] as app}
 								<option value={app.id}>{app.name}</option>
 							{/each}
 						</select>
@@ -144,7 +133,7 @@
 				{/if}
 			</div>
 		{/each}
-		{#if secrets.length === 0}
+		{#if (data.secrets ?? []).length === 0}
 			<p class="text-sm py-4" style="color: var(--color-text-muted);">No secrets in this project yet.</p>
 		{/if}
 	</div>

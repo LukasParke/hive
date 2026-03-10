@@ -1,0 +1,24 @@
+kind: Template
+name: java
+description: Configurable Java runtime environment supporting versions 8, 11, 16, 17, and 21. Perfect for Minecraft servers, Spring Boot apps, and custom Java applications.
+category: java
+tags:
+    - java
+    - minecraft
+    - runtime
+    - pterodactyl
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/java-runtime-multi-version.svg
+version: 8-21
+links:
+    docs: https://docs.oracle.com/en/java/
+    github: https://github.com/pterodactyl/yolks
+    website: https://java.com/
+image: ghcr.io/pterodactyl/yolks:java_
+ports:
+    - ${SERVER_PORT}
+volumes:
+    - app-data:/home/container
+env:
+    JAVA_VERSION: ""
+    SERVER_JARFILE: ""
+    STARTUP: ""

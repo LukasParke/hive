@@ -1,0 +1,16 @@
+kind: Template
+name: linkding
+description: Linkding is a self-hosted bookmark manager with a clean and simple interface.
+category: bookmark-manager
+tags:
+    - bookmark-manager
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/linkding.svg
+version: latest
+links:
+    docs: https://github.com/sissbruecker/linkding/tree/master/docs
+    github: https://github.com/sissbruecker/linkding
+    website: https://linkding.link/
+image: sissbruecker/linkding:latest
+ports:
+    - "9090"

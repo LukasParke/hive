@@ -1,0 +1,25 @@
+kind: Template
+name: blender
+description: Blender is a free and open-source 3D creation suite. It supports the entire 3D pipeline—modeling, rigging, animation, simulation, rendering, compositing and motion tracking, video editing and 2D animation pipeline.
+category: 3d
+tags:
+    - 3d
+    - rendering
+    - animation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/blender.svg
+version: latest
+links:
+    docs: https://docs.blender.org/
+    github: https://github.com/linuxserver/docker-blender
+    website: https://www.blender.org/
+image: lscr.io/linuxserver/blender:latest
+ports:
+    - "3000"
+    - "3001"
+env:
+    NVIDIA_DRIVER_CAPABILITIES: all
+    NVIDIA_VISIBLE_DEVICES: all
+    PGID: "1000"
+    PUID: "1000"
+    SUBFOLDER: /
+    TZ: Etc/UTC

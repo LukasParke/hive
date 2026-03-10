@@ -1,0 +1,35 @@
+kind: Template
+name: zipline
+description: A ShareX/file upload server that is easy to use, packed with features, and with an easy setup!
+category: storage
+tags:
+    - media system
+    - storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/zipline.svg
+version: v3.7.9
+links:
+    docs: https://zipline.diced.sh/docs/
+    github: https://github.com/diced/zipline
+    website: https://zipline.diced.sh/
+image: postgres:15
+stack: true
+services:
+    - name: postgres
+      image: postgres:15
+      env:
+        POSTGRES_DATABASE: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_USER: postgres
+      volumes:
+        - pg_data:/var/lib/postgresql/data
+    - name: zipline
+      image: ghcr.io/diced/zipline:v4
+      env:
+        CORE_HOSTNAME: 0.0.0.0
+        CORE_LOGGER: ""
+        CORE_PORT: ""
+        CORE_RETURN_HTTPS: ""
+        CORE_SECRET: ""
+        DATABASE_URL: postgres://postgres:postgres@postgres/postgres
+        DATASOURCE_LOCAL_DIRECTORY: ./uploads
+        DATASOURCE_TYPE: local

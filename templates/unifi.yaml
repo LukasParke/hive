@@ -1,0 +1,39 @@
+kind: Template
+name: unifi
+description: Unifi Network is an open-source enterprise network management platform for wireless networks.
+category: networking
+tags:
+    - self-hosted
+    - networking
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/unifi-network.svg
+version: 11.6.6
+links:
+    docs: https://help.ui.com/hc/en-us/articles/360012282453-Self-Hosting-a-UniFi-Network-Server
+    github: https://github.com/ubiquiti
+    website: https://www.ui.com/
+image: mongo:4.4
+ports:
+    - "27017"
+stack: true
+services:
+    - name: unifi-db
+      image: mongo:4.4
+      ports:
+        - "27017"
+    - name: unifi-network-application
+      image: lscr.io/linuxserver/unifi-network-application:latest
+      ports:
+        - "8443"
+      env:
+        MEM_LIMIT: "1024"
+        MEM_STARTUP: "1024"
+        MONGO_AUTHSOURCE: ""
+        MONGO_DBNAME: unifi
+        MONGO_HOST: unifi-db
+        MONGO_PASS: unifi_password
+        MONGO_PORT: "27017"
+        MONGO_TLS: ""
+        MONGO_USER: unifi
+        PGID: "1000"
+        PUID: "1000"
+        TZ: Etc/UTC

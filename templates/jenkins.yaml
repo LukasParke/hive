@@ -1,0 +1,22 @@
+kind: Template
+name: jenkins
+description: Jenkins is a free, open-source automation server that helps developers build, test, and deploy software by automating repetitive tasks in the software delivery pipeline.
+category: development
+tags:
+    - ci-cd
+    - devops
+    - automation
+    - pipelines
+    - open-source
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jenkins.svg
+version: latest
+links:
+    docs: https://www.jenkins.io/doc/
+    github: https://github.com/jenkinsci/jenkins
+    website: https://www.jenkins.io/
+image: jenkins/jenkins:latest
+ports:
+    - "8080"
+volumes:
+    - jenkins-home:/var/jenkins_home
+    - /var/run/docker.sock:/var/run/docker.sock

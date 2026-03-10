@@ -17,7 +17,7 @@ func (r *route53Provider) CreateRecord(ctx context.Context, domain, recordType, 
 	return "", fmt.Errorf("route53: not implemented yet")
 }
 
-func (r *route53Provider) UpdateRecord(ctx context.Context, externalID, domain, value string) error {
+func (r *route53Provider) UpdateRecord(ctx context.Context, externalID, domain, recordType, value string, proxied bool) error {
 	return fmt.Errorf("route53: not implemented yet")
 }
 

@@ -1,0 +1,25 @@
+kind: Template
+name: mumble
+description: Mumble is an open-source, low-latency, high-quality voice chat software primarily intended for use while gaming.
+category: communication
+tags:
+    - voice-chat
+    - communication
+    - gaming
+    - voip
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mumble.svg
+version: latest
+links:
+    docs: https://wiki.mumble.info/
+    github: https://github.com/mumble-voip/mumble
+    website: https://www.mumble.info/
+image: mumblevoip/mumble-server:latest
+ports:
+    - "64738"
+    - "64738"
+volumes:
+    - mumble-data:/data
+env:
+    MUMBLE_CONFIG_USERS: ""
+    MUMBLE_CONFIG_WELCOMETEXT: ""
+    MUMBLE_SUPERUSER_PASSWORD: ""

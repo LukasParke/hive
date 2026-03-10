@@ -1,0 +1,93 @@
+kind: Template
+name: openpanel
+description: An open-source web and product analytics platform that combines the power of Mixpanel with the ease of Plausible and one of the best Google Analytics replacements.
+category: analytics
+tags:
+    - analytics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/openpanel.svg
+version: latest
+links:
+    docs: https://openpanel.dev/docs
+    github: https://github.com/Openpanel-dev/openpanel
+    website: https://openpanel.dev/
+image: lindesvard/openpanel-api:2
+stack: true
+services:
+    - name: op-api
+      image: lindesvard/openpanel-api:2
+      env:
+        ALLOW_INVITATION: ""
+        ALLOW_REGISTRATION: ""
+        API_URL: ""
+        CLICKHOUSE_URL: http://op-ch:8123/openpanel
+        COOKIE_SECRET: ""
+        DASHBOARD_URL: ""
+        DATABASE_URL: postgres://:@op-db:5432/?schema=public
+        DATABASE_URL_DIRECT: postgres://:@op-db:5432/?schema=public
+        EMAIL_SENDER: ""
+        NODE_ENV: production
+        REDIS_URL: redis://default:@op-kv:6379
+        RESEND_API_KEY: ""
+        SELF_HOSTED: "true"
+      command: |
+        sh -c "
+          echo 'Waiting for PostgreSQL to be ready...'
+          while ! nc -z op-db 5432; do
+            sleep 1
+          done
+          echo 'PostgreSQL is ready'
+
+          echo 'Waiting for ClickHouse to be ready...'
+          while ! nc -z op-ch 8123; do
+            sleep 1
+          done
+          echo 'ClickHouse is ready'
+
+          echo 'Running migrations...'
+
+          CI=true pnpm -r run migrate:deploy
+
+          pnpm start
+        "
+    - name: op-ch
+      image: clickhouse/clickhouse-server:25.10.2.65
+      env:
+        CLICKHOUSE_SKIP_USER_SETUP: "1"
+      volumes:
+        - op-ch-data:/var/lib/clickhouse
+        - op-ch-logs:/var/log/clickhouse-server
+    - name: op-dashboard
+      image: lindesvard/openpanel-dashboard:2
+      env:
+        API_URL: ""
+        CLICKHOUSE_URL: http://op-ch:8123/openpanel
+        DASHBOARD_URL: ""
+        DATABASE_URL: postgres://:@op-db:5432/?schema=public
+        DATABASE_URL_DIRECT: postgres://:@op-db:5432/?schema=public
+        NODE_ENV: production
+        REDIS_URL: redis://default:@op-kv:6379
+        SELF_HOSTED: "true"
+    - name: op-db
+      image: postgres:14-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - op-db-data:/var/lib/postgresql/data
+    - name: op-kv
+      image: redis:7.2.5-alpine
+      volumes:
+        - op-kv-data:/data
+      command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory-policy noeviction
+    - name: op-worker
+      image: lindesvard/openpanel-worker:2
+      env:
+        API_URL: ""
+        CLICKHOUSE_URL: http://op-ch:8123/openpanel
+        DASHBOARD_URL: ""
+        DATABASE_URL: postgres://:@op-db:5432/?schema=public
+        DATABASE_URL_DIRECT: postgres://:@op-db:5432/?schema=public
+        NODE_ENV: production
+        REDIS_URL: redis://default:@op-kv:6379
+        SELF_HOSTED: "true"

@@ -1,8 +1,8 @@
-kind: App
+kind: Template
 name: gitea
 description: Lightweight self-hosted Git service
 category: development
-icon: https://gitea.io/images/gitea.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/gitea.svg
 image: gitea/gitea:latest
 ports:
   - "3000:3000"

@@ -1,0 +1,16 @@
+kind: Template
+name: bentopdf
+description: BentoPDF is a lightweight PDF conversion microservice that exposes a simple HTTP API for generating PDFs.
+category: pdf
+tags:
+    - pdf
+    - converter
+    - api
+    - utility
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/bentopdf.svg
+version: latest
+links:
+    docs: https://github.com/bentopdf/bentopdf#readme
+    github: https://github.com/bentopdf/bentopdf
+    website: https://bentopdf.com/
+image: bentopdf/bentopdf:latest

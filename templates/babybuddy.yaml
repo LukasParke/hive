@@ -1,0 +1,26 @@
+kind: Template
+name: babybuddy
+description: BabyBuddy is a comprehensive, user-friendly platform designed to help parents and caregivers manage essential details about their child's growth and development. It provides tools for tracking feedings, sleep schedules, diaper changes, and milestones.
+category: parenting
+tags:
+    - parenting
+    - tracking
+    - family
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/babybuddy.svg
+version: 2.7.0
+links:
+    docs: https://docs.babybuddy.app
+    github: https://github.com/babybuddy/babybuddy
+    website: https://babybuddy.app
+image: linuxserver/babybuddy:2.7.0
+ports:
+    - "8000"
+volumes:
+    - config:/config
+env:
+    CSRF_TRUSTED_ORIGINS: https://
+    PGID: "1000"
+    PUID: "1000"
+    SECRET_KEY: ""
+    TIME_ZONE: UTC
+    TZ: UTC

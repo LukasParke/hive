@@ -1,0 +1,15 @@
+kind: Template
+name: cyberchef
+description: CyberChef is a web application for encryption, encoding, compression, and data analysis, developed by GCHQ.
+category: security
+tags:
+    - security
+    - encryption
+    - data-analysis
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cyberchef.svg
+version: latest
+links:
+    docs: https://github.com/gchq/CyberChef/wiki
+    github: https://github.com/gchq/CyberChef
+    website: https://gchq.github.io/CyberChef/
+image: ghcr.io/gchq/cyberchef:latest

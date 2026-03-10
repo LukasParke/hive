@@ -1,0 +1,58 @@
+kind: Template
+name: outline
+description: Outline is a self-hosted knowledge base and documentation platform that allows you to build and manage your own knowledge base applications.
+category: documentation
+tags:
+    - documentation
+    - knowledge-base
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/outline.svg
+version: 0.82.0
+links:
+    docs: https://docs.getoutline.com/s/guide
+    github: https://github.com/outline/outline
+    website: https://getoutline.com/
+image: ghcr.io/dexidp/dex:v2.37.0
+ports:
+    - "5556"
+stack: true
+services:
+    - name: dex
+      image: ghcr.io/dexidp/dex:v2.37.0
+      ports:
+        - "5556"
+      command:
+        - dex
+        - serve
+        - /etc/dex/config.yaml
+    - name: outline
+      image: outlinewiki/outline:0.82.0
+      ports:
+        - "3000"
+      env:
+        DATABASE_URL: postgres://outline:@postgres:5432/outline
+        FORCE_HTTPS: "false"
+        NODE_ENV: production
+        OIDC_AUTH_URI: /auth
+        OIDC_CLIENT_ID: outline
+        OIDC_CLIENT_SECRET: ""
+        OIDC_TOKEN_URI: /token
+        OIDC_USERINFO_URI: /userinfo
+        PGSSLMODE: disable
+        REDIS_URL: redis://redis:6379
+        SECRET_KEY: ""
+        URL: ""
+        UTILS_SECRET: ""
+    - name: postgres
+      image: postgres:15
+      env:
+        POSTGRES_DB: outline
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: outline
+      volumes:
+        - postgres_data-test-outline-khufpx:/var/lib/postgresql/data
+    - name: redis
+      image: redis:latest
+      volumes:
+        - redis_data-test-outline-khufpx:/data
+      command: redis-server --appendonly yes

@@ -1,0 +1,16 @@
+kind: Template
+name: pocket-id
+description: A simple and easy-to-use OIDC provider that allows users to authenticate with their passkeys to your services.
+category: security
+tags:
+    - identity
+    - auth
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/pocket-id.svg
+version: v1
+links:
+    docs: https://pocket-id.org/docs
+    github: https://github.com/pocket-id/pocket-id
+    website: https://pocket-id.org/
+image: ghcr.io/pocket-id/pocket-id:v1
+volumes:
+    - pocket-id-data:/app/data

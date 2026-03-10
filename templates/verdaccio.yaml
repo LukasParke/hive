@@ -1,0 +1,22 @@
+kind: Template
+name: verdaccio
+description: A lightweight Node.js private proxy registry
+category: node.js
+tags:
+    - node.js
+    - package-repository
+    - npm
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/verdaccio.svg
+version: "6"
+links:
+    docs: https://www.verdaccio.org/docs/what-is-verdaccio
+    github: https://github.com/verdaccio/verdaccio
+    website: https://www.verdaccio.org/
+image: verdaccio/verdaccio:6
+ports:
+    - "4873"
+volumes:
+    - verdaccio_storage:/verdaccio/storage
+    - verdaccio_plugins:/verdaccio/plugins
+env:
+    VERDACCIO_PORT: "4873"

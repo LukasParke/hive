@@ -1,0 +1,40 @@
+kind: Template
+name: heyform
+description: Allows anyone to create engaging conversational forms for surveys, questionnaires, quizzes, and polls. No coding skills required.
+category: form
+tags:
+    - form
+    - builder
+    - questionnaire
+    - quiz
+    - survey
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/heyform.svg
+version: latest
+links:
+    docs: https://docs.heyform.net
+    github: https://github.com/heyform/heyform
+    website: https://heyform.net
+image: heyform/community-edition:latest
+ports:
+    - "8000"
+stack: true
+services:
+    - name: heyform
+      image: heyform/community-edition:latest
+      ports:
+        - "8000"
+      env:
+        MONGO_URI: mongodb://mongo:27017/heyform
+        REDIS_HOST: redis
+        REDIS_PORT: "6379"
+      volumes:
+        - heyform-data:/app/static/upload
+    - name: mongo
+      image: percona/percona-server-mongodb:4.4
+      volumes:
+        - mongo-data:/data/db
+    - name: redis
+      image: redis
+      volumes:
+        - redis-data:/data
+      command: redis-server --appendonly yes

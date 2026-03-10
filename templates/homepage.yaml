@@ -2,7 +2,7 @@ kind: Template
 name: homepage
 description: Customizable application dashboard with widgets
 category: dashboard
-icon: https://raw.githubusercontent.com/gethomepage/homepage/main/images/homepage.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/homepage.svg
 image: ghcr.io/gethomepage/homepage:latest
 ports:
   - "3000"

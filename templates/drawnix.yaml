@@ -1,0 +1,14 @@
+kind: Template
+name: drawnix
+description: Drawnix is an application for generating and managing visual content, powered by pubuzhixing/drawnix Docker image.
+category: visualization
+tags:
+    - visualization
+    - content-generation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/drawnix.svg
+version: latest
+links:
+    docs: https://hub.docker.com/r/pubuzhixing/drawnix
+    github: https://github.com/pubuzhixing/drawnix
+    website: https://hub.docker.com/r/pubuzhixing/drawnix
+image: pubuzhixing/drawnix:latest

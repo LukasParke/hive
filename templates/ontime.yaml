@@ -1,0 +1,19 @@
+kind: Template
+name: ontime
+description: Ontime is browser-based application that manages event rundowns, scheduliing and cuing
+category: event
+tags:
+    - event
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/ontime.svg
+version: v3.8.0
+links:
+    docs: https://docs.getontime.no
+    github: https://github.com/cpvalente/ontime/
+    website: https://getontime.no
+image: getontime/ontime:v3.8.0
+ports:
+    - "4001"
+    - "8888"
+    - "9999"
+volumes:
+    - ontime-data:/data/

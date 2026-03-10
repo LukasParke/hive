@@ -1,0 +1,36 @@
+kind: Template
+name: minepanel
+description: Web panel for managing Minecraft servers with Docker. Create, configure, start/stop, and monitor multiple instances from a modern UI.
+category: gaming
+tags:
+    - gaming
+    - minecraft
+    - server-management
+    - docker
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/minepanel.svg
+version: 1.7.1
+links:
+    docs: https://minepanel.ketbome.lat
+    github: https://github.com/Ketbome/minepanel
+    website: https://minepanel.ketbome.lat
+image: ketbom/minepanel-backend:1.7.1
+stack: true
+services:
+    - name: backend
+      image: ketbom/minepanel-backend:1.7.1
+      env:
+        BASE_DIR: ""
+        CLIENT_PASSWORD: ""
+        CLIENT_USERNAME: ""
+        FRONTEND_URL: ""
+        JWT_SECRET: ""
+        NODE_ENV: production
+      volumes:
+        - minepanel-servers:/app/servers
+        - minepanel-data:/app/data
+        - /var/run/docker.sock:/var/run/docker.sock
+    - name: frontend
+      image: ketbom/minepanel-frontend:1.7.1
+      env:
+        NEXT_PUBLIC_BACKEND_URL: ""
+        NEXT_PUBLIC_DEFAULT_LANGUAGE: ""

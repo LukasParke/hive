@@ -2,7 +2,7 @@ kind: Template
 name: ghost
 description: Professional publishing platform for creating websites and blogs
 category: publishing
-icon: https://ghost.org/images/icons/icon.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/ghost.svg
 image: ghost:5-alpine
 ports:
   - "2368"

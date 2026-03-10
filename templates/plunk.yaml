@@ -1,0 +1,44 @@
+kind: Template
+name: plunk
+description: Plunk is the open-source, affordable email platform that brings together marketing, transactional and broadcast emails into one single, complete solution
+category: communication
+tags:
+    - email
+    - newsletter
+    - mailing-list
+    - marketing
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plunk.svg
+version: latest
+links:
+    docs: https://docs.useplunk.com
+    github: https://github.com/useplunk/plunk
+    website: https://www.useplunk.com/
+image: postgres:alpine
+stack: true
+services:
+    - name: db
+      image: postgres:alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+    - name: plunk
+      image: driaug/plunk
+      env:
+        API_URI: /api
+        APP_URI: ""
+        AWS_ACCESS_KEY_ID: ""
+        AWS_REGION: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        AWS_SES_CONFIGURATION_SET: ""
+        DATABASE_URL: postgresql://:@db:5432/
+        DISABLE_SIGNUPS: ""
+        JWT_SECRET: ""
+        NEXT_PUBLIC_API_URI: /api
+        REDIS_URL: ""
+    - name: redis
+      image: redis:alpine
+      volumes:
+        - redis_data:/data

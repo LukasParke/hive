@@ -1,0 +1,44 @@
+kind: Template
+name: kimai
+description: 'Kimai is a web-based multi-user time-tracking application. Works great for everyone: freelancers, companies, organizations - everyone can track their times, generate reports, create invoices and do so much more.'
+category: finance
+tags:
+    - invoice
+    - business
+    - finance
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kimai.svg
+version: 2.31.0
+links:
+    docs: https://www.kimai.org/documentation
+    github: https://github.com/kimai/kimai
+    website: https://www.kimai.org
+image: kimai/kimai2:apache-2.31.0
+stack: true
+services:
+    - name: app
+      image: kimai/kimai2:apache-2.31.0
+      env:
+        ADMINMAIL: admin@kimai.local
+        ADMINPASS: ""
+        APP_ENV: prod
+        APP_SECRET: ""
+        DATABASE_URL: mysql://kimai:kimai@db/kimai
+        MAILER_FROM: admin@kimai.local
+        MAILER_URL: null://null
+        TRUSTED_PROXIES: localhost
+      volumes:
+        - kimai-data:/opt/kimai/var
+    - name: db
+      image: mariadb:10.11
+      env:
+        MYSQL_DATABASE: kimai
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: kimai
+      volumes:
+        - mysql-data:/var/lib/mysql
+      command:
+        - --character-set-server=utf8mb4
+        - --collation-server=utf8mb4_unicode_ci
+        - --innodb-buffer-pool-size=256M
+        - --innodb-flush-log-at-trx-commit=2

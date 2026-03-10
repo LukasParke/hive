@@ -1,0 +1,45 @@
+kind: Template
+name: ezbookkeeping
+description: EZBookkeeping is a self-hosted bookkeeping application that helps you manage your personal and business finances. It provides features for tracking income, expenses, accounts, and generating financial reports.
+category: finance
+tags:
+    - bookkeeping
+    - finance
+    - accounting
+    - self-hosted
+    - personal-finance
+    - business-finance
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/ezbookkeeping.svg
+version: latest
+links:
+    docs: https://github.com/mayswind/ezbookkeeping
+    github: https://github.com/mayswind/ezbookkeeping
+    website: https://github.com/mayswind/ezbookkeeping
+image: mayswind/ezbookkeeping
+stack: true
+services:
+    - name: ezbookkeeping
+      image: mayswind/ezbookkeeping
+      env:
+        EBK_DATABASE_HOST: ""
+        EBK_DATABASE_NAME: ""
+        EBK_DATABASE_PASSWD: ""
+        EBK_DATABASE_TYPE: ""
+        EBK_DATABASE_USER: ""
+        EBK_LOG_MODE: ""
+        EBK_SECURITY_SECRET_KEY: ""
+        EBK_SERVER_DOMAIN: ""
+        EBK_SERVER_ENABLE_GZIP: ""
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - storage:/ezbookkeeping/storage
+        - logs:/ezbookkeeping/log
+    - name: mysql
+      image: mysql:8.0
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: ""
+      volumes:
+        - mysql-data:/var/lib/mysql

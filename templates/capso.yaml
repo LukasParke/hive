@@ -1,0 +1,53 @@
+kind: Template
+name: capso
+description: Cap.so is a platform for web and desktop applications with MySQL and S3 storage. It provides a complete development environment with database and file storage capabilities.
+category: development
+tags:
+    - web
+    - s3
+    - mysql
+    - development
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/cap.so.svg
+version: latest
+links:
+    docs: https://cap.so/docs/
+    github: https://github.com/CapSoftware/Cap
+    website: https://cap.so/
+image: ghcr.io/capsoftware/cap-web:latest
+stack: true
+services:
+    - name: cap-web
+      image: ghcr.io/capsoftware/cap-web:latest
+      env:
+        CAP_AWS_ACCESS_KEY: ""
+        CAP_AWS_BUCKET: ""
+        CAP_AWS_REGION: ""
+        CAP_AWS_SECRET_KEY: ""
+        DATABASE_ENCRYPTION_KEY: ""
+        DATABASE_URL: mysql://:@ps-mysql:3306/?ssl={"rejectUnauthorized":false}
+        NEXTAUTH_SECRET: ""
+        NEXTAUTH_URL: http://:3000
+        S3_INTERNAL_ENDPOINT: http://minio:3902
+        S3_PUBLIC_ENDPOINT: http://:3902
+        WEB_URL: http://:3000
+    - name: minio
+      image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z
+      env:
+        MINIO_ROOT_PASSWORD: ""
+        MINIO_ROOT_USER: ""
+      volumes:
+        - minio-data:/bitnami/minio/data
+        - minio-certs:/certs
+      command: server /bitnami/minio/data --address ":3902" --console-address ":3903"
+    - name: ps-mysql
+      image: mysql:8.0
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_ROOT_HOST: '%'
+        MYSQL_ROOT_PASSWORD: ""
+      volumes:
+        - ps-mysql:/var/lib/mysql
+      command:
+        - --max_connections=1000
+        - --default-authentication-plugin=mysql_native_password

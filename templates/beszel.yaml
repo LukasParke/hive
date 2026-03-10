@@ -1,0 +1,20 @@
+kind: Template
+name: beszel
+description: A lightweight server monitoring hub with historical data, docker stats, and alerts.
+category: monitoring
+tags:
+    - monitoring
+    - docker
+    - alerts
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/beszel.svg
+version: 0.10.2
+links:
+    docs: https://beszel.dev/guide/getting-started
+    github: https://github.com/henrygd/beszel
+    website: https://beszel.dev
+image: henrygd/beszel:0.10.2
+ports:
+    - "8090"
+volumes:
+    - beszel_data:/beszel_data
+    - /var/run/docker.sock:/var/run/docker.sock:ro

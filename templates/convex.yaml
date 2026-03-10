@@ -1,0 +1,37 @@
+kind: Template
+name: convex
+description: Convex is an open-source reactive database designed to make life easy for web app developers.
+category: databases
+tags:
+    - backend
+    - database
+    - api
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/convex.svg
+version: latest
+links:
+    docs: https://www.convex.dev/docs
+    github: https://github.com/get-convex/convex
+    website: https://www.convex.dev/
+image: ghcr.io/get-convex/convex-backend:5cdea511cd6527a95dd24152ea0d3c3bb2ab379f
+stack: true
+services:
+    - name: backend
+      image: ghcr.io/get-convex/convex-backend:5cdea511cd6527a95dd24152ea0d3c3bb2ab379f
+      env:
+        ACTIONS_USER_TIMEOUT_SECS: ""
+        CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
+        CONVEX_RELEASE_VERSION_DEV: ""
+        CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+        DATABASE_URL: ""
+        DISABLE_BEACON: "FALSE"
+        INSTANCE_NAME: ""
+        INSTANCE_SECRET: ""
+        REDACT_LOGS_TO_CLIENT: ""
+        RUST_BACKTRACE: ""
+        RUST_LOG: info
+      volumes:
+        - data:/convex/data
+    - name: dashboard
+      image: ghcr.io/get-convex/convex-dashboard:5cdea511cd6527a95dd24152ea0d3c3bb2ab379f
+      env:
+        NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:3210

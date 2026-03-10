@@ -1,0 +1,147 @@
+kind: Template
+name: frappe-hr
+description: Feature rich HR & Payroll software. 100% FOSS and customizable.
+category: hrms
+tags:
+    - hrms
+    - payroll
+    - leaves
+    - expenses
+    - attendance
+    - performace
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/frappe-hr.svg
+version: version-15
+links:
+    docs: https://docs.frappe.io/hr
+    github: https://github.com/frappe/hrms
+    website: https://frappe.io/hr
+image: ghcr.io/frappe/hrms:version-15
+stack: true
+services:
+    - name: backend
+      image: ghcr.io/frappe/hrms:version-15
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+    - name: configurator
+      image: ghcr.io/frappe/hrms:version-15
+      env:
+        DB_HOST: db
+        DB_PORT: "3306"
+        REDIS_CACHE: redis-cache:6379
+        REDIS_QUEUE: redis-queue:6379
+        REGENERATE_APPS_TXT: "0"
+        SOCKETIO_PORT: "9000"
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - |
+          [[ $${REGENERATE_APPS_TXT} == "1" ]] && ls -1 apps > sites/apps.txt; [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] && exit 0; bench set-config -g db_host $$DB_HOST; bench set-config -gp db_port $$DB_PORT; bench set-config -g redis_cache "redis://$$REDIS_CACHE"; bench set-config -g redis_queue "redis://$$REDIS_QUEUE"; bench set-config -g redis_socketio "redis://$$REDIS_QUEUE"; bench set-config -gp socketio_port $$SOCKETIO_PORT;
+    - name: create-site
+      image: ghcr.io/frappe/hrms:version-15
+      env:
+        ADMIN_PASSWORD: ""
+        DB_HOST: db
+        DB_PORT: "3306"
+        DB_ROOT_PASSWORD: ""
+        INSTALL_APP_ARGS: ""
+        SITE_NAME: ""
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - |
+          wait-for-it -t 120 $$DB_HOST:$$DB_PORT; wait-for-it -t 120 redis-cache:6379; wait-for-it -t 120 redis-queue:6379; export start=`date +%s`; until [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] && \
+            [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_cache // empty"` ]] && \
+            [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_queue // empty"` ]];
+          do
+            echo "Waiting for sites/common_site_config.json to be created";
+            sleep 5;
+            if (( `date +%s`-start > 120 )); then
+              echo "could not find sites/common_site_config.json with required keys";
+              exit 1
+            fi
+          done; echo "sites/common_site_config.json found"; [[ -d "sites/${SITE_NAME}" ]] && echo "${SITE_NAME} already exists" && exit 0; bench new-site --mariadb-user-host-login-scope='%' --admin-password=$${ADMIN_PASSWORD} --db-root-username=root --db-root-password=$${DB_ROOT_PASSWORD} $${INSTALL_APP_ARGS} $${SITE_NAME};
+    - name: db
+      image: mariadb:10.6
+      env:
+        MARIADB_ROOT_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+      volumes:
+        - db-data:/var/lib/mysql
+      command:
+        - --character-set-server=utf8mb4
+        - --collation-server=utf8mb4_unicode_ci
+        - --skip-character-set-client-handshake
+        - --skip-innodb-read-only-compressed
+    - name: frontend
+      image: ghcr.io/frappe/hrms:version-15
+      env:
+        BACKEND: backend:8000
+        FRAPPE_SITE_NAME_HEADER: $$host
+        SOCKETIO: websocket:9000
+        UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+        UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+        UPSTREAM_REAL_IP_RECURSIVE: "off"
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - nginx-entrypoint.sh
+    - name: migration
+      image: ghcr.io/frappe/hrms:version-15
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - |
+          curl -f http://${SITE_NAME}:8080/api/method/ping || echo "Site busy" && exit 0; bench --site all set-config -p maintenance_mode 1; bench --site all set-config -p pause_scheduler 1; bench --site all migrate; bench --site all set-config -p maintenance_mode 0; bench --site all set-config -p pause_scheduler 0;
+    - name: queue-default
+      image: ghcr.io/frappe/hrms:version-15
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - bench
+        - worker
+        - --queue
+        - default
+    - name: queue-long
+      image: ghcr.io/frappe/hrms:version-15
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - bench
+        - worker
+        - --queue
+        - long
+    - name: queue-short
+      image: ghcr.io/frappe/hrms:version-15
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - bench
+        - worker
+        - --queue
+        - short
+    - name: redis-cache
+      image: redis:6.2-alpine
+      volumes:
+        - redis-cache-data:/data
+    - name: redis-queue
+      image: redis:6.2-alpine
+      volumes:
+        - redis-queue-data:/data
+    - name: redis-socketio
+      image: redis:6.2-alpine
+      volumes:
+        - redis-socketio-data:/data
+    - name: scheduler
+      image: ghcr.io/frappe/hrms:version-15
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - bench
+        - schedule
+    - name: websocket
+      image: ghcr.io/frappe/hrms:version-15
+      volumes:
+        - sites:/home/frappe/frappe-bench/sites
+      command:
+        - node
+        - /home/frappe/frappe-bench/apps/frappe/socketio.js

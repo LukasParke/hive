@@ -1,0 +1,19 @@
+kind: Template
+name: typesense
+description: Typesense is a fast, open-source search engine for building modern search experiences.
+category: search
+tags:
+    - search
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/typesense.svg
+version: "29.0"
+links:
+    docs: https://typesense.org/docs
+    github: https://github.com/typesense/typesense
+    website: https://typesense.org/
+image: typesense/typesense:29.0
+volumes:
+    - typesense-data:/data
+env:
+    TYPESENSE_API_KEY: ""
+    TYPESENSE_DATA_DIR: /data
+    TYPESENSE_ENABLE_CORS: ""

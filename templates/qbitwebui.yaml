@@ -1,0 +1,23 @@
+kind: Template
+name: qbitwebui
+description: A modern web interface for managing multiple qBittorrent instances. Built with React, Hono, and Bun.
+category: media
+tags:
+    - torrent
+    - download
+    - media
+    - qbittorrent
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/qbittorrent-web-ui.svg
+version: latest
+links:
+    docs: https://github.com/Maciejonos/qbitwebui#readme
+    github: https://github.com/Maciejonos/qbitwebui
+    website: https://github.com/Maciejonos/qbitwebui
+image: ghcr.io/maciejonos/qbitwebui:latest
+volumes:
+    - qbitwebui_data:/data
+env:
+    DATABASE_PATH: /data/qbitwebui.db
+    ENCRYPTION_KEY: ""
+    PORT: "3000"
+    SALT_PATH: /data/.salt

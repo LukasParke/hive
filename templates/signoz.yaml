@@ -1,0 +1,90 @@
+kind: Template
+name: signoz
+description: SigNoz is an open-source Datadog or New Relic alternative. Get APM, logs,traces, metrics, exceptions, & alerts in a single tool.
+category: monitoring
+tags:
+    - monitoring
+    - observability
+    - metrics
+    - traces
+    - logs
+    - opentelemetry
+    - apm
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/signoz.svg
+version: v0.97.1
+links:
+    docs: https://signoz.io/docs/
+    github: https://github.com/SigNoz/signoz
+    website: https://signoz.io/
+image: signoz/signoz-otel-collector:v0.129.7
+ports:
+    - "4317"
+    - "4318"
+stack: true
+services:
+    - name: clickhouse
+      image: clickhouse/clickhouse-server:25.5.6
+      env:
+        CLICKHOUSE_SKIP_USER_SETUP: "1"
+      volumes:
+        - clickhouse:/var/lib/clickhouse/
+    - name: init-clickhouse
+      image: clickhouse/clickhouse-server:25.5.6
+      command:
+        - bash
+        - -c
+        - |
+          version="v0.0.1"
+          node_os=$$(uname -s | tr '[:upper:]' '[:lower:]')
+          node_arch=$$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)
+          echo "Fetching histogram-binary for $${node_os}/$${node_arch}"
+          cd /tmp
+          wget -O histogram-quantile.tar.gz "https://github.com/SigNoz/signoz/releases/download/histogram-quantile%2F$${version}/histogram-quantile_$${node_os}_$${node_arch}.tar.gz"
+          tar -xvzf histogram-quantile.tar.gz
+          mv histogram-quantile /var/lib/clickhouse/user_scripts/histogramQuantile
+    - name: otel-collector
+      image: signoz/signoz-otel-collector:v0.129.7
+      ports:
+        - "4317"
+        - "4318"
+      command:
+        - --config=/etc/otel-collector-config.yaml
+    - name: schema-migrator-async
+      image: signoz/signoz-schema-migrator:v0.129.7
+      command:
+        - async
+        - --dsn=tcp://clickhouse:9000
+        - --up=
+    - name: schema-migrator-sync
+      image: signoz/signoz-schema-migrator:v0.129.7
+      command:
+        - sync
+        - --dsn=tcp://clickhouse:9000
+        - --up=
+    - name: signoz
+      image: signoz/signoz:v0.97.1
+      ports:
+        - "8080"
+      env:
+        DEPLOYMENT_TYPE: docker-standalone-amd
+        DOT_METRICS_ENABLED: "true"
+        SIGNOZ_ALERTMANAGER_PROVIDER: signoz
+        SIGNOZ_JWT_SECRET: ""
+        SIGNOZ_SQLSTORE_SQLITE_PATH: /var/lib/signoz/signoz.db
+        SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN: tcp://clickhouse:9000
+        STORAGE: clickhouse
+        TELEMETRY_ENABLED: "true"
+      volumes:
+        - sqlite:/var/lib/signoz/
+      command:
+        - --config=/root/config/prometheus.yml
+    - name: zookeeper-1
+      image: signoz/zookeeper:3.7.1
+      env:
+        ALLOW_ANONYMOUS_LOGIN: "yes"
+        ZOO_AUTOPURGE_INTERVAL: "1"
+        ZOO_ENABLE_PROMETHEUS_METRICS: "yes"
+        ZOO_PROMETHEUS_METRICS_PORT_NUMBER: "9141"
+        ZOO_SERVER_ID: "1"
+      volumes:
+        - zookeeper-1:/bitnami/zookeeper

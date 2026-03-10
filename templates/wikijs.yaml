@@ -2,7 +2,7 @@ kind: Template
 name: wikijs
 description: Modern and powerful wiki software built on Node.js
 category: productivity
-icon: https://js.wiki/img/logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/wiki-js.svg
 image: ghcr.io/requarks/wiki:2
 ports:
   - "3000"

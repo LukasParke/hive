@@ -1,0 +1,23 @@
+kind: Template
+name: trilium-next
+description: Is a free and open-source, cross-platform hierarchical note taking application with focus on building large personal knowledge bases.
+category: productivity
+tags:
+    - self-hosted
+    - productivity
+    - personal-use
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/triliumnext.svg
+version: latest
+links:
+    docs: https://docs.triliumnotes.org/
+    github: https://github.com/TriliumNext/Trilium
+    website: https://triliumnotes.org/
+image: triliumnext/trilium:v0.101.3
+ports:
+    - "8080"
+volumes:
+    - ~/trilium-data:/home/node/trilium-data
+    - /etc/timezone:/etc/timezone:ro
+    - /etc/localtime:/etc/localtime:ro
+env:
+    TRILIUM_DATA_DIR: /home/node/trilium-data

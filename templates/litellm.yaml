@@ -1,0 +1,50 @@
+kind: Template
+name: litellm
+description: LiteLLM is a lightweight OpenAI API-compatible proxy for managing multiple LLM providers with a single endpoint.
+category: networking
+tags:
+    - ai
+    - proxy
+    - llm
+    - openai-compatible
+    - monitoring
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/litellm.svg
+version: main-stable
+links:
+    docs: https://docs.litellm.ai/docs/proxy/quick_start
+    github: https://github.com/BerriAI/litellm
+    website: https://docs.litellm.ai
+image: ghcr.io/berriai/litellm:main-latest
+stack: true
+services:
+    - name: litellm
+      image: ghcr.io/berriai/litellm:main-latest
+      env:
+        ANTHROPIC_API_KEY: ""
+        AZURE_API_BASE: ""
+        AZURE_API_KEY: ""
+        AZURE_API_VERSION: ""
+        COHERE_API_KEY: ""
+        DATABASE_URL: ""
+        INFINITY_API_KEY: ""
+        INFISICAL_TOKEN: ""
+        LITELLM_MASTER_KEY: ""
+        NOVITA_API_KEY: ""
+        OPENAI_API_KEY: ""
+        OPENAI_BASE_URL: ""
+        OR_API_KEY: ""
+        OR_APP_NAME: ""
+        OR_SITE_URL: ""
+        REPLICATE_API_KEY: ""
+        REPLICATE_API_TOKEN: ""
+        STORE_MODEL_IN_DB: "True"
+        UI_PASSWORD: ""
+        UI_USERNAME: ""
+    - name: litellm-db
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - litellm-db:/var/lib/postgresql/data

@@ -1,0 +1,36 @@
+kind: Template
+name: bolt.diy
+description: Prompt, run, edit, and deploy full-stack web applications using any LLM you want!
+category: development
+tags:
+    - ai
+    - self-hosted
+    - development
+    - chatbot
+    - ide
+    - llm
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/bolt.diy.svg
+version: latest
+links:
+    docs: https://stackblitz-labs.github.io/bolt.diy/
+    github: https://github.com/stackblitz-labs/bolt.diy
+    website: https://stackblitz-labs.github.io/bolt.diy/
+image: ghcr.io/stackblitz-labs/bolt.diy:latest
+env:
+    ANTHROPIC_API_KEY: ""
+    AWS_BEDROCK_CONFIG: ""
+    COMPOSE_PROFILES: production
+    DEFAULT_NUM_CTX: "32768"
+    GOOGLE_GENERATIVE_AI_API_KEY: ""
+    GROQ_API_KEY: ""
+    HuggingFace_API_KEY: ""
+    NODE_ENV: production
+    OLLAMA_API_BASE_URL: ""
+    OPEN_ROUTER_API_KEY: ""
+    OPENAI_API_KEY: ""
+    PORT: "5173"
+    RUNNING_IN_DOCKER: "true"
+    TOGETHER_API_BASE_URL: ""
+    TOGETHER_API_KEY: ""
+    VITE_LOG_LEVEL: info
+    XAI_API_KEY: ""

@@ -1,0 +1,19 @@
+kind: Template
+name: dumbpad
+description: DumbPad is a simple, self-hosted notepad service with PIN protection and no database required.
+category: notepad
+tags:
+    - notepad
+    - self-hosted
+    - simple
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dumbpad.svg
+version: latest
+links:
+    docs: https://github.com/dumbwareio/dumbpad
+    github: https://github.com/dumbwareio/dumbpad
+    website: https://www.dumbware.io/software/DumbPad/
+image: dumbwareio/dumbpad:latest
+ports:
+    - "3000"
+volumes:
+    - dumbpad-data:/app/data

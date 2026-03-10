@@ -1,0 +1,113 @@
+kind: Template
+name: mediacms
+description: MediaCMS is an open-source video and media CMS. It is a modern, full-featured solution for managing and streaming media content.
+category: media
+tags:
+    - media
+    - video
+    - cms
+    - streaming
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mediacms.svg
+version: latest
+links:
+    docs: https://docs.mediacms.io/
+    github: https://github.com/mediacms/mediacms
+    website: https://mediacms.io/
+image: mediacms/mediacms:latest
+ports:
+    - "80"
+stack: true
+services:
+    - name: celery_beat
+      image: mediacms/mediacms:latest
+      env:
+        DATABASE_HOST: db
+        DATABASE_NAME: mediacms
+        DATABASE_PASSWORD: ""
+        DATABASE_PORT: "5432"
+        DATABASE_USER: mediacms
+        ENABLE_CELERY_LONG: "no"
+        ENABLE_CELERY_SHORT: "no"
+        ENABLE_MIGRATIONS: "no"
+        ENABLE_NGINX: "no"
+        ENABLE_UWSGI: "no"
+        POSTGRES_PASSWORD: ""
+        REDIS_HOST: redis
+        REDIS_PORT: "6379"
+      volumes:
+        - mediacms_data:/home/mediacms.io/mediacms/media
+        - mediacms_static:/home/mediacms.io/mediacms/staticfiles
+    - name: celery_worker
+      image: mediacms/mediacms:latest
+      env:
+        DATABASE_HOST: db
+        DATABASE_NAME: mediacms
+        DATABASE_PASSWORD: ""
+        DATABASE_PORT: "5432"
+        DATABASE_USER: mediacms
+        ENABLE_CELERY_BEAT: "no"
+        ENABLE_MIGRATIONS: "no"
+        ENABLE_NGINX: "no"
+        ENABLE_UWSGI: "no"
+        POSTGRES_PASSWORD: ""
+        REDIS_HOST: redis
+        REDIS_PORT: "6379"
+      volumes:
+        - mediacms_data:/home/mediacms.io/mediacms/media
+        - mediacms_static:/home/mediacms.io/mediacms/staticfiles
+    - name: db
+      image: postgres:17.2-alpine
+      env:
+        POSTGRES_DB: mediacms
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: mediacms
+        TZ: Europe/London
+      volumes:
+        - postgres_data:/var/lib/postgresql/data/
+    - name: migrations
+      image: mediacms/mediacms:latest
+      env:
+        ADMIN_EMAIL: admin@localhost
+        ADMIN_PASSWORD: ""
+        ADMIN_USER: admin
+        DATABASE_HOST: db
+        DATABASE_NAME: mediacms
+        DATABASE_PASSWORD: ""
+        DATABASE_PORT: "5432"
+        DATABASE_USER: mediacms
+        ENABLE_CELERY_BEAT: "no"
+        ENABLE_CELERY_LONG: "no"
+        ENABLE_CELERY_SHORT: "no"
+        ENABLE_MIGRATIONS: "yes"
+        ENABLE_NGINX: "no"
+        ENABLE_UWSGI: "no"
+        POSTGRES_PASSWORD: ""
+        REDIS_HOST: redis
+        REDIS_PORT: "6379"
+      volumes:
+        - mediacms_data:/home/mediacms.io/mediacms/media
+        - mediacms_static:/home/mediacms.io/mediacms/staticfiles
+      command: ./deploy/docker/prestart.sh
+    - name: redis
+      image: redis:alpine
+    - name: web
+      image: mediacms/mediacms:latest
+      ports:
+        - "80"
+      env:
+        DATABASE_HOST: db
+        DATABASE_NAME: mediacms
+        DATABASE_PASSWORD: ""
+        DATABASE_PORT: "5432"
+        DATABASE_USER: mediacms
+        ENABLE_CELERY_BEAT: "no"
+        ENABLE_CELERY_LONG: "no"
+        ENABLE_CELERY_SHORT: "no"
+        ENABLE_MIGRATIONS: "no"
+        POSTGRES_PASSWORD: ""
+        REDIS_HOST: redis
+        REDIS_PORT: "6379"
+      volumes:
+        - mediacms_data:/home/mediacms.io/mediacms/media
+        - mediacms_static:/home/mediacms.io/mediacms/staticfiles

@@ -1,0 +1,16 @@
+kind: Template
+name: macos
+description: MacOS inside a Docker container.
+category: self-hosted
+tags:
+    - self-hosted
+    - open-source
+    - os
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/macos-dockerized.svg
+version: "1.14"
+links:
+    docs: https://github.com/dockur/macos?tab=readme-ov-file#how-do-i-use-it
+    github: https://github.com/dockur/macos
+image: dockurr/macos:1.14
+volumes:
+    - macos-storage:/storage

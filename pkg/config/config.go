@@ -8,9 +8,7 @@ import (
 type Role string
 
 const (
-	RoleManager Role = "manager"
-	RoleWorker  Role = "worker"
-	RoleAgent   Role = "agent"
+	RoleAgent Role = "agent"
 )
 
 type Config struct {
@@ -18,8 +16,10 @@ type Config struct {
 	DevMode bool
 	DataDir string
 	APIPort int
-	UIDir   string // pre-built static frontend assets directory
 	NATSPort int
+
+	// Durable backup storage directory (should be a persistent volume mount)
+	BackupDir string
 
 	// Postgres (set after bootstrap or by env for external DB)
 	DatabaseURL string
@@ -58,20 +58,28 @@ type Config struct {
 	// Docker image reference for self-deployment and agent deployment
 	HiveImage string
 
+	// Prometheus URL for metrics queries
+	PrometheusURL string
+
 	// Log level override: debug, info, warn, error (default: info, dev mode forces debug)
 	LogLevel string
+
+	// When true, session cookies are set with the Secure flag (HTTPS only).
+	// Defaults to true in production, false in dev mode.
+	SecureCookies bool
 }
 
 func Load() *Config {
+	dataDir := getEnv("HIVE_DATA_DIR", "/data")
 	cfg := &Config{
 		Role:             Role(getEnv("HIVE_ROLE", "manager")),
 		DevMode:          getEnv("HIVE_DEV", "") != "",
-		DataDir:          getEnv("HIVE_DATA_DIR", "/data"),
+		DataDir:          dataDir,
+		BackupDir:        getEnv("HIVE_BACKUP_DIR", dataDir+"/backups"),
 		APIPort:          getEnvInt("HIVE_API_PORT", 8080),
-		UIDir:            getEnv("HIVE_UI_DIR", "/app/ui"),
 		NATSPort:         getEnvInt("HIVE_NATS_PORT", 4222),
 		DatabaseURL:      getEnv("DATABASE_URL", ""),
-		NATSManagerURL:   getEnv("HIVE_NATS_URL", ""),
+		NATSManagerURL:   getEnv("HIVE_NATS_URL", "nats://hive-nats:4222"),
 		DockerSocket:     getEnv("DOCKER_HOST", "unix:///var/run/docker.sock"),
 		MultiNode:        false,
 		CFAPIToken:       getEnv("HIVE_CF_API_TOKEN", ""),
@@ -80,12 +88,17 @@ func Load() *Config {
 		IngressMode:      getEnv("HIVE_INGRESS_MODE", "port_forward"),
 		RegistryDomain:   getEnv("HIVE_REGISTRY_DOMAIN", "registry.hive.local"),
 		RegistryInsecure: getEnv("HIVE_REGISTRY_INSECURE", "true") == "true",
-		AgentInterval:    getEnvInt("HIVE_AGENT_INTERVAL", 10),
+		AgentInterval:    getEnvInt("HIVE_AGENT_INTERVAL", 2),
 		AllowedOrigins:   getEnv("HIVE_ALLOWED_ORIGINS", ""),
 		WebhookBaseURL:   getEnv("HIVE_WEBHOOK_BASE_URL", "http://localhost:8080"),
 		ManagedService:   getEnv("HIVE_MANAGED", "") == "true",
 		HiveImage:        getEnv("HIVE_IMAGE", "127.0.0.1:5000/hive:latest"),
+		PrometheusURL:    getEnv("PROMETHEUS_URL", "http://hive-prometheus:9090"),
 		LogLevel:         getEnv("HIVE_LOG_LEVEL", "info"),
+		SecureCookies:    getEnv("HIVE_SECURE_COOKIES", "") != "false",
+	}
+	if cfg.DevMode {
+		cfg.SecureCookies = false
 	}
 	return cfg
 }

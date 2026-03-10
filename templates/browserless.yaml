@@ -1,0 +1,16 @@
+kind: Template
+name: browserless
+description: Browserless allows remote clients to connect and execute headless work, all inside of docker. It supports the standard, unforked Puppeteer and Playwright libraries, as well offering REST-based APIs for common actions like data collection, PDF generation and more.
+category: automation
+tags:
+    - browser
+    - automation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/browserless.svg
+version: 2.23.0
+links:
+    docs: https://docs.browserless.io/
+    github: https://github.com/browserless/browserless
+    website: https://www.browserless.io/
+image: ghcr.io/browserless/chromium:latest
+env:
+    TOKEN: ""

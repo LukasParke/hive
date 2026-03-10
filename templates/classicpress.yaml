@@ -1,0 +1,39 @@
+kind: Template
+name: classicpress
+description: ClassicPress is a community-led open source content management system for creators. It is a fork of WordPress 6.2 that preserves the TinyMCE classic editor as the default option.
+category: cms
+tags:
+    - cms
+    - wordpress
+    - content-management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/classicpress.svg
+version: php8.3-apache
+links:
+    docs: https://docs.classicpress.net/
+    github: https://github.com/ClassicPress/
+    website: https://www.classicpress.net/
+image: classicpress/classicpress:php8.3-apache
+ports:
+    - "80"
+stack: true
+services:
+    - name: classicpress
+      image: classicpress/classicpress:php8.3-apache
+      ports:
+        - "80"
+      env:
+        WORDPRESS_DB_HOST: db
+        WORDPRESS_DB_NAME: wordpress
+        WORDPRESS_DB_PASSWORD: ""
+        WORDPRESS_DB_USER: wordpress
+      volumes:
+        - wordpress-data:/var/www/html
+    - name: db
+      image: mariadb:10.6
+      env:
+        MYSQL_DATABASE: wordpress
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: wordpress
+      volumes:
+        - db-data:/var/lib/mysql

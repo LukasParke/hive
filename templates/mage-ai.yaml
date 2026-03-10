@@ -1,0 +1,21 @@
+kind: Template
+name: mage-ai
+description: Build, run, and manage data pipelines for integrating and transforming data.
+category: data
+tags:
+    - data
+    - dbt
+    - etl
+    - pipelines
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mage-ai.svg
+version: 0.9.78
+links:
+    docs: https://docs.mage.ai
+    github: https://github.com/mage-ai/mage-ai
+    website: https://mage.ai
+image: mageai/mageai:0.9.78
+volumes:
+    - mageai_data:/home/src/
+env:
+    ENV: ""
+    USER_CODE_PATH: /home/src/

@@ -1,0 +1,36 @@
+kind: Template
+name: linkstack
+description: LinkStack is an open-source link-in-bio platform for sharing multiple links using a customizable landing page.
+category: cms
+tags:
+    - bio
+    - personal
+    - cms
+    - php
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/linkstack.svg
+version: latest
+links:
+    docs: https://docs.linkstack.org/
+    github: https://github.com/linkstackorg/linkstack
+    website: https://linkstack.org/
+image: linkstackorg/linkstack:latest
+stack: true
+services:
+    - name: linkstack
+      image: linkstackorg/linkstack:latest
+      env:
+        HTTP_SERVER_NAME: ""
+        HTTPS_SERVER_NAME: ""
+        LOG_LEVEL: info
+        PHP_MEMORY_LIMIT: 256M
+        SERVER_ADMIN: ""
+        TZ: Europe/Berlin
+        UPLOAD_MAX_FILESIZE: 8M
+      volumes:
+        - linkstack-data:/htdocs
+    - name: mysql
+      image: mysql:8
+      env:
+        MYSQL_ROOT_PASSWORD: ""
+      volumes:
+        - mysql-data:/var/lib/mysql

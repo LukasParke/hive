@@ -1,0 +1,14 @@
+kind: Template
+name: it-tools
+description: A collection of handy online it-tools for developers.
+category: developer
+tags:
+    - developer
+    - tools
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/it-tools.svg
+version: latest
+links:
+    docs: https://it-tools.tech/docs
+    github: https://github.com/CorentinTh/it-tools
+    website: https://it-tools.tech
+image: corentinth/it-tools:latest

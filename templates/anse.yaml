@@ -1,0 +1,23 @@
+kind: Template
+name: anse
+description: Anse is an open-source alternative to ChatGPT web UI, supporting OpenAI-compatible APIs.
+category: ai
+tags:
+    - ai
+    - chatbot
+    - openai
+    - ui
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/anse.svg
+version: latest
+links:
+    docs: https://github.com/ddiu8081/anse#readme
+    github: https://github.com/ddiu8081/anse
+    website: https://anse.app/
+image: ddiu8081/anse:latest
+env:
+    HEAD_SCRIPTS: ""
+    OPENAI_API_BASE_URL: ""
+    OPENAI_API_KEY: ""
+    OPENAI_API_MODEL: ""
+    SECRET_KEY: ""
+    SITE_PASSWORD: ""

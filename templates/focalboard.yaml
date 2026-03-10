@@ -1,0 +1,23 @@
+kind: Template
+name: focalboard
+description: Open source project management for technical teams
+category: kanban
+tags:
+    - kanban
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/focalboard.svg
+version: 8.0.0
+links:
+    docs: https://www.focalboard.com/docs/
+    github: https://github.com/sysblok/focalboard
+    website: https://focalboard.com
+image: mattermost/focalboard:7.11.4
+stack: true
+services:
+    - name: focalboard
+      image: mattermost/focalboard:7.11.4
+      env:
+        DB_CONFIG: postgres://:@postgres:5432/?sslmode=disable
+      volumes:
+        - focalboardData:/opt/focalboard/data
+    - name: postgres
+      image: postgres:17

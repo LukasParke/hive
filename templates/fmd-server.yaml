@@ -1,0 +1,25 @@
+kind: Template
+name: fmd-server
+description: A server to communicate with the FMD Android app, to locate and control your devices.
+category: security
+tags:
+    - phone
+    - security
+    - gps
+    - location
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/fmd-server.svg
+version: 0.11.0
+links:
+    docs: https://fmd-foss.org/docs/fmd-server/overview
+    github: https://gitlab.com/fmd-foss/fmd-server
+    website: https://fmd-foss.org
+image: registry.gitlab.com/fmd-foss/fmd-server:v0.11.0
+ports:
+    - "8080"
+volumes:
+    - fmd-server-data:/var/lib/fmd-server/db/
+env:
+    FMD_MAXSAVEDLOC: ""
+    FMD_MAXSAVEDPIC: ""
+    FMD_REGISTRATIONTOKEN: ""
+    FMD_USERIDLENGTH: ""

@@ -1,0 +1,19 @@
+kind: Template
+name: changedetection
+description: Changedetection.io is an intelligent tool designed to monitor changes on websites. Perfect for smart shoppers, data journalists, research engineers, data scientists, and security researchers.
+category: monitoring
+tags:
+    - Monitoring
+    - Data
+    - Notifications
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/change-detection.svg
+version: "0.49"
+links:
+    docs: https://github.com/dgtlmoon/changedetection.io/wiki
+    github: https://github.com/dgtlmoon/changedetection.io
+    website: https://changedetection.io
+image: ghcr.io/dgtlmoon/changedetection.io:0.49
+ports:
+    - "5000"
+volumes:
+    - datastore:/datastore

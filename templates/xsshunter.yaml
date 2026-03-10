@@ -1,0 +1,27 @@
+kind: Template
+name: xsshunter
+description: XSSHunter is an open-source platform designed to identify and exploit blind Cross-Site Scripting (XSS) vulnerabilities. It provides security researchers, bug bounty hunters, and penetration testers with a comprehensive toolkit for detecting XSS flaws that are otherwise difficult to discover through traditional testing methods.
+category: security
+tags:
+    - pentest
+    - xsshunter
+    - bugbounty
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/xsshunter.svg
+version: latest
+links:
+    docs: https://github.com/rs-loves-bugs/xsshunter#requirements
+    github: https://github.com/rs-loves-bugs/xsshunter
+    website: https://github.com/rs-loves-bugs/xsshunter
+image: postgres:15-alpine
+stack: true
+services:
+    - name: xsshunterexpress-db
+      image: postgres:15-alpine
+      env:
+        PGDATA: /var/lib/postgresql/data/pgdata
+        POSTGRES_DB: xsshunterexpress
+        POSTGRES_HOST_AUTH_METHOD: trust
+        POSTGRES_PASSWORD: xsshunterexpress
+        POSTGRES_USER: xsshunterexpress
+      volumes:
+        - postgres_data:/var/lib/postgresql/data/pgdata

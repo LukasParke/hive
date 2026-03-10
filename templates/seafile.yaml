@@ -1,0 +1,49 @@
+kind: Template
+name: seafile
+description: Open source cloud storage system for file sync, share and document collaboration
+category: storage
+tags:
+    - file-manager
+    - file-sharing
+    - storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/seafile.svg
+version: 12.0-latest
+links:
+    docs: https://manual.seafile.com/12.0
+    github: https://github.com/haiwen/seafile
+    website: https://seafile.com
+image: memcached:1.6.29
+stack: true
+services:
+    - name: memcached
+      image: memcached:1.6.29
+    - name: seafile
+      image: seafileltd/seafile-mc:12.0-latest
+      env:
+        DB_HOST: seafile-db
+        DB_PASSWORD: ""
+        DB_PORT: "3306"
+        DB_ROOT_PASSWD: ""
+        DB_USER: seafile
+        INIT_SEAFILE_ADMIN_EMAIL: me@example.com
+        INIT_SEAFILE_ADMIN_PASSWORD: asecret
+        JWT_PRIVATE_KEY: ""
+        NON_ROOT: "false"
+        SEAFILE_LOG_TO_STDOUT: "true"
+        SEAFILE_MYSQL_DB_CCNET_DB_NAME: ccnet_db
+        SEAFILE_MYSQL_DB_SEAFILE_DB_NAME: seafile_db
+        SEAFILE_MYSQL_DB_SEAHUB_DB_NAME: seahub_db
+        SEAFILE_SERVER_HOSTNAME: ""
+        SEAFILE_SERVER_PROTOCOL: http
+        SITE_ROOT: /
+        TIME_ZONE: Etc/UTC
+      volumes:
+        - seafile-data:/shared
+    - name: seafile-db
+      image: mariadb:10.11
+      env:
+        MARIADB_AUTO_UPGRADE: "1"
+        MYSQL_LOG_CONSOLE: "true"
+        MYSQL_ROOT_PASSWORD: ""
+      volumes:
+        - seafile-mysql-db:/var/lib/mysql"

@@ -1,0 +1,29 @@
+kind: Template
+name: umami
+description: Umami is a simple, fast, privacy-focused alternative to Google Analytics.
+category: analytics
+tags:
+    - analytics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/umami.svg
+version: v3.0.3
+links:
+    docs: https://umami.is/docs
+    github: https://github.com/umami-software/umami
+    website: https://umami.is
+image: postgres:15-alpine
+stack: true
+services:
+    - name: db
+      image: postgres:15-alpine
+      env:
+        POSTGRES_DB: umami
+        POSTGRES_PASSWORD: umami
+        POSTGRES_USER: umami
+      volumes:
+        - db-data:/var/lib/postgresql/data
+    - name: umami
+      image: ghcr.io/umami-software/umami:3.0.3
+      env:
+        APP_SECRET: ""
+        DATABASE_TYPE: postgresql
+        DATABASE_URL: postgresql://umami:umami@db:5432/umami

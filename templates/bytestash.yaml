@@ -1,0 +1,32 @@
+kind: Template
+name: bytestash
+description: ByteStash is a self-hosted web application designed to store, organise, and manage your code snippets efficiently. With support for creating, editing, and filtering snippets, ByteStash helps you keep track of your code in one secure place.
+category: file-storage
+tags:
+    - file-storage
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/bytestash.svg
+version: latest
+links:
+    docs: https://github.com/jordan-dalby/ByteStash
+    github: https://github.com/jordan-dalby/ByteStash
+    website: https://github.com/jordan-dalby/ByteStash
+image: ghcr.io/jordan-dalby/bytestash:1.5.6
+ports:
+    - "5000"
+volumes:
+    - snippets:/data/snippets
+env:
+    ALLOW_NEW_ACCOUNTS: "true"
+    BASE_PATH: ""
+    DEBUG: "true"
+    DISABLE_ACCOUNTS: "false"
+    DISABLE_INTERNAL_ACCOUNTS: "false"
+    JWT_SECRET: ""
+    OIDC_CLIENT_ID: ""
+    OIDC_CLIENT_SECRET: ""
+    OIDC_DISPLAY_NAME: ""
+    OIDC_ENABLED: "false"
+    OIDC_ISSUER_URL: ""
+    OIDC_SCOPES: ""
+    TOKEN_EXPIRY: 24h

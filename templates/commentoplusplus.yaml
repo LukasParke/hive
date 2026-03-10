@@ -1,0 +1,35 @@
+kind: Template
+name: commentoplusplus
+description: Commento++ is a free, open-source application designed to provide a fast, lightweight comments box that you can embed in your static website. It offers features like Markdown support, Disqus import, voting, automated spam detection, moderation tools, sticky comments, thread locking, and OAuth login.
+category: comments
+tags:
+    - comments
+    - website
+    - open-source
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/commento++.svg
+version: v1.8.7
+links:
+    docs: https://commento.io/
+    github: https://github.com/souramoo/commentoplusplus
+    website: https://commento.io/
+image: caroga/commentoplusplus:v1.8.7
+ports:
+    - "8080"
+stack: true
+services:
+    - name: commentoplusplus
+      image: caroga/commentoplusplus:v1.8.7
+      ports:
+        - "8080"
+      env:
+        COMMENTO_ENABLE_WILDCARDS: "true"
+        COMMENTO_ORIGIN: ""
+        COMMENTO_POSTGRES: ""
+    - name: postgres
+      image: postgres:11
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres-data:/var/lib/postgresql/data

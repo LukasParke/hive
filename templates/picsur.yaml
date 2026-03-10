@@ -1,0 +1,36 @@
+kind: Template
+name: picsur
+description: Picsur is a simple, self-hosted image hosting service with an admin interface and Postgres backend.
+category: media
+tags:
+    - image-hosting
+    - media
+    - self-hosted
+    - postgres
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/picsur.svg
+version: latest
+links:
+    docs: https://github.com/CaramelFur/picsur#readme
+    github: https://github.com/CaramelFur/picsur
+    website: https://github.com/CaramelFur/picsur
+image: ghcr.io/caramelfur/picsur:latest
+stack: true
+services:
+    - name: picsur
+      image: ghcr.io/caramelfur/picsur:latest
+      env:
+        PICSUR_ADMIN_PASSWORD: ""
+        PICSUR_DB_DATABASE: picsur
+        PICSUR_DB_HOST: picsur_postgres
+        PICSUR_DB_PASSWORD: ""
+        PICSUR_DB_PORT: "5432"
+        PICSUR_DB_USERNAME: picsur
+        PICSUR_JWT_SECRET: ""
+    - name: picsur_postgres
+      image: postgres:17-alpine
+      env:
+        POSTGRES_DB: picsur
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: picsur
+      volumes:
+        - picsur-data:/var/lib/postgresql/data

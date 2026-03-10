@@ -9,6 +9,36 @@ import (
 	"github.com/lholliger/hive/internal/store"
 )
 
+// StorageClass describes the durability/mobility of a volume.
+type StorageClass string
+
+const (
+	StorageClassLocal  StorageClass = "local"
+	StorageClassShared StorageClass = "shared"
+	StorageClassCeph   StorageClass = "ceph"
+	StorageClassNamed  StorageClass = "named"
+)
+
+// ClassifyVolume returns the storage class of a volume based on its host and mount type.
+func ClassifyVolume(vol *store.Volume, host *store.StorageHost) StorageClass {
+	if host == nil {
+		return StorageClassNamed
+	}
+	if host.Type == "ceph" || vol.MountType == "cephfs" || vol.MountType == "ceph-rbd" {
+		return StorageClassCeph
+	}
+	if host.Type == "nfs" || host.Type == "cifs" {
+		return StorageClassShared
+	}
+	return StorageClassLocal
+}
+
+// IsHASafe returns true if the storage class supports scheduling across
+// multiple nodes (shared/ceph are safe; local/named are node-bound).
+func (sc StorageClass) IsHASafe() bool {
+	return sc == StorageClassShared || sc == StorageClassCeph
+}
+
 // ResolveVolumeMounts resolves each attached volume into optimal mount entries and
 // any additional placement constraints required for local-bind optimization.
 // The algorithm:
@@ -148,6 +178,40 @@ func hasConflictingNodeConstraint(constraints []string) bool {
 		}
 	}
 	return false
+}
+
+// ValidateHAStorage checks all volumes for an app and returns a warning
+// message if any use node-bound storage with multi-replica deployments.
+// This is advisory - it does not block deployments.
+func ValidateHAStorage(
+	ctx context.Context,
+	db *store.Store,
+	appVolumes []store.AppVolume,
+	replicas int,
+) string {
+	if replicas <= 1 || len(appVolumes) == 0 {
+		return ""
+	}
+
+	for _, av := range appVolumes {
+		vol, err := db.GetVolume(ctx, av.VolumeID)
+		if err != nil {
+			continue
+		}
+		var host *store.StorageHost
+		if vol.StorageHostID != "" {
+			h, err := db.GetStorageHost(ctx, vol.StorageHostID)
+			if err == nil {
+				host = h
+			}
+		}
+		sc := ClassifyVolume(vol, host)
+		if !sc.IsHASafe() {
+			return "volume " + vol.Name + " uses node-bound storage (" + string(sc) +
+				"); multi-replica deployment may not work correctly across nodes"
+		}
+	}
+	return ""
 }
 
 func dedup(ss []string) []string {

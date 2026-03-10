@@ -1,0 +1,19 @@
+kind: Template
+name: qdrant
+description: An open-source vector database designed for high-performance similarity search and storage of embeddings.
+category: databases
+tags:
+    - vector-db
+    - database
+    - search
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/qdrant.svg
+version: latest
+links:
+    docs: https://qdrant.tech/documentation/
+    github: https://github.com/qdrant/qdrant
+    website: https://qdrant.tech/
+image: qdrant/qdrant:latest
+volumes:
+    - qdrant_data:/qdrant/storage
+env:
+    QDRANT__SERVICE__API_KEY: ""

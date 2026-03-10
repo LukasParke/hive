@@ -1,0 +1,32 @@
+kind: Template
+name: stalwart
+description: Stalwart Mail Server is an open-source mail server solution with JMAP, IMAP4, POP3, and SMTP support and a wide range of modern features. It is written in Rust and designed to be secure, fast, robust and scalable.
+category: communication
+tags:
+    - email
+    - smtp
+    - jmap
+    - imap4
+    - pop3
+    - self-hosted
+    - mail-server
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/stalwart.svg
+version: latest
+links:
+    docs: https://stalw.art/docs/
+    github: https://github.com/stalwartlabs/mail-server
+    website: https://stalw.art/
+image: stalwartlabs/stalwart:latest-alpine
+ports:
+    - "443"
+    - "8080"
+    - "25"
+    - "587"
+    - "465"
+    - "143"
+    - "993"
+    - "4190"
+    - "110"
+    - "995"
+volumes:
+    - stalwart_data:/opt/stalwart-mail

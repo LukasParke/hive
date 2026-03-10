@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// BetterAuth tables (managed by Prisma migrations)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()::TEXT"))
+  name          String    @default("")
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+
+  orgRoles OrgRole[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("gen_random_uuid()::TEXT"))
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  activeOrganizationId String? @default("default")
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()::TEXT"))
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(dbgenerated("gen_random_uuid()::TEXT"))
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verification")
+}
+
+// OrgRole is shared between BetterAuth (user relation) and the Go API.
+// Prisma owns the schema definition; Go reads/writes via raw SQL.
+model OrgRole {
+  id        String   @id @default(dbgenerated("gen_random_uuid()::TEXT"))
+  orgId     String   @map("org_id")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("viewer")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([orgId, userId])
+  @@index([userId], map: "idx_org_role_user")
+  @@index([orgId], map: "idx_org_role_org")
+  @@map("org_role")
+}
+
+// ---------------------------------------------------------------------------
+// All other application tables are managed by Go (golang-migrate).
+// See internal/store/migrations/ for SQL definitions.
+// ---------------------------------------------------------------------------

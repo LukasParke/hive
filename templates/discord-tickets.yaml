@@ -1,0 +1,45 @@
+kind: Template
+name: discord-tickets
+description: An open-source Discord bot for creating and managing support ticket channels.
+category: discord
+tags:
+    - discord
+    - tickets
+    - support
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/discord-tickets.svg
+version: 4.0.21
+links:
+    docs: https://discordtickets.app/self-hosting/installation/docker/
+    github: https://github.com/discord-tickets/bot
+    website: https://discordtickets.app
+image: eartharoid/discord-tickets:4.0.21
+stack: true
+services:
+    - name: tickets-app
+      image: eartharoid/discord-tickets:4.0.21
+      env:
+        DB_CONNECTION_URL: mysql://:@tickets-postgres/
+        DB_PROVIDER: mysql
+        DISCORD_SECRET: ""
+        DISCORD_TOKEN: ""
+        ENCRYPTION_KEY: ""
+        HTTP_EXTERNAL: https://
+        HTTP_HOST: 0.0.0.0
+        HTTP_PORT: "8169"
+        HTTP_TRUST_PROXY: "true"
+        PUBLIC_BOT: "false"
+        PUBLISH_COMMANDS: "true"
+        SUPER: ""
+      volumes:
+        - tickets-app-data:/home/container/user
+        - /etc/timezone:/etc/timezone:ro
+        - /etc/localtime:/etc/localtime:ro
+    - name: tickets-postgres
+      image: mysql:8
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: ""
+      volumes:
+        - tickets-mysql-data:/var/lib/mysql

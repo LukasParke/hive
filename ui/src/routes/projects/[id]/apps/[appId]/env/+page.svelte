@@ -1,53 +1,32 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { api, type AppEnvVar, type App } from '$lib/api';
-	import { onMount } from 'svelte';
+	import { api } from '$lib/api';
+	import type { AppEnvVar } from '$lib/types';
+	import { invalidateAll } from '$app/navigation';
 
-	let envVars = $state<AppEnvVar[]>([]);
-	let app = $state<App | null>(null);
+	let { data } = $props();
+
 	let error = $state('');
-	let loading = $state(true);
 	let showAdd = $state(false);
 	let showImport = $state(false);
 	let editingKey = $state<string | null>(null);
 	let deleteConfirmKey = $state<string | null>(null);
 
-	const projectId = $derived(($page.params as { id?: string }).id ?? '');
-	const appId = $derived(($page.params as { appId?: string }).appId ?? '');
-
 	let newVar = $state({ key: '', value: '', is_secret: false });
 	let importContent = $state('');
 	let editValue = $state('');
-
-	onMount(() => loadData());
-
-	async function loadData() {
-		try {
-			[app, envVars] = await Promise.all([
-				api.getApp(projectId, appId),
-				api.listEnvVars(projectId, appId),
-			]);
-			error = '';
-		} catch (e: any) {
-			error = e.message;
-		} finally {
-			loading = false;
-		}
-	}
 
 	async function addVar(e: Event) {
 		e.preventDefault();
 		if (!newVar.key.trim()) return;
 		try {
-			const created = await api.setEnvVar(projectId, appId, {
+			await api.setEnvVar(data.projectId, data.appId, {
 				key: newVar.key.trim(),
 				value: newVar.value,
 				is_secret: newVar.is_secret,
 			});
-			envVars = [created, ...envVars.filter((v) => v.key !== created.key)];
 			showAdd = false;
 			newVar = { key: '', value: '', is_secret: false };
-			error = '';
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -60,14 +39,13 @@
 
 	async function saveEdit(key: string) {
 		try {
-			const updated = await api.setEnvVar(projectId, appId, {
+			await api.setEnvVar(data.projectId, data.appId, {
 				key,
 				value: editValue,
-				is_secret: envVars.find((v) => v.key === key)?.is_secret ?? false,
+				is_secret: (data.envVars ?? []).find((v) => v.key === key)?.is_secret ?? false,
 			});
-			envVars = envVars.map((v) => (v.key === key ? updated : v));
 			editingKey = null;
-			error = '';
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -83,10 +61,9 @@
 			return;
 		}
 		try {
-			await api.deleteEnvVar(projectId, appId, key);
-			envVars = envVars.filter((v) => v.key !== key);
+			await api.deleteEnvVar(data.projectId, data.appId, key);
 			deleteConfirmKey = null;
-			error = '';
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -99,11 +76,10 @@
 	async function importVars(e: Event) {
 		e.preventDefault();
 		try {
-			const { imported } = await api.importEnvVars(projectId, appId, importContent);
+			await api.importEnvVars(data.projectId, data.appId, importContent);
 			showImport = false;
 			importContent = '';
-			await loadData();
-			error = '';
+			await invalidateAll();
 		} catch (e: any) {
 			error = e.message;
 		}
@@ -111,7 +87,7 @@
 
 	async function exportVars() {
 		try {
-			const content = await api.exportEnvVars(projectId, appId);
+			const content = await api.exportEnvVars(data.projectId, data.appId);
 			const blob = new Blob([content], { type: 'text/plain' });
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
@@ -129,11 +105,13 @@
 	}
 </script>
 
+<svelte:head><title>Environment | Hive</title></svelte:head>
+
 <div>
 	<div class="mb-6">
-		<a href="/projects/{projectId}" class="text-sm" style="color: var(--color-text-muted);">Projects</a>
+		<a href="/projects/{data.projectId}" class="text-sm" style="color: var(--color-text-muted);">Projects</a>
 		<span class="text-sm" style="color: var(--color-text-muted);"> / </span>
-		<a href="/apps/{appId}?project={projectId}" class="text-sm" style="color: var(--color-text-muted);">{app?.name ?? 'App'}</a>
+		<a href="/projects/{data.projectId}/apps/{data.appId}" class="text-sm" style="color: var(--color-text-muted);">{data.app?.name ?? 'App'}</a>
 		<span class="text-sm" style="color: var(--color-text-muted);"> / </span>
 		<span class="text-sm font-medium" style="color: var(--color-text);">Environment Variables</span>
 		<h2 class="text-2xl font-bold mt-1">Environment Variables</h2>
@@ -142,13 +120,9 @@
 		</p>
 	</div>
 
-	{#if loading}
-		<div class="flex items-center justify-center py-12">
-			<div class="animate-spin rounded-full h-8 w-8 border-b-2" style="border-color: var(--color-primary);"></div>
-		</div>
-	{:else}
+	{#if data.app}
 		<div class="flex items-center justify-between mb-4 gap-2 flex-wrap">
-			<span class="text-sm" style="color: var(--color-text-muted);">{envVars.length} variable{envVars.length !== 1 ? 's' : ''}</span>
+			<span class="text-sm" style="color: var(--color-text-muted);">{(data.envVars ?? []).length} variable{(data.envVars ?? []).length !== 1 ? 's' : ''}</span>
 			<div class="flex gap-2">
 				<button
 					onclick={() => { showImport = true; showAdd = false; }}
@@ -244,7 +218,7 @@ NODE_ENV=production"
 					</tr>
 				</thead>
 				<tbody>
-					{#each envVars as ev}
+					{#each data.envVars ?? [] as ev}
 						<tr style="border-bottom: 1px solid var(--color-border);">
 							<td class="px-4 py-3 font-mono" style="color: var(--color-text);">{ev.key}</td>
 							<td class="px-4 py-3">
@@ -273,7 +247,7 @@ NODE_ENV=production"
 									</div>
 								{:else}
 									<span class="font-mono" style="color: var(--color-text-muted);">
-										{ev.is_secret ? ev.value : ev.value}
+										{ev.is_secret ? '••••••' : ev.value}
 									</span>
 								{/if}
 							</td>
@@ -300,7 +274,7 @@ NODE_ENV=production"
 					{/each}
 				</tbody>
 			</table>
-			{#if envVars.length === 0}
+			{#if (data.envVars ?? []).length === 0}
 				<div class="px-4 py-8 text-center text-sm" style="color: var(--color-text-muted);">No environment variables yet. Add one or import from a .env file.</div>
 			{/if}
 		</div>

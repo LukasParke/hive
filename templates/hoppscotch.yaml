@@ -1,0 +1,53 @@
+kind: Template
+name: hoppscotch
+description: Hoppscotch Community Edition (All-in-One) with automatic database migrations. Includes backend, frontend, and admin under unified subpath routing.
+category: development
+tags:
+    - api
+    - testing
+    - development
+    - postman-alternative
+    - graphql
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/hoppscotch-aio-+-migrations.svg
+version: latest
+links:
+    docs: https://docs.hoppscotch.io/documentation/self-host/community-edition/install-and-build
+    github: https://github.com/hoppscotch/hoppscotch
+    website: https://hoppscotch.io/
+image: hoppscotch/hoppscotch:latest
+stack: true
+services:
+    - name: hoppscotch
+      image: hoppscotch/hoppscotch:latest
+      env:
+        DATA_ENCRYPTION_KEY: ""
+        DATABASE_URL: ""
+        ENABLE_SUBPATH_BASED_ACCESS: "true"
+        HOPP_AIO_ALTERNATE_PORT: ""
+        VITE_ADMIN_URL: ""
+        VITE_APP_PRIVACY_POLICY_LINK: ""
+        VITE_APP_TOS_LINK: ""
+        VITE_BACKEND_API_URL: ""
+        VITE_BACKEND_GQL_URL: ""
+        VITE_BACKEND_WS_URL: ""
+        VITE_BASE_URL: ""
+        VITE_SHORTCODE_BASE_URL: ""
+        WHITELISTED_ORIGINS: ""
+      volumes:
+        - hoppscotch-data:/app/data
+    - name: migrate
+      image: hoppscotch/hoppscotch:latest
+      env:
+        DATABASE_URL: ""
+      command:
+        - |
+          echo "Running database migrations..."
+          pnpm dlx prisma migrate deploy && echo "Migration complete!"
+    - name: postgres
+      image: postgres:16
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - hoppscotch-postgres:/var/lib/postgresql/data

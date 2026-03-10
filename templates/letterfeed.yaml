@@ -1,0 +1,41 @@
+kind: Template
+name: letterfeed
+description: Convert email newsletters into RSS feeds
+category: communication
+tags:
+    - email
+    - self-hosted
+    - productivity
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/letterfeed.svg
+version: latest
+links:
+    docs: https://github.com/leonmuscoden/letterfeed
+    github: https://github.com/leonmuscoden/letterfeed
+    website: https://github.com/leonmuscoden/letterfeed
+image: ghcr.io/leonmuscoden/letterfeed-backend:latest
+stack: true
+services:
+    - name: backend
+      image: ghcr.io/leonmuscoden/letterfeed-backend:latest
+      env:
+        LETTERFEED_APP_BASE_URL: ""
+        LETTERFEED_AUTH_PASSWORD: ""
+        LETTERFEED_AUTH_USERNAME: ""
+        LETTERFEED_AUTO_ADD_NEW_SENDERS: ""
+        LETTERFEED_BACKEND_URL: ""
+        LETTERFEED_DATABASE_URL: ""
+        LETTERFEED_EMAIL_CHECK_INTERVAL: ""
+        LETTERFEED_IMAP_PASSWORD: ""
+        LETTERFEED_IMAP_SERVER: ""
+        LETTERFEED_IMAP_USERNAME: ""
+        LETTERFEED_MARK_AS_READ: ""
+        LETTERFEED_MOVE_TO_FOLDER: ""
+        LETTERFEED_SEARCH_FOLDER: ""
+        LETTERFEED_SECRET_KEY: ""
+      volumes:
+        - letterfeed_data:/data
+    - name: frontend
+      image: ghcr.io/leonmuscoden/letterfeed-frontend:latest
+      env:
+        LETTERFEED_APP_BASE_URL: ""
+        LETTERFEED_BACKEND_URL: ""

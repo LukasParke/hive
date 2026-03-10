@@ -1,0 +1,32 @@
+kind: Template
+name: commento
+description: Commento is a comments widget designed to enhance the interaction on your website. It allows your readers to contribute to the discussion by upvoting comments that add value and downvoting those that don't. The widget supports markdown formatting and provides moderation tools to manage conversations.
+category: comments
+tags:
+    - comments
+    - discussion
+    - website
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/commento.svg
+version: v1.8.0
+links:
+    docs: https://commento.io/
+    github: https://github.com/souramoo/commentoplusplus
+    website: https://commento.io/
+image: registry.gitlab.com/commento/commento:v1.8.0
+ports:
+    - "8080"
+stack: true
+services:
+    - name: commento
+      image: registry.gitlab.com/commento/commento:v1.8.0
+      ports:
+        - "8080"
+      env:
+        COMMENTO_ORIGIN: ""
+        COMMENTO_POSTGRES: ""
+    - name: postgres
+      image: postgres:11
+      env:
+        POSTGRES_PASSWORD: ""
+      volumes:
+        - postgres-data:/var/lib/postgresql/data

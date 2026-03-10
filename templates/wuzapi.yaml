@@ -1,0 +1,37 @@
+kind: Template
+name: wuzapi
+description: A RESTful API service for WhatsApp with multiple device support and concurrent sessions.
+category: communication
+tags:
+    - api
+    - whatsapp
+    - messaging
+    - automation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/wuzapi.svg
+version: v1.0.0
+links:
+    docs: https://github.com/asternic/wuzapi/blob/main/README.md
+    github: https://github.com/asternic/wuzapi
+    website: https://www.wuzapi.app/
+image: postgres:16-alpine
+stack: true
+services:
+    - name: db
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: wuzapi
+        POSTGRES_PASSWORD: wuzapi
+        POSTGRES_USER: wuzapi
+      volumes:
+        - db_data:/var/lib/postgresql/data
+    - name: wuzapi-server
+      image: asternic/wuzapi:sha-30c1805
+      env:
+        DB_HOST: db
+        DB_NAME: wuzapi
+        DB_PASSWORD: wuzapi
+        DB_PORT: "5432"
+        DB_USER: wuzapi
+        TZ: UTC
+        WUZAPI_ADMIN_TOKEN: ""
+        WUZAPI_GLOBAL_ENCRYPTION_KEY: ""

@@ -1,0 +1,49 @@
+kind: Template
+name: listmonk
+description: High performance, self-hosted, newsletter and mailing list manager with a modern dashboard.
+category: communication
+tags:
+    - email
+    - newsletter
+    - mailing-list
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/listmonk.svg
+version: v3.0.0
+links:
+    docs: https://listmonk.app/docs/
+    github: https://github.com/knadh/listmonk
+    website: https://listmonk.app/
+image: postgres:17-alpine
+ports:
+    - "5432"
+stack: true
+services:
+    - name: app
+      image: listmonk/listmonk:v5.0.0
+      env:
+        LISTMONK_app__address: 0.0.0.0:9000
+        LISTMONK_db__database: listmonk
+        LISTMONK_db__host: db
+        LISTMONK_db__max_idle: "25"
+        LISTMONK_db__max_lifetime: 300s
+        LISTMONK_db__max_open: "25"
+        LISTMONK_db__password: listmonk
+        LISTMONK_db__port: "5432"
+        LISTMONK_db__ssl_mode: disable
+        LISTMONK_db__user: listmonk
+        TZ: Etc/UTC
+      volumes:
+        - listmonk-uploads:/listmonk/uploads
+      command:
+        - sh
+        - -c
+        - ./listmonk --install --idempotent --yes --config '' && ./listmonk --upgrade --yes --config '' && ./listmonk --config ''
+    - name: db
+      image: postgres:17-alpine
+      ports:
+        - "5432"
+      env:
+        POSTGRES_DB: listmonk
+        POSTGRES_PASSWORD: listmonk
+        POSTGRES_USER: listmonk
+      volumes:
+        - listmonk-data:/var/lib/postgresql/data

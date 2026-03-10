@@ -1,0 +1,33 @@
+kind: Template
+name: metabase
+description: Metabase is an open source business intelligence tool that allows you to ask questions and visualize data.
+category: databases
+tags:
+    - database
+    - dashboard
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/metabase.svg
+version: v0.50.8
+links:
+    docs: https://www.metabase.com/docs/
+    github: https://github.com/metabase/metabase
+    website: https://www.metabase.com/
+image: metabase/metabase:v0.50.8
+stack: true
+services:
+    - name: metabase
+      image: metabase/metabase:v0.50.8
+      env:
+        MB_DB_DBNAME: metabaseappdb
+        MB_DB_HOST: postgres
+        MB_DB_PASS: mysecretpassword
+        MB_DB_PORT: "5432"
+        MB_DB_TYPE: postgres
+        MB_DB_USER: metabase
+      volumes:
+        - /dev/urandom:/dev/random:ro
+    - name: postgres
+      image: postgres:14
+      env:
+        POSTGRES_DB: metabaseappdb
+        POSTGRES_PASSWORD: mysecretpassword
+        POSTGRES_USER: metabase

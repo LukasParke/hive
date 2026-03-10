@@ -1,0 +1,30 @@
+kind: Template
+name: flatnotes-totp
+description: Flatnotes with TOTP authentication enabled (username + password + one-time passcode).
+category: productivity
+tags:
+    - notes
+    - productivity
+    - markdown
+    - self-hosted
+    - totp
+    - 2fa
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/flatnotes-totp.svg
+version: latest
+links:
+    docs: https://github.com/dullage/flatnotes
+    github: https://github.com/dullage/flatnotes
+    website: https://flatnotes.io
+image: dullage/flatnotes:latest
+volumes:
+    - flatnotes-data:/data
+env:
+    FLATNOTES_AUTH_TYPE: totp
+    FLATNOTES_PASSWORD: ""
+    FLATNOTES_PATH_PREFIX: ""
+    FLATNOTES_SECRET_KEY: ""
+    FLATNOTES_SESSION_EXPIRY_DAYS: ""
+    FLATNOTES_TOTP_KEY: ""
+    FLATNOTES_USERNAME: ""
+    PGID: ""
+    PUID: ""

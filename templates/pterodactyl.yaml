@@ -1,0 +1,49 @@
+kind: Template
+name: pterodactyl
+description: A free, open-source game server management panel.
+category: self-hosted
+tags:
+    - self-hosted
+    - open-source
+    - management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/pterodactyl.svg
+version: latest
+links:
+    docs: https://pterodactyl.io/project/introduction.html
+    github: https://github.com/pterodactyl/panel
+    website: https://pterodactyl.io
+image: redis:alpine
+stack: true
+services:
+    - name: cache
+      image: redis:alpine
+    - name: database
+      image: mariadb:10.5
+      env:
+        MYSQL_DATABASE: panel
+        MYSQL_PASSWORD: <nil>
+        MYSQL_ROOT_PASSWORD: <nil>
+        MYSQL_USER: pterodactyl
+      volumes:
+        - pterodb:/var/lib/mysql
+      command: --default-authentication-plugin=mysql_native_password
+    - name: panel
+      image: ghcr.io/pterodactyl/panel:latest
+      env:
+        APP_ENV: production
+        APP_ENVIRONMENT_ONLY: "false"
+        CACHE_DRIVER: <nil>
+        DB_CONNECTION: mysql
+        DB_HOST: <nil>
+        DB_PASSWORD: ""
+        DB_PORT: <nil>
+        MYSQL_PASSWORD: <nil>
+        MYSQL_ROOT_PASSWORD: <nil>
+        QUEUE_DRIVER: <nil>
+        REDIS_HOST: <nil>
+        SESSION_DRIVER: <nil>
+      volumes:
+        - pterovar:/app/var/
+        - pteronginx:/etc/nginx/http.d/
+        - pterocerts:/etc/letsencrypt/
+        - pterologs:/app/storage/logs

@@ -1,0 +1,24 @@
+kind: Template
+name: calibre
+description: Calibre is a comprehensive e-book management tool designed to organize, convert, and read your e-book collection. It supports most of the major e-book formats and is compatible with various e-book reader devices.
+category: productivity
+tags:
+    - Documents
+    - E-Commerce
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/calibre.svg
+version: 7.26.0
+links:
+    docs: https://manual.calibre-ebook.com/
+    github: https://github.com/kovidgoyal/calibre
+    website: https://calibre-ebook.com/
+image: linuxserver/calibre:7.26.0
+ports:
+    - "8080"
+volumes:
+    - books:/books
+    - data:/config
+env:
+    PASSWORD: ""
+    PGID: "1000"
+    PUID: "1000"
+    TZ: Etc/UTC

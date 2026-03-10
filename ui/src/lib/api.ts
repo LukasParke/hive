@@ -1,24 +1,122 @@
+import type {
+	AlertThreshold,
+	App,
+	AppEnvVar,
+	AppSecret,
+	AppVolume,
+	AuditLogEntry,
+	BackupConfig,
+	BackupRun,
+	BlockDevice,
+	BespokeAppClass,
+	CreateAppRequest,
+	CreateCephClusterRequest,
+	CreateProxyRouteRequest,
+	CreateStorageHostRequest,
+	CreateVolumeRequest,
+	CephCluster,
+	CephClusterWithHealth,
+	CephHealthReport,
+	CephOSD,
+	CephPool,
+	ConnectivityResult,
+	CustomCertificate,
+	CustomTemplate,
+	DeployTemplateRequest,
+	Deployment,
+	DiskMetrics,
+	DNSProvider,
+	DNSRecord,
+	GitBranch,
+	GitRepository,
+	GitSource,
+	LogEntry,
+	LogForwardConfig,
+	MaintenanceRun,
+	MaintenanceTask,
+	ManagedDatabase,
+	NetInterface,
+	NodeAllDisks,
+	NodeDisks,
+	NodeMetricsReport,
+	NotificationChannel,
+	OrgRole,
+	PortMapping,
+	PreviewDeployment,
+	PrometheusClusterSummary,
+	PrometheusNodeCurrent,
+	PrometheusNodeHistory,
+	PrometheusTimeSeriesPoint,
+	Project,
+	ProxyRoute,
+	RegistryImage,
+	RegistryStatus,
+	Secret,
+	ServiceEvent,
+	ServiceHealth,
+	ServiceLink,
+	Stack,
+	StorageHost,
+	StorageHostTestResult,
+	SwarmNode,
+	SystemStatus,
+	TaskInfo,
+	TemplateDetail,
+	TemplateListItem,
+	TemplateSource,
+	UpdateEvent,
+	UpdatePolicy,
+	UpdatesSummary,
+	UpdateStrategyRequest,
+	NodeUpdateStatus,
+	ServiceUpdateStatus,
+	SystemTask,
+	Volume,
+	DockerConfig,
+	ScheduledJob,
+	JobRun,
+	VulnerabilityScan,
+	Vulnerability,
+	ResourceQuota,
+	NodePowerConfig,
+	UPSDevice,
+	UPSStatusSnapshot,
+	APIToken,
+	WebhookEndpoint,
+	WebhookDelivery,
+	VPNServer,
+	VPNPeer,
+	OverlayNetwork,
+	ClusterInfo,
+	TemplateRatingEntry,
+	SearchResult,
+	FileEntry,
+	ContainerInfo,
+} from './types';
+
 const API_BASE = '/api/v1';
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-	const res = await fetch(`${API_BASE}${path}`, {
-		credentials: 'include',
-		headers: {
-			'Content-Type': 'application/json',
-			...options?.headers,
-		},
-		...options,
-	});
+function createApiClient(customFetch: typeof fetch = fetch) {
+	async function request<T>(path: string, options?: RequestInit): Promise<T> {
+		const res = await customFetch(`${API_BASE}${path}`, {
+			credentials: 'include',
+			headers: {
+				'Content-Type': 'application/json',
+				...options?.headers,
+			},
+			...options,
+		});
 
-	if (!res.ok) {
-		const error = await res.json().catch(() => ({ error: res.statusText }));
-		throw new Error(error.error || res.statusText);
+		if (!res.ok) {
+			const body = await res.json().catch(() => ({}));
+			const message = body.error || body.message || res.statusText;
+			throw new Error(message);
+		}
+
+		return res.json();
 	}
 
-	return res.json();
-}
-
-export const api = {
+	return {
 	// System
 	status: () => request<SystemStatus>('/system/status'),
 
@@ -31,6 +129,7 @@ export const api = {
 
 	// Apps
 	listApps: (projectId: string) => request<App[]>(`/projects/${projectId}/apps`),
+	listAllApps: () => request<(App & { project_name: string })[]>('/apps'),
 	createApp: (projectId: string, data: CreateAppRequest) =>
 		request<App>(`/projects/${projectId}/apps`, { method: 'POST', body: JSON.stringify(data) }),
 	getApp: (projectId: string, appId: string) => request<App>(`/projects/${projectId}/apps/${appId}`),
@@ -40,6 +139,8 @@ export const api = {
 		request<ServiceEvent[]>(`/projects/${projectId}/apps/${appId}/events`),
 	getAppPorts: (projectId: string, appId: string) =>
 		request<PortMapping[]>(`/projects/${projectId}/apps/${appId}/ports`),
+	updateApp: (projectId: string, appId: string, data: { domain?: string; port?: number; replicas?: number; image?: string }) =>
+		request<App>(`/projects/${projectId}/apps/${appId}`, { method: 'PUT', body: JSON.stringify(data) }),
 	deleteApp: (projectId: string, appId: string) =>
 		request<void>(`/projects/${projectId}/apps/${appId}`, { method: 'DELETE' }),
 	deployApp: (projectId: string, appId: string) =>
@@ -73,12 +174,20 @@ export const api = {
 		request<ManagedDatabase>(`/projects/${projectId}/databases`, { method: 'POST', body: JSON.stringify(data) }),
 
 	// Nodes
-	listNodes: () => request<{ nodes: SwarmNode[]; join_tokens?: { worker: string; manager: string } }>('/nodes'),
+	listNodes: () => request<{ nodes: SwarmNode[]; metrics?: NodeMetricsReport[]; join_tokens?: { worker: string; manager: string }; advertise_addr?: string }>('/nodes'),
 	getNode: (id: string) => request<SwarmNode>(`/nodes/${id}`),
+	updateNodeAvailability: (nodeId: string, availability: string) =>
+		request<{ updated: string }>(`/nodes/${nodeId}/availability`, { method: 'PUT', body: JSON.stringify({ availability }) }),
+	updateNodeRole: (nodeId: string, role: string) =>
+		request<{ updated: string }>(`/nodes/${nodeId}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+	nodeMaintenanceAction: (nodeId: string, action: string) =>
+		request<{ status: string }>(`/nodes/${nodeId}/maintenance`, { method: 'POST', body: JSON.stringify({ action }) }),
 
 	// Templates (marketplace - built-in + custom)
 	listTemplates: () => request<TemplateListItem[]>('/templates'),
 	getTemplate: (name: string) => request<TemplateDetail>(`/templates/${encodeURIComponent(name)}`),
+	listBespokeApps: () => request<BespokeAppClass[]>('/bespoke/apps'),
+	getBespokeApp: (slug: string) => request<BespokeAppClass>(`/bespoke/apps/${encodeURIComponent(slug)}`),
 	deployTemplate: (name: string, data: DeployTemplateRequest) =>
 		request<App | { stack: Stack }>(`/templates/${encodeURIComponent(name)}/deploy`, {
 			method: 'POST',
@@ -150,9 +259,12 @@ export const api = {
 	restoreBackup: (configId: string, runId: string) =>
 		request<{ status: string }>(`/backups/${configId}/restore/${runId}`, { method: 'POST' }),
 
-	// Metrics
+	// Metrics (Prometheus-backed)
+	metricsCluster: () => request<PrometheusClusterSummary>('/metrics/cluster'),
+	metricsNodes: () => request<PrometheusNodeCurrent[]>('/metrics/nodes'),
 	metricsServices: () => request<ServiceHealth[]>('/metrics/services'),
-	metricsNodes: () => request<NodeMetrics>('/metrics/nodes'),
+	metricsNodeHistory: (hostname: string, range = '1h') =>
+		request<PrometheusNodeHistory>(`/nodes/${encodeURIComponent(hostname)}/metrics/history?range=${range}`),
 
 	// Notifications
 	listNotificationChannels: () => request<NotificationChannel[]>('/notifications'),
@@ -180,14 +292,17 @@ export const api = {
 		request<void>(`/projects/${projectId}/certificates/${certId}`, { method: 'DELETE' }),
 
 	// Stacks
+	listAllStacks: () => request<(Stack & { project_name: string })[]>('/stacks'),
 	listStacks: (projectId: string) => request<Stack[]>(`/projects/${projectId}/stacks`),
-	createStack: (projectId: string, data: { name: string; compose_content: string }) =>
+	createStack: (projectId: string, data: { name: string; compose_content: string; domain?: string }) =>
 		request<Stack>(`/projects/${projectId}/stacks`, { method: 'POST', body: JSON.stringify(data) }),
 	getStack: (projectId: string, stackId: string) => request<Stack>(`/projects/${projectId}/stacks/${stackId}`),
-	updateStack: (projectId: string, stackId: string, data: { compose_content: string }) =>
+	updateStack: (projectId: string, stackId: string, data: { compose_content?: string; domain?: string; name?: string }) =>
 		request<Stack>(`/projects/${projectId}/stacks/${stackId}`, { method: 'PUT', body: JSON.stringify(data) }),
 	deleteStack: (projectId: string, stackId: string) =>
 		request<void>(`/projects/${projectId}/stacks/${stackId}`, { method: 'DELETE' }),
+	getStackServices: (projectId: string, stackId: string) =>
+		request<{ name: string; replicas: number; running: number; healthy: boolean; image: string }[]>(`/projects/${projectId}/stacks/${stackId}/services`),
 
 	// Node labels
 	updateNodeLabels: (nodeId: string, labels: Record<string, string>) =>
@@ -219,12 +334,12 @@ export const api = {
 			body: JSON.stringify({ content }),
 		}),
 	exportEnvVars: async (projectId: string, appId: string): Promise<string> => {
-		const res = await fetch(`${API_BASE}/projects/${projectId}/apps/${appId}/env-vars/export`, {
+		const res = await customFetch(`${API_BASE}/projects/${projectId}/apps/${appId}/env-vars/export`, {
 			credentials: 'include',
 		});
 		if (!res.ok) {
-			const err = await res.json().catch(() => ({ error: res.statusText }));
-			throw new Error(err.error || res.statusText);
+			const body = await res.json().catch(() => ({}));
+			throw new Error(body.error || body.message || res.statusText);
 		}
 		return res.text();
 	},
@@ -342,24 +457,30 @@ export const api = {
 	listDNSProviders: () => request<DNSProvider[]>('/dns-providers'),
 	createDNSProvider: (data: { name: string; type: string; config: Record<string, string>; is_default?: boolean }) =>
 		request<DNSProvider>('/dns-providers', { method: 'POST', body: JSON.stringify(data) }),
+	updateDNSProvider: (id: string, data: { name: string; type: string; config: Record<string, string>; is_default?: boolean }) =>
+		request<DNSProvider>(`/dns-providers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 	deleteDNSProvider: (id: string) =>
 		request<void>(`/dns-providers/${id}`, { method: 'DELETE' }),
 	testDNSProvider: (id: string) =>
 		request<{ status: string }>(`/dns-providers/${id}/test`, { method: 'POST' }),
+	createDNSRecord: (providerId: string, data: { domain: string; record_type: string; value: string; proxied?: boolean }) =>
+		request<DNSRecord>(`/dns-providers/${providerId}/records`, { method: 'POST', body: JSON.stringify(data) }),
 	listDNSRecords: (providerId: string) => request<DNSRecord[]>(`/dns-providers/${providerId}/records`),
 	deleteDNSRecord: (providerId: string, recordId: string) =>
 		request<void>(`/dns-providers/${providerId}/records/${recordId}`, { method: 'DELETE' }),
 
-	// Cluster Metrics (agent-sourced)
-	getClusterMetrics: () => request<NodeMetricsReport[]>('/nodes/metrics'),
-	getNodeMetrics: (nodeId: string) => request<{ latest: NodeMetricsReport; history: NodeMetricsReport[] }>(`/nodes/${nodeId}/metrics`),
-	getNodeMetricsHistory: (nodeId: string, range: string) =>
-		request<NodeMetricsReport[]>(`/nodes/${nodeId}/metrics/history?range=${range}`),
+	// Cluster Metrics (Prometheus-backed)
+	getClusterMetrics: () => request<PrometheusClusterSummary>('/metrics/cluster'),
+	getNodeMetricsList: () => request<PrometheusNodeCurrent[]>('/metrics/nodes'),
+	getNodeMetricsHistory: (hostname: string, range: string) =>
+		request<PrometheusNodeHistory>(`/nodes/${encodeURIComponent(hostname)}/metrics/history?range=${range}`),
 
 	// Git Sources
 	listGitSources: () => request<GitSource[]>('/git-sources'),
-	createGitSource: (data: { provider: string; token: string }) =>
+	createGitSource: (data: { provider: string; provider_name?: string; token: string }) =>
 		request<{ id: string; provider: string }>('/git-sources', { method: 'POST', body: JSON.stringify(data) }),
+	deleteGitSource: (sourceId: string) =>
+		request<void>(`/git-sources/${sourceId}`, { method: 'DELETE' }),
 	listGitRepos: (sourceId: string) => request<GitRepository[]>(`/git-sources/${sourceId}/repos`),
 	listGitRepoBranches: (sourceId: string, repo: string) =>
 		request<GitBranch[]>(`/git-sources/${sourceId}/repos/${encodeURIComponent(repo)}/branches`),
@@ -367,6 +488,18 @@ export const api = {
 		request<{ webhook_id: string; status: string }>(`/git-sources/${sourceId}/repos/${encodeURIComponent(repo)}/webhook`, { method: 'POST' }),
 	detectBuildType: (sourceId: string, repo: string, branch?: string) =>
 		request<{ build_type: string }>(`/git-sources/${sourceId}/repos/${encodeURIComponent(repo)}/detect${branch ? '?branch=' + encodeURIComponent(branch) : ''}`),
+
+	// GitHub App integration
+	githubAppStatus: () =>
+		request<{ configured: boolean; slug: string; installed: boolean; installation_id?: number; html_url?: string; app_id?: number }>('/integrations/github/status'),
+	githubAppManifest: () =>
+		request<{ manifest: string; redirect_url: string }>('/integrations/github/manifest', { method: 'POST' }),
+	githubAppComplete: (code: string) =>
+		request<{ id: string; app_id: number; slug: string; html_url: string }>('/integrations/github/complete', { method: 'POST', body: JSON.stringify({ code }) }),
+	githubAppInstallation: (installationId: number) =>
+		request<{ status: string }>('/integrations/github/installation', { method: 'POST', body: JSON.stringify({ installation_id: installationId }) }),
+	githubAppDelete: () =>
+		request<void>('/integrations/github', { method: 'DELETE' }),
 
 	// Ceph Clusters
 	listCephClusters: () => request<CephClusterWithHealth[]>('/ceph/clusters'),
@@ -387,720 +520,198 @@ export const api = {
 	discoverDisks: (nodeId?: string) =>
 		request<NodeDisks[]>(`/ceph/discover-disks${nodeId ? '?node_id=' + nodeId : ''}`),
 	discoverAllDisks: () => request<NodeAllDisks[]>('/ceph/all-disks'),
-};
 
-// Types
-export interface SystemStatus {
-	status: string;
-	role: string;
-	node_count: number;
-	multi_node: boolean;
-	nats: string;
-}
+	// Container exec & file browser
+	createExec: (projectId: string, appId: string, data?: { command?: string; container_id?: string }) =>
+		request<{ exec_id: string; container_id: string }>(`/projects/${projectId}/apps/${appId}/exec`, { method: 'POST', body: JSON.stringify(data || {}) }),
+	listAppContainers: (projectId: string, appId: string) =>
+		request<ContainerInfo[]>(`/projects/${projectId}/apps/${appId}/containers`),
+	listFiles: (projectId: string, appId: string, data: { path: string; container_id?: string }) =>
+		request<{ path: string; entries: FileEntry[] }>(`/projects/${projectId}/apps/${appId}/files/list`, { method: 'POST', body: JSON.stringify(data) }),
+	viewFile: (projectId: string, appId: string, filePath: string, container?: string) =>
+		request<{ path: string; content: string; size: number }>(`/projects/${projectId}/apps/${appId}/files/view?path=${encodeURIComponent(filePath)}${container ? '&container=' + container : ''}`),
 
-export interface Project {
-	id: string;
-	name: string;
-	org_id: string;
-	description: string;
-	created_at: string;
-	updated_at: string;
-}
+	// Networks
+	listNetworks: () => request<OverlayNetwork[]>('/networks'),
+	createNetwork: (data: { name: string; encrypted?: boolean; attachable?: boolean; subnet?: string; gateway?: string }) =>
+		request<{ id: string }>('/networks', { method: 'POST', body: JSON.stringify(data) }),
+	inspectNetwork: (id: string) => request<any>(`/networks/${id}`),
+	removeNetwork: (id: string) => request<void>(`/networks/${id}`, { method: 'DELETE' }),
 
-export interface App {
-	id: string;
-	project_id: string;
-	name: string;
-	deploy_type: string;
-	image: string;
-	git_repo: string;
-	git_branch: string;
-	domain: string;
-	port: number;
-	replicas: number;
-	status: string;
-	cpu_limit: number;
-	memory_limit: number;
-	health_check_path: string;
-	health_check_interval: number;
-	homepage_labels: Record<string, string>;
-	extra_labels: Record<string, string>;
-	placement_constraints: string[];
-	placement_preferences: string[];
-	update_strategy: string;
-	update_parallelism: number;
-	update_delay: string;
-	update_failure_action: string;
-	update_order: string;
-	created_at: string;
-	updated_at: string;
-}
+	// Docker Configs
+	listConfigs: (projectId: string) => request<DockerConfig[]>(`/projects/${projectId}/configs`),
+	createConfig: (projectId: string, data: { name: string; data: string }) =>
+		request<DockerConfig>(`/projects/${projectId}/configs`, { method: 'POST', body: JSON.stringify(data) }),
+	deleteConfig: (projectId: string, configId: string) =>
+		request<void>(`/projects/${projectId}/configs/${configId}`, { method: 'DELETE' }),
 
-export interface CreateAppRequest {
-	name: string;
-	deploy_type: string;
-	image?: string;
-	git_repo?: string;
-	git_branch?: string;
-	dockerfile_path?: string;
-	domain?: string;
-	port?: number;
-	replicas?: number;
-}
+	// Scheduled Jobs
+	listJobs: (projectId: string) => request<ScheduledJob[]>(`/projects/${projectId}/jobs`),
+	createJob: (projectId: string, data: { name: string; image: string; command?: string; schedule: string; timezone?: string; env?: Record<string, string> }) =>
+		request<ScheduledJob>(`/projects/${projectId}/jobs`, { method: 'POST', body: JSON.stringify(data) }),
+	updateJob: (projectId: string, jobId: string, data: Partial<ScheduledJob>) =>
+		request<void>(`/projects/${projectId}/jobs/${jobId}`, { method: 'PUT', body: JSON.stringify(data) }),
+	deleteJob: (projectId: string, jobId: string) =>
+		request<void>(`/projects/${projectId}/jobs/${jobId}`, { method: 'DELETE' }),
+	triggerJob: (projectId: string, jobId: string) =>
+		request<{ status: string }>(`/projects/${projectId}/jobs/${jobId}/trigger`, { method: 'POST' }),
+	listJobRuns: (projectId: string, jobId: string) =>
+		request<JobRun[]>(`/projects/${projectId}/jobs/${jobId}/runs`),
 
-export interface TaskInfo {
-	id: string;
-	node_id: string;
-	status: string;
-	message: string;
-	image: string;
-	slot: number;
-	created_at: string;
-}
+	// Resource Quotas
+	getProjectQuotas: (projectId: string) => request<ResourceQuota>(`/projects/${projectId}/quotas`),
+	setProjectQuotas: (projectId: string, data: { cpu_limit: number; memory_limit: number; storage_limit: number }) =>
+		request<ResourceQuota>(`/projects/${projectId}/quotas`, { method: 'PUT', body: JSON.stringify(data) }),
+	getProjectUsage: (projectId: string) => request<{ cpu_used: number; memory_used: number; storage_used: number }>(`/projects/${projectId}/usage`),
 
-export interface ServiceEvent {
-	action: string;
-	message: string;
-	time: string;
-}
+	// Vulnerability Scanning
+	triggerScan: (projectId: string, appId: string) =>
+		request<VulnerabilityScan>(`/projects/${projectId}/apps/${appId}/scan`, { method: 'POST' }),
+	listScans: (projectId: string, appId: string) =>
+		request<VulnerabilityScan[]>(`/projects/${projectId}/apps/${appId}/scans`),
+	getScan: (projectId: string, appId: string, scanId: string) =>
+		request<{ scan: VulnerabilityScan; vulnerabilities: Vulnerability[] }>(`/projects/${projectId}/apps/${appId}/scans/${scanId}`),
+	securitySummary: () => request<{ critical: number; high: number; medium: number; low: number }>('/security/summary'),
 
-export interface PortMapping {
-	protocol: string;
-	target_port: number;
-	published_port: number;
-	publish_mode: string;
-}
+	// Per-App Metrics
+	appMetricsCurrent: (projectId: string, appId: string) =>
+		request<any>(`/projects/${projectId}/apps/${appId}/metrics/current`),
+	appMetricsHistory: (projectId: string, appId: string, range_param = '1h') =>
+		request<any>(`/projects/${projectId}/apps/${appId}/metrics/history?range=${range_param}`),
 
-export interface Deployment {
-	id: string;
-	app_id: string;
-	status: string;
-	commit_sha: string;
-	image_digest: string;
-	logs: string;
-	started_at: string;
-	finished_at: string | null;
-}
+	// Search
+	search: (q: string) => request<SearchResult[]>(`/search?q=${encodeURIComponent(q)}`),
 
-export interface ManagedDatabase {
-	id: string;
-	project_id: string;
-	name: string;
-	db_type: string;
-	version: string;
-	status: string;
-	created_at: string;
-}
+	// Node power & config
+	nodePower: (nodeId: string, action: string) =>
+		request<{ status: string }>(`/nodes/${nodeId}/power`, { method: 'POST', body: JSON.stringify({ action }) }),
+	getNodeConfig: (nodeId: string) => request<NodePowerConfig>(`/nodes/${nodeId}/config`),
+	setNodeConfig: (nodeId: string, data: Partial<NodePowerConfig>) =>
+		request<NodePowerConfig>(`/nodes/${nodeId}/config`, { method: 'PUT', body: JSON.stringify(data) }),
+	nodeHardware: (nodeId: string) => request<any>(`/nodes/${nodeId}/hardware`),
 
-export interface SwarmNode {
-	ID: string;
-	Description: {
-		Hostname: string;
-		Platform: { Architecture: string; OS: string };
-		Resources: { NanoCPUs: number; MemoryBytes: number };
+	// UPS
+	listUPS: () => request<any[]>('/ups'),
+	createUPS: (data: { name: string; nut_host: string; nut_port?: number; ups_name?: string; poll_interval_seconds?: number; shutdown_threshold?: number }) =>
+		request<UPSDevice>('/ups', { method: 'POST', body: JSON.stringify(data) }),
+	updateUPS: (id: string, data: Partial<UPSDevice>) =>
+		request<void>(`/ups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+	deleteUPS: (id: string) => request<void>(`/ups/${id}`, { method: 'DELETE' }),
+	upsHistory: (id: string) => request<UPSStatusSnapshot[]>(`/ups/${id}/history`),
+
+	// Dynamic DNS
+	enableDDNS: (providerId: string, interval?: number) =>
+		request<void>(`/dns-providers/${providerId}/ddns/enable`, { method: 'POST', body: JSON.stringify({ interval_minutes: interval || 5 }) }),
+	disableDDNS: (providerId: string) =>
+		request<void>(`/dns-providers/${providerId}/ddns/disable`, { method: 'POST' }),
+	ddnsStatus: (providerId: string) =>
+		request<{ enabled: boolean; interval_minutes: number; last_ip: string; last_update?: string }>(`/dns-providers/${providerId}/ddns/status`),
+
+	// API Tokens
+	listTokens: () => request<APIToken[]>('/tokens'),
+	createToken: (data: { name: string; scopes?: string[]; expires_in_days?: number }) =>
+		request<APIToken>('/tokens', { method: 'POST', body: JSON.stringify(data) }),
+	deleteToken: (id: string) => request<void>(`/tokens/${id}`, { method: 'DELETE' }),
+
+	// Webhooks
+	listWebhooks: () => request<WebhookEndpoint[]>('/webhooks'),
+	createWebhook: (data: { name: string; url: string; events?: string[] }) =>
+		request<WebhookEndpoint>('/webhooks', { method: 'POST', body: JSON.stringify(data) }),
+	updateWebhook: (id: string, data: Partial<WebhookEndpoint & { events: string[] }>) =>
+		request<void>(`/webhooks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+	deleteWebhook: (id: string) => request<void>(`/webhooks/${id}`, { method: 'DELETE' }),
+	webhookDeliveries: (id: string) => request<WebhookDelivery[]>(`/webhooks/${id}/deliveries`),
+	testWebhook: (id: string) => request<{ status: string }>(`/webhooks/${id}/test`, { method: 'POST' }),
+
+	// VPN
+	listVPNServers: () => request<VPNServer[]>('/vpn/servers'),
+	createVPNServer: (data: { name: string; node_id?: string; listen_port?: number; address_range?: string; dns?: string; endpoint?: string }) =>
+		request<VPNServer>('/vpn/servers', { method: 'POST', body: JSON.stringify(data) }),
+	deleteVPNServer: (id: string) => request<void>(`/vpn/servers/${id}`, { method: 'DELETE' }),
+	listVPNPeers: (serverId: string) => request<VPNPeer[]>(`/vpn/servers/${serverId}/peers`),
+	createVPNPeer: (serverId: string, data: { name: string }) =>
+		request<VPNPeer>(`/vpn/servers/${serverId}/peers`, { method: 'POST', body: JSON.stringify(data) }),
+	deleteVPNPeer: (serverId: string, peerId: string) =>
+		request<void>(`/vpn/servers/${serverId}/peers/${peerId}`, { method: 'DELETE' }),
+
+	// Dashboard
+	getDashboardLayout: () => request<any>('/dashboard/layout'),
+	saveDashboardLayout: (layout: any) =>
+		request<any>('/dashboard/layout', { method: 'PUT', body: JSON.stringify({ layout }) }),
+
+	// Clusters
+	listClusters: () => request<ClusterInfo[]>('/clusters'),
+	createCluster: (data: { name: string; api_endpoint?: string; auth_token?: string }) =>
+		request<ClusterInfo>('/clusters', { method: 'POST', body: JSON.stringify(data) }),
+	deleteCluster: (id: string) => request<void>(`/clusters/${id}`, { method: 'DELETE' }),
+
+	// Template Ratings
+	rateTemplate: (name: string, data: { rating: number; review?: string }) =>
+		request<TemplateRatingEntry>(`/templates/${encodeURIComponent(name)}/rate`, { method: 'POST', body: JSON.stringify(data) }),
+	templateRatings: (name: string) => request<TemplateRatingEntry[]>(`/templates/${encodeURIComponent(name)}/ratings`),
+	popularTemplates: () => request<{ name: string; count: number }[]>('/templates/popular'),
+	topRatedTemplates: () => request<{ name: string; avg_rating: number; count: number }[]>('/templates/top-rated'),
+
+	// Deployment diff
+	deploymentDiff: (projectId: string, appId: string, id1: string, id2: string) =>
+		request<any>(`/projects/${projectId}/apps/${appId}/deployments/${id1}/diff/${id2}`),
+	rollbackToDeployment: (projectId: string, appId: string, deploymentId: string) =>
+		request<{ status: string }>(`/projects/${projectId}/apps/${appId}/rollback/${deploymentId}`, { method: 'POST' }),
+
+	// Generic helpers
+	get: <T = any>(path: string) => request<T>(path),
+	put: <T = any>(path: string, data: any) => request<T>(path, { method: 'PUT', body: JSON.stringify(data) }),
+	post: <T = any>(path: string, data: any) => request<T>(path, { method: 'POST', body: JSON.stringify(data) }),
+
+	// Networking
+	getNetworkingSettings: () => request<any>('/networking'),
+	updateNetworkingSettings: (data: { ingress_mode?: string; tunnel_token?: string }) =>
+		request<any>('/networking', { method: 'PUT', body: JSON.stringify(data) }),
+	testTunnelConnection: () => request<any>('/networking/test-tunnel', { method: 'POST' }),
+
+	// Updates
+	updatesSummary: () => request<UpdatesSummary>('/updates/summary'),
+	updatesNodes: () => request<NodeUpdateStatus[]>('/updates/nodes'),
+	updatesNodeDetail: (nodeId: string) => request<NodeUpdateStatus>(`/updates/nodes/${nodeId}`),
+	checkNodeUpdates: (nodeId: string) =>
+		request<any>(`/updates/nodes/${nodeId}/check`, { method: 'POST' }),
+	applyNodeUpdates: (nodeId: string, opts?: { security_only?: boolean; action?: string }) =>
+		request<any>(`/updates/nodes/${nodeId}/apply`, { method: 'POST', body: JSON.stringify(opts || {}) }),
+	checkAllNodeUpdates: () =>
+		request<any>('/updates/nodes/check-all', { method: 'POST' }),
+	applyAllNodeUpdates: (opts?: { security_only?: boolean }) =>
+		request<any>('/updates/nodes/apply-all', { method: 'POST', body: JSON.stringify(opts || {}) }),
+	updatesServices: () => request<ServiceUpdateStatus[]>('/updates/services'),
+	applyServiceUpdate: (serviceName: string) =>
+		request<any>(`/updates/services/${serviceName}/apply`, { method: 'POST' }),
+	applyAllServiceUpdates: () =>
+		request<any>('/updates/services/apply-all', { method: 'POST' }),
+	updatesHistory: (opts?: { type?: string; limit?: number }) => {
+		const params = new URLSearchParams();
+		if (opts?.type) params.set('type', opts.type);
+		if (opts?.limit) params.set('limit', String(opts.limit));
+		const qs = params.toString();
+		return request<UpdateEvent[]>(`/updates/history${qs ? '?' + qs : ''}`);
+	},
+	listUpdatePolicies: () => request<UpdatePolicy[]>('/updates/policies'),
+	createUpdatePolicy: (data: Partial<UpdatePolicy>) =>
+		request<UpdatePolicy>('/updates/policies', { method: 'POST', body: JSON.stringify(data) }),
+	updateUpdatePolicy: (id: string, data: Partial<UpdatePolicy>) =>
+		request<UpdatePolicy>(`/updates/policies/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+	deleteUpdatePolicy: (id: string) =>
+		request<void>(`/updates/policies/${id}`, { method: 'DELETE' }),
+
+	// System Tasks
+	listSystemTasks: () => request<SystemTask[]>('/system-tasks'),
+	triggerSystemTask: (taskId: string) =>
+		request<{ status: string; task_id: string }>(`/system-tasks/${taskId}/trigger`, { method: 'POST' }),
+	updateSystemTask: (taskId: string, data: { enabled?: boolean }) =>
+		request<SystemTask>(`/system-tasks/${taskId}`, { method: 'PUT', body: JSON.stringify(data) }),
 	};
-	Status: { State: string; Addr: string };
-	Spec: { Role: string; Availability: string };
 }
 
-export interface TemplateListItem {
-	id: string;
-	name: string;
-	description: string;
-	category: string;
-	icon: string;
-	image: string;
-	version: string;
-	ports: string[];
-	env: Record<string, string>;
-	volumes: string[];
-	domain: string;
-	replicas: number;
-	is_stack: boolean;
-	source: 'builtin' | 'custom';
-}
+export type ApiClient = ReturnType<typeof createApiClient>;
+export const createApi = createApiClient;
+export const api = createApiClient();
 
-export interface TemplateDetail extends TemplateListItem {
-	compose_content?: string;
-}
-
-export interface DeployTemplateRequest {
-	project_id: string;
-	domain?: string;
-	env?: Record<string, string>;
-	volumes?: string[];
-}
-
-export interface TemplateSource {
-	id: string;
-	org_id: string;
-	name: string;
-	url: string;
-	type: string;
-	last_synced_at: string | null;
-	created_at: string;
-}
-
-export interface CustomTemplate {
-	id: string;
-	org_id: string;
-	source_id: string;
-	name: string;
-	description: string;
-	category: string;
-	icon: string;
-	image: string;
-	version: string;
-	ports: string;
-	env: string;
-	volumes: string;
-	domain: string;
-	replicas: number;
-	is_stack: boolean;
-	compose_content: string;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface Secret {
-	id: string;
-	project_id: string;
-	name: string;
-	docker_secret_id: string;
-	description: string;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface AppSecret {
-	app_id: string;
-	secret_id: string;
-	target: string;
-	uid: string;
-	gid: string;
-	mode: number;
-}
-
-export interface Volume {
-	id: string;
-	project_id: string;
-	name: string;
-	driver: string;
-	driver_opts: Record<string, string>;
-	labels: Record<string, string>;
-	mount_type: string;
-	remote_host: string;
-	remote_path: string;
-	mount_options: string;
-	scope: string;
-	status: string;
-	storage_host_id: string;
-	local_path: string;
-	ceph_pool: string;
-	ceph_image: string;
-	ceph_fs_name: string;
-	created_at: string;
-}
-
-export interface AppVolume {
-	app_id: string;
-	volume_id: string;
-	container_path: string;
-	read_only: boolean;
-}
-
-export interface CreateVolumeRequest {
-	name: string;
-	mount_type?: string;
-	remote_host?: string;
-	remote_path?: string;
-	mount_options?: string;
-	username?: string;
-	password?: string;
-	storage_host_id?: string;
-	local_path?: string;
-	ceph_pool?: string;
-	ceph_image?: string;
-	ceph_fs_name?: string;
-}
-
-export interface BackupRun {
-	id: string;
-	config_id: string;
-	status: string;
-	size: number;
-	target_path: string;
-	started_at: string;
-	finished_at: string | null;
-}
-
-export interface ServiceHealth {
-	service_name: string;
-	replicas: number;
-	running: number;
-	healthy: boolean;
-}
-
-export interface NodeMetrics {
-	node_id: string;
-	hostname: string;
-	cpu_percent: number;
-	mem_used: number;
-	mem_total: number;
-	disk_used: number;
-	disk_total: number;
-	containers: number;
-	services: number;
-	timestamp: number;
-}
-
-export interface NotificationChannel {
-	id: string;
-	org_id: string;
-	name: string;
-	type: string;
-	config: Record<string, string>;
-	created_at: string;
-}
-
-export interface ProxyRoute {
-	id: string;
-	project_id: string;
-	name: string;
-	domain: string;
-	target_service: string;
-	target_port: number;
-	protocol: string;
-	upstream_port: number | null;
-	ssl_mode: string;
-	custom_cert_id: string;
-	middleware_config: Record<string, unknown>;
-	enabled: boolean;
-	created_at: string;
-}
-
-export interface CreateProxyRouteRequest {
-	name: string;
-	domain: string;
-	target_service: string;
-	target_port?: number;
-	ssl_mode?: string;
-	custom_cert_id?: string;
-	middleware_config?: Record<string, unknown>;
-	enabled?: boolean;
-}
-
-export interface CustomCertificate {
-	id: string;
-	project_id: string;
-	domain: string;
-	cert_pem: string;
-	is_wildcard: boolean;
-	provider: string;
-	expires_at: string | null;
-	auto_renew: boolean;
-	dns_provider_id: string;
-	last_renewed_at: string | null;
-	renewal_error: string;
-	created_at: string;
-}
-
-export interface Stack {
-	id: string;
-	project_id: string;
-	name: string;
-	compose_content: string;
-	status: string;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface UpdateStrategyRequest {
-	strategy: string;
-	parallelism: number;
-	delay: string;
-	failure_action: string;
-	order: string;
-}
-
-export interface RegistryStatus {
-	running: boolean;
-	image_count?: number;
-}
-
-export interface RegistryImage {
-	name: string;
-	tags: string[];
-}
-
-export interface ConnectivityResult {
-	port_80: boolean;
-	port_443: boolean;
-	message: string;
-}
-
-export interface AlertThreshold {
-	id: string;
-	org_id: string;
-	metric: string;
-	operator: string;
-	value: number;
-	cooldown_minutes: number;
-	enabled: boolean;
-	last_fired_at: string | null;
-	created_at: string;
-}
-
-export interface BackupConfig {
-	id: string;
-	resource_id: string;
-	schedule: string;
-	s3_bucket: string;
-	s3_prefix: string;
-	backup_type: string;
-	volume_id: string;
-	created_at: string;
-}
-
-export interface StorageHost {
-	id: string;
-	name: string;
-	node_id: string;
-	address: string;
-	type: string;
-	default_export_path: string;
-	default_mount_type: string;
-	mount_options_default: string;
-	capabilities: Record<string, boolean>;
-	node_label: string;
-	status: string;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface CreateStorageHostRequest {
-	name: string;
-	node_id?: string;
-	address: string;
-	type?: string;
-	default_export_path?: string;
-	default_mount_type?: string;
-	mount_options_default?: string;
-	credentials?: string;
-	capabilities?: Record<string, boolean>;
-}
-
-export interface StorageHostTestResult {
-	host: string;
-	address: string;
-	type: string;
-	ok: boolean;
-	message: string;
-}
-
-export interface DNSProvider {
-	id: string;
-	org_id: string;
-	name: string;
-	type: string;
-	is_default: boolean;
-	created_at: string;
-}
-
-export interface DNSRecord {
-	id: string;
-	provider_id: string;
-	app_id: string;
-	domain: string;
-	record_type: string;
-	value: string;
-	proxied: boolean;
-	managed: boolean;
-	external_id: string;
-	created_at: string;
-}
-
-export interface NodeMetricsReport {
-	node_id: string;
-	hostname: string;
-	timestamp: number;
-	cpu_cores: number;
-	cpu_per_core: number[];
-	cpu_total_pct: number;
-	load_avg_1: number;
-	load_avg_5: number;
-	load_avg_15: number;
-	cpu_temp_celsius: number;
-	mem_total: number;
-	mem_used: number;
-	mem_available: number;
-	mem_buffers: number;
-	mem_cached: number;
-	swap_total: number;
-	swap_used: number;
-	disks: DiskMetrics[];
-	interfaces: NetInterface[];
-	os: string;
-	kernel: string;
-	uptime_seconds: number;
-	process_count: number;
-	pending_updates: number;
-	containers_running: number;
-	containers_stopped: number;
-	images_count: number;
-	volumes_count: number;
-	gpus?: GPUMetrics[];
-}
-
-export interface DiskMetrics {
-	mount_point: string;
-	device: string;
-	fs_type: string;
-	total: number;
-	used: number;
-	read_bytes: number;
-	write_bytes: number;
-	iops: number;
-	smart_ok?: boolean;
-}
-
-export interface NetInterface {
-	name: string;
-	rx_bytes: number;
-	tx_bytes: number;
-	rx_packets: number;
-	tx_packets: number;
-	rx_errors: number;
-	tx_errors: number;
-	link_speed_mbps: number;
-}
-
-export interface GPUMetrics {
-	index: number;
-	name: string;
-	util_pct: number;
-	mem_used: number;
-	mem_total: number;
-	temp_celsius: number;
-}
-
-export interface AppEnvVar {
-	id: string;
-	app_id: string;
-	key: string;
-	value: string;
-	is_secret: boolean;
-	source: string;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface ServiceLink {
-	id: string;
-	source_app_id: string;
-	target_app_id: string;
-	target_database_id: string;
-	env_prefix: string;
-	created_at: string;
-}
-
-export interface PreviewDeployment {
-	id: string;
-	app_id: string;
-	branch: string;
-	pr_number: number | null;
-	domain: string;
-	status: string;
-	service_name: string;
-	created_at: string;
-}
-
-export interface OrgRole {
-	id: string;
-	org_id: string;
-	user_id: string;
-	role: string;
-	created_at: string;
-}
-
-export interface MaintenanceTask {
-	id: string;
-	org_id: string;
-	type: string;
-	schedule: string;
-	enabled: boolean;
-	last_run_at: string | null;
-	last_status: string;
-	config: Record<string, unknown>;
-	created_at: string;
-}
-
-export interface MaintenanceRun {
-	id: string;
-	task_id: string;
-	status: string;
-	details: string;
-	started_at: string;
-	finished_at: string | null;
-}
-
-export interface AuditLogEntry {
-	id: string;
-	user_id: string;
-	org_id: string;
-	action: string;
-	resource: string;
-	resource_id: string;
-	details: string;
-	created_at: string;
-}
-
-export interface GitSource {
-	id: string;
-	provider: string;
-	created_at: string;
-}
-
-export interface GitRepository {
-	full_name: string;
-	name: string;
-	clone_url: string;
-	ssh_url: string;
-	private: boolean;
-	default_branch: string;
-	description: string;
-}
-
-export interface GitBranch {
-	name: string;
-	protected: boolean;
-	is_default: boolean;
-}
-
-export interface LogEntry {
-	id: number;
-	app_id: string;
-	service_name: string;
-	node_id: string;
-	stream: string;
-	message: string;
-	level: string;
-	timestamp: string;
-}
-
-export interface LogForwardConfig {
-	id: string;
-	org_id: string;
-	name: string;
-	type: string;
-	enabled: boolean;
-	created_at: string;
-}
-
-// Ceph Types
-
-export interface CephCluster {
-	id: string;
-	name: string;
-	fsid: string;
-	status: string;
-	bootstrap_node_id: string;
-	mon_hosts: string[];
-	public_network: string;
-	cluster_network: string;
-	replication_size: number;
-	storage_host_id: string;
-	created_at: string;
-	updated_at: string;
-}
-
-export interface CephClusterWithHealth extends CephCluster {
-	health?: CephHealthReport;
-}
-
-export interface CephHealthReport {
-	fsid: string;
-	node_id: string;
-	timestamp: number;
-	health: string;
-	health_detail: string[];
-	mon_count: number;
-	mon_quorum: string[];
-	osd_total: number;
-	osd_up: number;
-	osd_in: number;
-	pg_count: number;
-	pools: CephPoolStat[];
-	total_bytes: number;
-	used_bytes: number;
-	avail_bytes: number;
-}
-
-export interface CephPoolStat {
-	name: string;
-	id: number;
-	used_bytes: number;
-	max_avail: number;
-	objects: number;
-}
-
-export interface CephOSD {
-	id: string;
-	cluster_id: string;
-	node_id: string;
-	hostname: string;
-	osd_id: number | null;
-	device_path: string;
-	device_size: number;
-	device_type: string;
-	status: string;
-	created_at: string;
-}
-
-export interface CephPool {
-	id: string;
-	cluster_id: string;
-	name: string;
-	pool_id: number | null;
-	pg_num: number;
-	size: number;
-	type: string;
-	application: string;
-	created_at: string;
-}
-
-export interface BlockDevice {
-	name: string;
-	path: string;
-	size: number;
-	type: string;
-	mount_point?: string;
-	fs_type?: string;
-	model?: string;
-	serial?: string;
-	rotational: boolean;
-	transport?: string;
-	available: boolean;
-}
-
-export interface NodeDisks {
-	node_id: string;
-	block_devices: BlockDevice[];
-}
-
-export interface NodeAllDisks {
-	node_id: string;
-	hostname: string;
-	block_devices: BlockDevice[];
-}
-
-export interface CreateCephClusterRequest {
-	name: string;
-	bootstrap_node_id: string;
-	mon_nodes: { node_id: string; hostname: string; ip: string }[];
-	osd_selections: { node_id: string; hostname: string; device_path: string; device_size?: number; device_type?: string }[];
-	replication_size?: number;
-	create_cephfs?: boolean;
-	cephfs_name?: string;
-	public_network?: string;
-}
+export * from './types';

@@ -1,0 +1,83 @@
+kind: Template
+name: chatwoot
+description: Open-source customer engagement platform that provides a shared inbox for teams, live chat, and omnichannel support.
+category: communication
+tags:
+    - support
+    - chat
+    - customer-service
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/chatwoot.svg
+version: v3.14.1
+links:
+    docs: https://www.chatwoot.com/docs
+    github: https://github.com/chatwoot/chatwoot
+    website: https://www.chatwoot.com
+image: pgvector/pgvector:pg14
+stack: true
+services:
+    - name: chatwoot-postgres
+      image: pgvector/pgvector:pg14
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - chatwoot-postgres-data:/var/lib/postgresql/data
+    - name: chatwoot-rails
+      image: chatwoot/chatwoot:v4.0.3
+      env:
+        ACTIVE_STORAGE_SERVICE: ""
+        DEFAULT_LOCALE: ""
+        ENABLE_ACCOUNT_SIGNUP: ""
+        FRONTEND_URL: ""
+        INSTALLATION_ENV: ""
+        LOG_LEVEL: ""
+        NODE_ENV: ""
+        POSTGRES_DATABASE: ""
+        POSTGRES_HOST: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_PORT: ""
+        POSTGRES_USERNAME: ""
+        RAILS_ENV: ""
+        RAILS_LOG_TO_STDOUT: ""
+        REDIS_URL: ""
+        SECRET_KEY_BASE: ""
+      volumes:
+        - chatwoot-storage:/app/storage
+      command:
+        - bundle
+        - exec
+        - sh
+        - -c
+        - rails db:chatwoot_prepare && rails s -p 3000 -b 0.0.0.0
+    - name: chatwoot-redis
+      image: redis:alpine
+      volumes:
+        - chatwoot-redis-data:/data
+    - name: chatwoot-sidekiq
+      image: chatwoot/chatwoot:v4.0.3
+      env:
+        ACTIVE_STORAGE_SERVICE: ""
+        DEFAULT_LOCALE: ""
+        ENABLE_ACCOUNT_SIGNUP: ""
+        FRONTEND_URL: ""
+        INSTALLATION_ENV: ""
+        LOG_LEVEL: ""
+        NODE_ENV: ""
+        POSTGRES_DATABASE: ""
+        POSTGRES_HOST: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_PORT: ""
+        POSTGRES_USERNAME: ""
+        RAILS_ENV: ""
+        RAILS_LOG_TO_STDOUT: ""
+        REDIS_URL: ""
+        SECRET_KEY_BASE: ""
+      volumes:
+        - chatwoot-storage:/app/storage
+      command:
+        - bundle
+        - exec
+        - sidekiq
+        - -C
+        - config/sidekiq.yml

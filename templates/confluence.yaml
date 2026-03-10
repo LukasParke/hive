@@ -1,0 +1,26 @@
+kind: Template
+name: confluence
+description: Confluence is a powerful team collaboration and knowledge-sharing tool. It allows you to create, organize, and collaborate on content in a centralized space. Designed for project management, documentation, and team communication, Confluence helps streamline workflows and enhances productivity.
+category: productivity
+tags:
+    - collaboration
+    - documentation
+    - productivity
+    - project-management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/confluence.svg
+version: "8.6"
+links:
+    docs: https://confluence.atlassian.com/doc/confluence-documentation-135922.html
+    github: https://confluence.atlassian.com
+    website: https://confluence.atlassian.com
+image: atlassian/confluence-server:8.6-ubuntu-jdk17
+ports:
+    - "8090"
+volumes:
+    - confluence-data:/var/atlassian/application-data/confluence
+env:
+    CATALINA_CONNECTOR_PROXYNAME: ""
+    CATALINA_CONNECTOR_SCHEME: http
+    CATALINA_CONNECTOR_SECURE: "true"
+    JVM_MAXIMUM_MEMORY: ""
+    JVM_MINIMUM_MEMORY: ""

@@ -2,7 +2,7 @@ kind: Template
 name: transmission
 description: Fast and lightweight BitTorrent client
 category: downloads
-icon: https://transmissionbt.com/images/transmission-icon.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/transmission.svg
 image: lscr.io/linuxserver/transmission:latest
 ports:
   - "9091"

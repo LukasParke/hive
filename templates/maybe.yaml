@@ -1,0 +1,34 @@
+kind: Template
+name: maybe
+description: Maybe is a self-hosted finance tracking application designed to simplify budgeting and expenses.
+category: finance
+tags:
+    - finance
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/maybe.svg
+version: latest
+links:
+    docs: https://docs.maybe.finance/
+    github: https://github.com/maybe-finance/maybe
+    website: https://maybe.finance/
+image: ghcr.io/maybe-finance/maybe:sha-68c570eed8810fd59b5b33cca51bbad5eabb4cb4
+stack: true
+services:
+    - name: app
+      image: ghcr.io/maybe-finance/maybe:sha-68c570eed8810fd59b5b33cca51bbad5eabb4cb4
+      env:
+        DATABASE_URL: postgresql://maybe:maybe@db:5432/maybe
+        GOOD_JOB_EXECUTION_MODE: async
+        RAILS_ASSUME_SSL: "false"
+        RAILS_FORCE_SSL: "false"
+        SECRET_KEY_BASE: ""
+        SELF_HOSTED: "true"
+        SYNTH_API_KEY: ""
+    - name: db
+      image: postgres:16
+      env:
+        POSTGRES_DB: maybe
+        POSTGRES_PASSWORD: maybe
+        POSTGRES_USER: maybe
+      volumes:
+        - db-data:/var/lib/postgresql/data

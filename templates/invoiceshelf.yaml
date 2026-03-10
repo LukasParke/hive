@@ -1,0 +1,50 @@
+kind: Template
+name: invoiceshelf
+description: InvoiceShelf is a self-hosted open source invoicing system for freelancers and small businesses.
+category: finance
+tags:
+    - invoice
+    - business
+    - finance
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/invoiceshelf.svg
+version: latest
+links:
+    docs: https://github.com/InvoiceShelf/invoiceshelf#readme
+    github: https://github.com/InvoiceShelf/invoiceshelf
+    website: https://invoiceshelf.com
+image: invoiceshelf/invoiceshelf:nightly
+stack: true
+services:
+    - name: invoiceshelf-app
+      image: invoiceshelf/invoiceshelf:nightly
+      env:
+        APP_DEBUG: "false"
+        APP_ENV: production
+        APP_NAME: InvoiceShelf
+        APP_URL: http://
+        CACHE_STORE: file
+        DB_CONNECTION: pgsql
+        DB_DATABASE: ""
+        DB_HOST: invoiceshelf-postgres
+        DB_PASSWORD: ""
+        DB_PORT: "5432"
+        DB_USERNAME: ""
+        PHP_TZ: UTC
+        SANCTUM_STATEFUL_DOMAINS: ""
+        SESSION_DOMAIN: ""
+        SESSION_DRIVER: file
+        SESSION_ENCRYPT: "true"
+        SESSION_LIFETIME: "120"
+        SESSION_PATH: /
+        STARTUP_DELAY: "10"
+        TIMEZONE: UTC
+      volumes:
+        - invoiceshelf-storage:/var/www/html/storage
+    - name: invoiceshelf-postgres
+      image: postgres:15
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - invoiceshelf-postgres-data:/var/lib/postgresql/data

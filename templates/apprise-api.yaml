@@ -1,0 +1,22 @@
+kind: Template
+name: apprise-api
+description: Apprise API provides a simple interface for sending notifications to almost all of the most popular notification services available to us today.
+category: notifications
+tags:
+    - notifications
+    - api
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/apprise-api.svg
+version: latest
+links:
+    docs: https://github.com/caronc/apprise-api/wiki
+    github: https://github.com/caronc/apprise-api
+    website: https://github.com/caronc/apprise-api
+image: linuxserver/apprise-api:latest
+ports:
+    - "8000"
+volumes:
+    - config:/config
+env:
+    PGID: "1000"
+    PUID: "1000"
+    TZ: UTC

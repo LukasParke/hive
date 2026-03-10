@@ -1,0 +1,26 @@
+kind: Template
+name: mulesoft-esb
+description: MuleSoft ESB Runtime  is a lightweight, Java-based integration platform that allows you to easily integrate applications, data sources, and APIs. It provides powerful connectors and data transformation capabilities for building robust integration solutions.
+category: integration
+tags:
+    - integration
+    - api
+    - esb
+    - enterprise
+    - java
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/mulesoft-esb-runtime-community-edition.svg
+version: latest
+links:
+    docs: https://docs.mulesoft.com/
+    github: https://github.com/mulesoft
+    website: https://www.mulesoft.com/
+image: yogeshmulecraft/mulece-esb:latest
+ports:
+    - "8081"
+env:
+    HTTP_PORT: "8081"
+    MULE_BASE: /opt/mule-standalone
+    MULE_HOME: /opt/mule-standalone
+    MULE_VERBOSE_EXCEPTIONS: "true"
+    MULE_VERSION: 4.9.0
+    TZ: UTC

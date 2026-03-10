@@ -1,0 +1,17 @@
+kind: Template
+name: baserow
+description: Baserow is an open source database management tool that allows you to create and manage databases.
+category: databases
+tags:
+    - database
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/baserow.svg
+version: 1.25.2
+links:
+    docs: https://baserow.io/docs/index
+    github: https://github.com/Baserow/baserow
+    website: https://baserow.io/
+image: baserow/baserow:1.25.2
+volumes:
+    - baserow_data:/baserow/data
+env:
+    BASEROW_PUBLIC_URL: http://

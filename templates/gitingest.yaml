@@ -1,0 +1,19 @@
+kind: Template
+name: gitingest
+description: Gitingest is an application that supports Prometheus metrics, Sentry integration, and S3-backed storage.
+category: analytics
+tags:
+    - analytics
+    - s3
+    - monitoring
+    - sentry
+    - metrics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/gitingest.svg
+version: latest
+links:
+    docs: https://github.com/coderamp-labs/gitingest#readme
+    github: https://github.com/coderamp-labs/gitingest
+    website: https://gitingest.com
+image: 'elestio/gitingest:'
+env:
+    ALLOWED_HOSTS: ""

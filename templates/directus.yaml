@@ -1,0 +1,48 @@
+kind: Template
+name: directus
+description: Directus is an open source headless CMS that provides an API-first solution for building custom backends.
+category: cms
+tags:
+    - cms
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/directus.svg
+version: 11.0.2
+links:
+    docs: https://docs.directus.io/
+    github: https://github.com/directus/directus
+    website: https://directus.io/
+image: directus/directus:11.12.0
+ports:
+    - "8055"
+stack: true
+services:
+    - name: cache
+      image: redis:6
+    - name: database
+      image: postgis/postgis:13-master
+      env:
+        POSTGRES_DB: directus
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: directus
+      volumes:
+        - directus_database:/var/lib/postgresql/data
+    - name: directus
+      image: directus/directus:11.12.0
+      ports:
+        - "8055"
+      env:
+        ADMIN_EMAIL: admin@example.com
+        ADMIN_PASSWORD: d1r3ctu5
+        CACHE_AUTO_PURGE: "true"
+        CACHE_ENABLED: "true"
+        CACHE_STORE: redis
+        DB_CLIENT: pg
+        DB_DATABASE: directus
+        DB_HOST: database
+        DB_PASSWORD: ""
+        DB_PORT: "5432"
+        DB_USER: directus
+        REDIS: redis://cache:6379
+        SECRET: ""
+      volumes:
+        - directus_uploads:/directus/uploads
+        - directus_extensions:/directus/extensions

@@ -1,0 +1,70 @@
+kind: Template
+name: penpot
+description: Penpot is the web-based open-source design tool that bridges the gap between designers and developers.
+category: productivity
+tags:
+    - design
+    - collaboration
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/penpot.svg
+version: 2.3.2
+links:
+    docs: https://docs.penpot.app/
+    github: https://github.com/penpot/penpot
+    website: https://penpot.app/
+image: penpotapp/frontend:2.6.1
+ports:
+    - "8080"
+    - "9001"
+stack: true
+services:
+    - name: penpot-backend
+      image: penpotapp/backend:2.6.1
+      env:
+        PENPOT_ASSETS_STORAGE_BACKEND: assets-fs
+        PENPOT_DATABASE_PASSWORD: penpot
+        PENPOT_DATABASE_URI: postgresql://penpot-postgres/penpot
+        PENPOT_DATABASE_USERNAME: penpot
+        PENPOT_FLAGS: disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies
+        PENPOT_PUBLIC_URI: http://
+        PENPOT_REDIS_URI: redis://penpot-redis/0
+        PENPOT_SMTP_DEFAULT_FROM: no-reply@example.com
+        PENPOT_SMTP_DEFAULT_REPLY_TO: no-reply@example.com
+        PENPOT_SMTP_HOST: penpot-mailcatch
+        PENPOT_SMTP_PASSWORD: <nil>
+        PENPOT_SMTP_PORT: "1025"
+        PENPOT_SMTP_SSL: "false"
+        PENPOT_SMTP_TLS: "false"
+        PENPOT_SMTP_USERNAME: <nil>
+        PENPOT_STORAGE_ASSETS_FS_DIRECTORY: /opt/data/assets
+        PENPOT_TELEMETRY_ENABLED: "true"
+      volumes:
+        - penpot_assets:/opt/data/assets
+    - name: penpot-exporter
+      image: penpotapp/exporter:2.6.1
+      env:
+        PENPOT_PUBLIC_URI: http://penpot-frontend
+        PENPOT_REDIS_URI: redis://penpot-redis/0
+    - name: penpot-frontend
+      image: penpotapp/frontend:2.6.1
+      ports:
+        - "8080"
+        - "9001"
+      env:
+        PENPOT_FLAGS: disable-email-verification enable-smtp enable-prepl-server disable-secure-session-cookies
+      volumes:
+        - penpot_assets:/opt/data/assets
+    - name: penpot-mailcatch
+      image: sj26/mailcatcher:latest
+      ports:
+        - "1080"
+    - name: penpot-postgres
+      image: postgres:15
+      env:
+        POSTGRES_DB: penpot
+        POSTGRES_INITDB_ARGS: --data-checksums
+        POSTGRES_PASSWORD: penpot
+        POSTGRES_USER: penpot
+      volumes:
+        - penpot_postgres_v15:/var/lib/postgresql/data
+    - name: penpot-redis
+      image: redis:7.2

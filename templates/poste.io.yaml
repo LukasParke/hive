@@ -1,0 +1,37 @@
+kind: Template
+name: poste.io
+description: Complete mail server solution with SMTP, IMAP, POP3, antispam, antivirus, web administration and webmail client.
+category: communication
+tags:
+    - email
+    - mail-server
+    - smtp
+    - imap
+    - pop3
+    - antispam
+    - antivirus
+    - webmail
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/poste.io.svg
+version: latest
+links:
+    docker: https://hub.docker.com/r/analogic/poste.io
+    docs: https://poste.io/doc/
+    github: https://bitbucket.org/analogic/mailserver
+    website: https://poste.io/
+image: analogic/poste.io
+ports:
+    - "25"
+    - "110"
+    - "143"
+    - "465"
+    - "587"
+    - "993"
+    - "995"
+    - "4190"
+volumes:
+    - /etc/localtime:/etc/localtime:ro
+    - poste-data:/data
+env:
+    HTTP_PORT: "8080"
+    HTTPS: "OFF"
+    TZ: ""

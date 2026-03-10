@@ -1,0 +1,65 @@
+kind: Template
+name: chirpstack
+description: Open-source LoRaWAN Network Server for IoT applications. Complete stack with gateway bridges, REST API, and web interface for managing LoRaWAN devices and gateways.
+category: home-automation
+tags:
+    - iot
+    - lorawan
+    - network-server
+    - gateway
+    - monitoring
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/chirpstack.svg
+version: "4"
+links:
+    docs: https://www.chirpstack.io/docs/
+    github: https://github.com/chirpstack/chirpstack
+    website: https://www.chirpstack.io/
+image: chirpstack/chirpstack:4
+ports:
+    - "8080"
+stack: true
+services:
+    - name: chirpstack
+      image: chirpstack/chirpstack:4
+      ports:
+        - "8080"
+      env:
+        MQTT_BROKER_HOST: mosquitto
+        POSTGRESQL_HOST: postgres
+        REDIS_HOST: redis
+      command: -c /etc/chirpstack
+    - name: chirpstack-gateway-bridge
+      image: chirpstack/chirpstack-gateway-bridge:4
+      ports:
+        - "1700"
+      env:
+        INTEGRATION__MQTT__COMMAND_TOPIC_TEMPLATE: eu868/gateway/{{ .GatewayID }}/command/#
+        INTEGRATION__MQTT__EVENT_TOPIC_TEMPLATE: eu868/gateway/{{ .GatewayID }}/event/{{ .EventType }}
+        INTEGRATION__MQTT__STATE_TOPIC_TEMPLATE: eu868/gateway/{{ .GatewayID }}/state/{{ .StateType }}
+    - name: chirpstack-gateway-bridge-basicstation
+      image: chirpstack/chirpstack-gateway-bridge:4
+      ports:
+        - "3001"
+      command: -c /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge-basicstation-eu868.toml
+    - name: chirpstack-rest-api
+      image: chirpstack/chirpstack-rest-api:4
+      ports:
+        - "8090"
+      command: --server chirpstack:8080 --bind 0.0.0.0:8090 --insecure
+    - name: mosquitto
+      image: eclipse-mosquitto:2
+      ports:
+        - "1883"
+    - name: postgres
+      image: postgres:14-alpine
+      env:
+        POSTGRES_DB: chirpstack
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: chirpstack
+      volumes:
+        - postgresqldata:/var/lib/postgresql/data
+    - name: redis
+      image: redis:7-alpine
+      volumes:
+        - redisdata:/data
+      command: redis-server --save 300 1 --save 60 100 --appendonly no

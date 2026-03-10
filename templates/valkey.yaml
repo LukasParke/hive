@@ -1,0 +1,22 @@
+kind: Template
+name: valkey
+description: Valkey is an open-source fork of Redis, backed by AWS and the Linux Foundation. It provides a high-performance, in-memory data structure store with Redis compatibility.
+category: databases
+tags:
+    - database
+    - cache
+    - redis
+    - in-memory
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/valkey.svg
+version: 8.1.4
+links:
+    docs: https://github.com/valkey-io/valkey
+    github: https://github.com/valkey-io/valkey
+    website: https://valkey.io/
+image: valkey/valkey:8.1.4
+ports:
+    - "6379"
+volumes:
+    - valkey-data:/data
+env:
+    VALKEY_PASSWORD: ""

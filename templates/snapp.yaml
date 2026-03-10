@@ -1,0 +1,36 @@
+kind: Template
+name: snapp
+description: Snapp is a self-hosted screenshot sharing service with user management and authentication.
+category: screenshot
+tags:
+    - screenshot
+    - sharing
+    - self-hosted
+    - authentication
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/snapp.svg
+version: 0.9-rc-020
+links:
+    docs: https://github.com/UraniaDev/snapp
+    github: https://github.com/UraniaDev/snapp
+    website: https://github.com/UraniaDev/snapp
+image: uraniadev/snapp:0.9-rc-020
+ports:
+    - "3000"
+env:
+    ADMIN_EMAIL: ""
+    ADMIN_PASSWORD: ""
+    ADMIN_USERNAME: ""
+    APPNAME: ""
+    DATABASE_PROVIDER: ""
+    DATABASE_URL: ""
+    DISABLED_EMAIL_AND_PASSWORD: ""
+    ENABLE_SIGNUP: ""
+    ENABLED_MFA: ""
+    HOST: ""
+    LOG_LEVEL: ""
+    ORIGIN: ""
+    PORT: ""
+    PUBLIC_EXTRA_GROUPS_EDITABLE: ""
+    PUBLIC_URL: ""
+    TOKEN_SECRET: ""
+    URLS_VIA_GROUPS_ONLY: ""

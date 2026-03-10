@@ -1,0 +1,17 @@
+kind: Template
+name: trailbase
+description: TrailBase is a blazingly fast, open-source application server with type-safe APIs, built-in WebAssembly runtime, realtime, auth, and admin UI built on Rust, SQLite & Wasmtime.
+category: databases
+tags:
+    - backend
+    - database
+    - api
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/trailbase.svg
+version: latest
+links:
+    docs: https://trailbase.io/getting-started/install
+    github: https://github.com/trailbase/trailbase
+    website: https://trailbase.io/
+image: trailbase/trailbase:latest
+volumes:
+    - trailbase-data:/app/traildepot

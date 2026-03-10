@@ -1,0 +1,22 @@
+kind: Template
+name: pocketbase
+description: Open Source backend in 1 file
+category: databases
+tags:
+    - backend
+    - database
+    - api
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/pocketbase.svg
+version: latest
+links:
+    docs: https://pocketbase.io/docs/
+    github: https://github.com/pocketbase/pocketbase
+    website: https://pocketbase.io/
+image: adrianmusante/pocketbase:latest
+volumes:
+    - pocketbase-data:/pocketbase
+env:
+    POCKETBASE_ADMIN_EMAIL: ""
+    POCKETBASE_ADMIN_PASSWORD: ""
+    POCKETBASE_ADMIN_UPSERT: "true"
+    POCKETBASE_PORT_NUMBER: "8090"

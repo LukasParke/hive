@@ -1,0 +1,22 @@
+kind: Template
+name: pgadmin
+description: pgAdmin is the most popular and feature rich Open Source administration and development platform for PostgreSQL, the most advanced Open Source database in the world.
+category: databases
+tags:
+    - database
+    - postgres
+    - admin
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/pgadmin.svg
+version: "8.3"
+links:
+    docs: https://www.pgadmin.org/docs/
+    github: https://github.com/pgadmin-org/pgadmin4
+    website: https://www.pgadmin.org/
+image: dpage/pgadmin4:latest
+volumes:
+    - pgadmin-data:/var/lib/pgadmin
+env:
+    PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    PGADMIN_CONFIG_SERVER_MODE: "False"
+    PGADMIN_DEFAULT_EMAIL: ""
+    PGADMIN_DEFAULT_PASSWORD: ""

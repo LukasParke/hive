@@ -1,0 +1,24 @@
+kind: Template
+name: libretranslate
+description: LibreTranslate is a free and open-source machine translation API, powered by Argos Translate. Self-hosted, no external dependencies, and supports multiple languages.
+category: translation
+tags:
+    - translation
+    - api
+    - nlp
+    - language
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/libretranslate.svg
+version: 1.7.3
+links:
+    docs: https://docs.libretranslate.com/
+    github: https://github.com/LibreTranslate/LibreTranslate
+    website: https://libretranslate.com/
+image: libretranslate/libretranslate:latest
+ports:
+    - "5000"
+volumes:
+    - libretranslate_models:/home/libretranslate/.local
+    - libretranslate_api_keys:/app/db
+env:
+    LT_API_KEYS: "true"
+    LT_API_KEYS_DB_PATH: /app/db/api_keys.db

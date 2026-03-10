@@ -1,0 +1,23 @@
+kind: Template
+name: chromium
+description: Chromium is an open-source browser project that is designed to provide a safer, faster, and more stable way for all users to experience the web in a containerized environment.
+category: development
+tags:
+    - browser
+    - development
+    - web
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/chromium.svg
+version: 5f5dd27e-ls102
+links:
+    docs: https://docs.linuxserver.io/images/docker-chromium
+    github: https://github.com/linuxserver/docker-chromium
+    website: https://docs.linuxserver.io/images/docker-chromium
+image: lscr.io/linuxserver/chromium:5f5dd27e-ls102
+ports:
+    - "3000"
+volumes:
+    - config:/config
+env:
+    PGID: "1000"
+    PUID: "1000"
+    TZ: UTC

@@ -1,0 +1,49 @@
+kind: Template
+name: authelia
+description: The Single Sign-On Multi-Factor portal for web apps. An open-source authentication and authorization server providing 2FA and SSO via web portal.
+category: security
+tags:
+    - authentication
+    - authorization
+    - 2fa
+    - sso
+    - security
+    - reverse-proxy
+    - ldap
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/authelia.svg
+version: latest
+links:
+    docs: https://www.authelia.com/overview/prologue/introduction/
+    github: https://github.com/authelia/authelia
+    website: https://www.authelia.com/
+image: authelia/authelia:latest
+ports:
+    - "9091"
+stack: true
+services:
+    - name: authelia
+      image: authelia/authelia:latest
+      ports:
+        - "9091"
+      env:
+        AUTHELIA_JWT_SECRET: $JWT_SECRET
+        AUTHELIA_SESSION_SECRET: $SESSION_SECRET
+        AUTHELIA_STORAGE_ENCRYPTION_KEY: $STORAGE_ENCRYPTION_KEY
+        AUTHELIA_STORAGE_POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+      volumes:
+        - authelia_config:/config
+    - name: postgres
+      image: postgres:16-alpine
+      env:
+        POSTGRES_DB: authelia
+        POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+        POSTGRES_USER: authelia
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+    - name: redis
+      image: redis:7-alpine
+      env:
+        REDIS_PASSWORD: $REDIS_PASSWORD
+      volumes:
+        - redis_data:/data
+      command: redis-server --save 60 1 --loglevel warning --requirepass $REDIS_PASSWORD

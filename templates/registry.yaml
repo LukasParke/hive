@@ -1,0 +1,26 @@
+kind: Template
+name: registry
+description: Distribution implementation for storing and distributing of Docker container images and artifacts.
+category: registry
+tags:
+    - registry
+    - docker
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/docker-registry.svg
+version: "2"
+links:
+    docs: https://distribution.github.io/distribution/
+    github: https://github.com/distribution/distribution
+    website: https://hub.docker.com/_/registry
+image: registry:2
+ports:
+    - "5000"
+volumes:
+    - registry-data:/var/lib/registry
+env:
+    REGISTRY_AUTH: htpasswd
+    REGISTRY_AUTH_HTPASSWD_PATH: /auth/registry.password
+    REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
+    REGISTRY_HEALTH_STORAGEDRIVER_ENABLED: "false"
+    REGISTRY_HTTP_SECRET: ""
+    REGISTRY_STORAGE_DELETE_ENABLED: "true"

@@ -1,0 +1,21 @@
+kind: Template
+name: dokploy-prom-monitoring-extension
+description: Dokploy monitoring extension with Prometheus metrics export for external monitoring systems like Grafana Cloud. Tracks server and container metrics with configurable thresholds and alerting.
+category: monitoring
+tags:
+    - monitoring
+    - prometheus
+    - metrics
+    - observability
+    - docker
+    - grafana
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dokploy-prometheus-monitoring-extension.svg
+version: canary
+links:
+    docs: https://docs.dokploy.com/
+    github: https://github.com/Dokploy/dokploy
+    website: https://dokploy.com/
+image: dokploy/monitoring:canary
+volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - monitoring-data:/app/data

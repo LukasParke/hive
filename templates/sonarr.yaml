@@ -2,7 +2,7 @@ kind: Template
 name: sonarr
 description: PVR for Usenet and BitTorrent users, manages TV shows
 category: media
-icon: https://raw.githubusercontent.com/Sonarr/Sonarr/develop/Logo/128.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/sonarr.svg
 image: lscr.io/linuxserver/sonarr:latest
 ports:
   - "8989"

@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { api, type App, type LogEntry } from '$lib/api';
-	import { onMount, tick } from 'svelte';
+	import { api } from '$lib/api';
+	import { tick } from 'svelte';
 
-	const projectId = $derived($page.params.id ?? '');
-	const appId = $derived($page.params.appId ?? '');
+	let { data } = $props();
 
-	let app = $state<App | null>(null);
-	let logs = $state<LogEntry[]>([]);
+	let logs = $state<{ id: number; app_id: string; service_name: string; node_id: string; stream: string; message: string; level: string; timestamp: string }[]>([]);
 	let error = $state('');
 	let loading = $state(true);
 	let search = $state('');
@@ -17,36 +14,27 @@
 	let customUntil = $state('');
 	let autoScroll = $state(true);
 	let logContainer: HTMLDivElement;
-	let refreshInterval: ReturnType<typeof setInterval> | null = null;
+
+	const filteredLogs = $derived(
+		logs.filter((l) => {
+			if (search && !l.message?.toLowerCase().includes(search.toLowerCase())) return false;
+			if (level && l.level?.toLowerCase() !== level.toLowerCase()) return false;
+			return true;
+		})
+	);
 
 	$effect(() => {
-		if (projectId && appId) {
-			loadApp();
-		}
-	});
-
-	$effect(() => {
-		if (projectId && appId && app) {
+		if (data?.projectId && data?.appId && data?.app) {
 			loadLogs();
 		}
 	});
 
-	onMount(() => {
-		refreshInterval = setInterval(() => {
-			if (projectId && appId && app && autoScroll) loadLogs();
+	$effect(() => {
+		const interval = setInterval(() => {
+			if (data?.projectId && data?.appId && data?.app && autoScroll) loadLogs();
 		}, 5000);
-		return () => {
-			if (refreshInterval) clearInterval(refreshInterval);
-		};
+		return () => clearInterval(interval);
 	});
-
-	async function loadApp() {
-		try {
-			app = await api.getApp(projectId, appId);
-		} catch (e: any) {
-			error = e.message;
-		}
-	}
 
 	function getTimeParams(): { since?: string; until?: string } {
 		const now = new Date();
@@ -67,11 +55,11 @@
 	}
 
 	async function loadLogs() {
-		if (!projectId || !appId) return;
+		if (!data?.projectId || !data?.appId) return;
 		try {
 			loading = true;
 			const time = getTimeParams();
-			logs = await api.queryAppLogs(projectId, appId, {
+			logs = await api.queryAppLogs(data.projectId, data.appId, {
 				...time,
 				limit: 1000,
 			});
@@ -116,19 +104,21 @@
 	}
 </script>
 
+<svelte:head><title>Logs | Hive</title></svelte:head>
+
 <div class="max-w-6xl mx-auto p-6">
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<a href="/projects" class="text-sm" style="color: var(--color-text-muted);">Projects</a>
 			<span class="text-sm" style="color: var(--color-text-muted);"> / </span>
-			<a href="/projects/{projectId}" class="text-sm" style="color: var(--color-text-muted);">{projectId}</a>
+			<a href="/projects/{data.projectId}" class="text-sm" style="color: var(--color-text-muted);">{data.projectId}</a>
 			<span class="text-sm" style="color: var(--color-text-muted);"> / </span>
-			<a href="/apps/{appId}?project={projectId}" class="text-sm" style="color: var(--color-text-muted);">{app?.name ?? 'App'}</a>
+			<a href="/projects/{data.projectId}/apps/{data.appId}" class="text-sm" style="color: var(--color-text-muted);">{data.app?.name ?? 'App'}</a>
 			<span class="text-sm" style="color: var(--color-text-muted);"> / </span>
 			<h2 class="text-2xl font-bold inline">Logs</h2>
 		</div>
 		<a
-			href="/apps/{appId}?project={projectId}"
+			href="/projects/{data.projectId}/apps/{data.appId}"
 			class="text-sm px-3 py-1.5 rounded"
 			style="border: 1px solid var(--color-border); color: var(--color-text-muted);"
 			>Back to app</a
@@ -231,8 +221,8 @@
 		bind:this={logContainer}
 		class="rounded-lg font-mono text-xs overflow-auto"
 		style="
-			background-color: #0d1117;
-			color: #c9d1d9;
+			background-color: var(--color-bg);
+			color: var(--color-text);
 			min-height: 400px;
 			max-height: 70vh;
 			border: 1px solid var(--color-border);
@@ -240,18 +230,18 @@
 		"
 	>
 		{#if filteredLogs.length === 0 && !loading}
-			<p style="color: #484f58;">No log entries. Logs are stored when the log aggregation pipeline is running.</p>
+			<p style="color: var(--color-text-muted);">No log entries. Logs are stored when the log aggregation pipeline is running.</p>
 		{:else}
 			{#each filteredLogs as entry}
 				<div class="flex gap-3 py-0.5 hover:bg-white/5 px-1 -mx-1 rounded">
-					<span style="color: #484f58; flex-shrink: 0;">{formatTimestamp(entry.timestamp)}</span>
+					<span style="color: var(--color-text-muted); flex-shrink: 0;">{formatTimestamp(entry.timestamp)}</span>
 					<span
 						class="uppercase font-semibold w-10 flex-shrink-0"
 						style="color: {levelColor(entry.level)};"
 						>{entry.level || 'info'}</span
 					>
 					{#if entry.service_name}
-						<span style="color: #8b949e; flex-shrink: 0;">[{entry.service_name}]</span>
+						<span style="color: var(--color-text-muted); flex-shrink: 0;">[{entry.service_name}]</span>
 					{/if}
 					<span class="break-all flex-1">{entry.message}</span>
 				</div>

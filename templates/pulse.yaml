@@ -1,0 +1,22 @@
+kind: Template
+name: pulse
+description: A responsive monitoring platform for Proxmox VE, PBS, and Docker with real-time metrics across nodes and containers.
+category: monitoring
+tags:
+    - monitoring
+    - proxmox
+    - docker
+    - metrics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/pulse.svg
+version: latest
+links:
+    docs: https://github.com/rcourtman/Pulse/blob/main/docs/README.md
+    github: https://github.com/rcourtman/Pulse
+    website: https://pulserelay.pro/
+image: rcourtman/pulse:5.1
+volumes:
+    - pulse_data:/data
+    - /var/run/docker.sock:/var/run/docker.sock
+env:
+    PULSE_AUTH_PASS: ""
+    PULSE_AUTH_USER: ""

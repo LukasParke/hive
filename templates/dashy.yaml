@@ -1,0 +1,20 @@
+kind: Template
+name: dashy
+description: A self-hostable personal dashboard built for you. Includes status-checking, widgets, themes, icon packs, a UI editor and tons more!
+category: monitoring
+tags:
+    - dashboard
+    - monitoring
+    - self-hosted
+    - homelab
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dashy.svg
+version: latest
+links:
+    docs: https://github.com/Lissy93/dashy/tree/master/docs
+    github: https://github.com/Lissy93/dashy
+    website: https://dashy.to/
+image: lissy93/dashy:latest
+ports:
+    - "8080"
+volumes:
+    - dashy-config:/app/user-data

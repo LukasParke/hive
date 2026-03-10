@@ -1,0 +1,18 @@
+kind: Template
+name: meilisearch
+description: Meilisearch is a free and open-source search engine that allows you to easily add search functionality to your web applications.
+category: search
+tags:
+    - search
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/meilisearch.svg
+version: v1.8.3
+links:
+    docs: https://docs.meilisearch.com/
+    github: https://github.com/meilisearch/meilisearch
+    website: https://www.meilisearch.com/
+image: getmeili/meilisearch:v1.8.3
+volumes:
+    - meili_data:/meili_data
+env:
+    MEILI_ENV: ""
+    MEILI_MASTER_KEY: ""

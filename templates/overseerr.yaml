@@ -2,7 +2,7 @@ kind: Template
 name: overseerr
 description: Request management and media discovery for Plex
 category: media
-icon: https://raw.githubusercontent.com/sct/overseerr/develop/frontend/src/assets/images/logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/overseerr.svg
 image: lscr.io/linuxserver/overseerr:latest
 ports:
   - "5055"

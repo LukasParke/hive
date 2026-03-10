@@ -1,0 +1,20 @@
+kind: Template
+name: surrealdb
+description: SurrealDB is a native, open-source, multi-model database that lets you store and manage data across relational, document, graph, time-series, vector & search, and geospatial models—all in one place.
+category: databases
+tags:
+    - database
+    - sql
+    - surrealdb
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/surrealdb.svg
+version: 2.3.10
+links:
+    docs: https://surrealdb.com/docs/surrealdb
+    github: https://github.com/surrealdb/surrealdb
+    website: https://surrealdb.com
+image: surrealdb/surrealdb:v2.3.10
+volumes:
+    - db_data:/usr/app/data
+env:
+    SURREAL_PASS: ""
+    SURREAL_USER: ""

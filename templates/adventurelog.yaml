@@ -1,0 +1,50 @@
+kind: Template
+name: adventurelog
+description: AdventureLog is an open-source activity tracker with maps, journaling, and Strava integration.
+category: activity
+tags:
+    - activity
+    - maps
+    - django
+    - react
+    - postgres
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/adventurelog.svg
+version: latest
+links:
+    docs: https://adventurelog.app/docs/
+    github: https://github.com/seanmorley15/adventurelog
+    website: https://adventurelog.app/
+image: postgis/postgis:16-3.5
+stack: true
+services:
+    - name: db
+      image: postgis/postgis:16-3.5
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - postgres_data:/var/lib/postgresql/data/
+    - name: server
+      image: ghcr.io/seanmorley15/adventurelog-backend:latest
+      env:
+        CSRF_TRUSTED_ORIGINS: ""
+        DEBUG: ""
+        DJANGO_ADMIN_EMAIL: ""
+        DJANGO_ADMIN_PASSWORD: ""
+        DJANGO_ADMIN_USERNAME: ""
+        FRONTEND_URL: ""
+        PGHOST: ""
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+        PUBLIC_URL: ""
+        SECRET_KEY: ""
+      volumes:
+        - adventurelog_media:/code/media/
+    - name: web
+      image: ghcr.io/seanmorley15/adventurelog-frontend:latest
+      env:
+        BODY_SIZE_LIMIT: ""
+        ORIGIN: ""
+        PUBLIC_SERVER_URL: ""

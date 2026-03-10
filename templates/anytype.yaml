@@ -1,0 +1,23 @@
+kind: Template
+name: anytype
+description: |-
+    Anytype is a personal knowledge base—your digital brain—that lets you gather, connect and remix all kinds of information. Create pages, tasks, wikis, journals—even entire apps—and define your own data model while your data stays offline-first, private and encrypted across devices.
+
+    After installation, you can view the Anytype client configuration by running `cat /data/client-config.yml` inside the service container.
+category: note-taking
+tags:
+    - note-taking
+    - local-first
+    - peer-to-peer
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/anytype.svg
+version: latest
+links:
+    docs: https://doc.anytype.io/anytype-docs
+    github: https://github.com/grishy/any-sync-bundle
+    website: https://anytype.io/
+image: ghcr.io/grishy/any-sync-bundle:latest
+ports:
+    - "33010"
+    - "33020"
+env:
+    ANY_SYNC_BUNDLE_INIT_EXTERNAL_ADDRS: 192.168.100.9

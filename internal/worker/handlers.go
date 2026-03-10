@@ -2,6 +2,8 @@ package worker
 
 import (
 	"context"
+	cryptorand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,35 +13,64 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/nats-io/nats.go"
 
 	"github.com/lholliger/hive/internal/backup"
 	"github.com/lholliger/hive/internal/database"
 	"github.com/lholliger/hive/internal/deploy"
+	"github.com/lholliger/hive/internal/github"
 	"github.com/lholliger/hive/internal/maintenance"
 	"github.com/lholliger/hive/internal/networking"
 	"github.com/lholliger/hive/internal/notify"
 	"github.com/lholliger/hive/internal/storage"
 	"github.com/lholliger/hive/internal/store"
 	hiveswarm "github.com/lholliger/hive/internal/swarm"
+	"github.com/lholliger/hive/pkg/encryption"
 )
 
+// toStringMap converts a map[string]any (from JSON unmarshal) to map[string]string,
+// converting numeric and other non-string values via fmt.Sprintf.
+func toStringMap(m map[string]any) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		switch val := v.(type) {
+		case string:
+			out[k] = val
+		case nil:
+			out[k] = ""
+		default:
+			out[k] = fmt.Sprintf("%v", val)
+		}
+	}
+	return out
+}
+
 func (p *Pool) handleBuild(msg *nats.Msg) {
-	var job map[string]string
-	if err := json.Unmarshal(msg.Data, &job); err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal(msg.Data, &raw); err != nil {
 		p.log.Errorf("build: invalid job: %v", err)
 		return
 	}
+	job := toStringMap(raw)
 	appID := job["app_id"]
 	deploymentID := job["deployment_id"]
 	p.log.Infof("build job received: app=%s type=%s", appID, job["deploy_type"])
 
 	p.publishProgress(appID, "cloning repository...")
-	buildDir := filepath.Join(p.cfg.DataDir, "builds", job["name"])
-	if err := os.MkdirAll(buildDir, 0755); err != nil {
-		p.log.Errorf("build: failed to create build dir: %v", err)
-		return
+	buildDir, err := os.MkdirTemp(filepath.Join(p.cfg.DataDir, "builds"), job["name"]+"-*")
+	if err != nil {
+		if mkErr := os.MkdirAll(filepath.Join(p.cfg.DataDir, "builds"), 0755); mkErr != nil {
+			p.log.Errorf("build: failed to create builds parent dir: %v", mkErr)
+			return
+		}
+		buildDir, err = os.MkdirTemp(filepath.Join(p.cfg.DataDir, "builds"), job["name"]+"-*")
+		if err != nil {
+			p.log.Errorf("build: failed to create build dir: %v", err)
+			return
+		}
 	}
 	defer func() { _ = os.RemoveAll(buildDir) }()
 
@@ -49,11 +80,24 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 		branch = "main"
 	}
 
-	cloneCmd := exec.Command("git", "clone", "--depth=1", "--branch", branch, repo, buildDir)
+	cloneURL := repo
+	cloneCtx := context.Background()
+	if strings.Contains(repo, "github.com") {
+		if token, err := p.gitHubCloneToken(cloneCtx); err == nil && token != "" {
+			cloneURL = injectTokenInURL(repo, token)
+		}
+	} else if sourceID := job["git_source_id"]; sourceID != "" {
+		if token := p.patCloneToken(cloneCtx, sourceID); token != "" {
+			cloneURL = injectTokenInURL(repo, token)
+		}
+	}
+
+	cloneCmd := exec.Command("git", "clone", "--depth=1", "--branch", branch, cloneURL, buildDir)
 	if output, err := cloneCmd.CombinedOutput(); err != nil {
 		p.publishProgress(appID, fmt.Sprintf("clone failed: %s", string(output)))
 		p.log.Errorf("build: clone failed: %v", err)
 		p.finishDeployment(deploymentID, "failed", string(output))
+		p.setAppFailed(appID)
 		p.notifyDeployFailure(appID, job["name"], string(output))
 		return
 	}
@@ -82,6 +126,7 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 			p.publishProgress(appID, fmt.Sprintf("docker build failed: %s", buildLog))
 			p.log.Errorf("build: docker build failed: %v", err)
 			p.finishDeployment(deploymentID, "failed", buildLog)
+			p.setAppFailed(appID)
 			p.notifyDeployFailure(appID, job["name"], buildLog)
 			return
 		} else {
@@ -95,6 +140,7 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 			p.publishProgress(appID, fmt.Sprintf("nixpacks build failed: %s", buildLog))
 			p.log.Errorf("build: nixpacks failed: %v", err)
 			p.finishDeployment(deploymentID, "failed", buildLog)
+			p.setAppFailed(appID)
 			p.notifyDeployFailure(appID, job["name"], buildLog)
 			return
 		} else {
@@ -110,6 +156,7 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 			p.publishProgress(appID, fmt.Sprintf("push failed: %s", string(output)))
 			p.log.Errorf("build: push failed: %v", err)
 			p.finishDeployment(deploymentID, "failed", string(output))
+			p.setAppFailed(appID)
 			return
 		}
 		p.publishProgress(appID, "image pushed to registry")
@@ -117,7 +164,7 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 
 	p.appendDeploymentLog(deploymentID, buildLog)
 
-	deployJob, _ := json.Marshal(map[string]string{
+	deployJob, err := json.Marshal(map[string]string{
 		"action":        "deploy",
 		"app_id":        appID,
 		"deployment_id": deploymentID,
@@ -126,6 +173,12 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 		"name":          job["name"],
 		"domain":        job["domain"],
 	})
+	if err != nil {
+		p.log.Errorf("build: marshal deploy job: %v", err)
+		p.finishDeployment(deploymentID, "failed", err.Error())
+		p.setAppFailed(appID)
+		return
+	}
 	if err := p.nc.Publish("hive.deploy", deployJob); err != nil {
 		p.log.Errorf("failed to publish deploy job: %v", err)
 	}
@@ -133,11 +186,12 @@ func (p *Pool) handleBuild(msg *nats.Msg) {
 }
 
 func (p *Pool) handleDeploy(msg *nats.Msg) {
-	var job map[string]string
-	if err := json.Unmarshal(msg.Data, &job); err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal(msg.Data, &raw); err != nil {
 		p.log.Errorf("deploy: invalid job: %v", err)
 		return
 	}
+	job := toStringMap(raw)
 
 	action := job["action"]
 	p.log.Infof("deploy job: action=%s app=%s", action, job["name"])
@@ -150,7 +204,10 @@ func (p *Pool) handleDeploy(msg *nats.Msg) {
 	defer func() { _ = sc.Close() }()
 
 	ctx := context.Background()
+	p.dispatchDeployAction(ctx, sc, action, job)
+}
 
+func (p *Pool) dispatchDeployAction(ctx context.Context, sc *hiveswarm.Client, action string, job map[string]string) {
 	switch action {
 	case "deploy":
 		p.deployService(ctx, sc, job)
@@ -162,13 +219,154 @@ func (p *Pool) handleDeploy(msg *nats.Msg) {
 		p.deployStack(ctx, sc, job)
 	case "stack_remove":
 		p.removeStack(ctx, sc, job)
+	case "run_job":
+		p.runScheduledJob(ctx, job)
 	default:
 		p.log.Warnf("deploy: unknown action: %s", action)
 	}
 }
 
+func (p *Pool) runScheduledJob(ctx context.Context, job map[string]string) {
+	if p.store == nil {
+		p.log.Warn("run_job: store unavailable")
+		return
+	}
+	jobID := job["job_id"]
+	if jobID == "" {
+		p.log.Warn("run_job: missing job_id")
+		return
+	}
+
+	sj, err := p.store.GetScheduledJob(ctx, jobID)
+	if err != nil {
+		p.log.Errorf("run_job: load scheduled job %s: %v", jobID, err)
+		return
+	}
+
+	run, err := p.store.CreateJobRun(ctx, sj.ID, "running", "")
+	if err != nil {
+		p.log.Errorf("run_job: create job_run: %v", err)
+		return
+	}
+
+	jobCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+
+	containerName := fmt.Sprintf("hive-job-%s", strings.ReplaceAll(run.ID, "-", "")[:12])
+	args := []string{
+		"run", "--rm",
+		"--name", containerName,
+		"--network", "hive-net",
+		"--label", "hive.managed=true",
+		"--label", "hive.job_id=" + sj.ID,
+	}
+
+	var env map[string]string
+	if len(sj.Env) > 0 {
+		_ = json.Unmarshal(sj.Env, &env)
+	}
+	for k, v := range env {
+		args = append(args, "-e", k+"="+v)
+	}
+	args = append(args, sj.Image)
+	if strings.TrimSpace(sj.Command) != "" {
+		args = append(args, "sh", "-c", sj.Command)
+	}
+
+	cmd := exec.CommandContext(jobCtx, "docker", args...)
+	output, runErr := cmd.CombinedOutput()
+	logs := string(output)
+
+	status := "success"
+	var exitCode *int
+	if runErr != nil {
+		status = "failed"
+		if ee, ok := runErr.(*exec.ExitError); ok {
+			code := ee.ExitCode()
+			exitCode = &code
+		} else {
+			code := 1
+			exitCode = &code
+		}
+		p.log.Warnf("run_job: job %s failed: %v", sj.Name, runErr)
+	} else {
+		code := 0
+		exitCode = &code
+	}
+
+	if err := p.store.UpdateJobRun(context.Background(), run.ID, status, exitCode, logs); err != nil {
+		p.log.Errorf("run_job: update job_run: %v", err)
+	}
+	_ = p.store.UpdateJobLastRun(context.Background(), sj.ID, nil)
+}
+
+func (p *Pool) ensureAppVolumes(ctx context.Context, sc *hiveswarm.Client, appID string) {
+	if p.store == nil || sc == nil {
+		return
+	}
+	appVolumes, err := p.store.ListAppVolumes(ctx, appID)
+	if err != nil || len(appVolumes) == 0 {
+		return
+	}
+	for _, av := range appVolumes {
+		vol, err := p.store.GetVolume(ctx, av.VolumeID)
+		if err != nil || vol == nil {
+			continue
+		}
+		if vol.MountType == "" || vol.MountType == "volume" {
+			continue
+		}
+		labels := map[string]string{
+			"hive.managed":    "true",
+			"hive.volume_id":  vol.ID,
+			"hive.project_id": vol.ProjectID,
+		}
+		switch vol.MountType {
+		case "nfs":
+			if vol.RemoteHost != "" && vol.RemotePath != "" {
+				if _, err := sc.CreateNFSVolume(ctx, vol.Name, vol.RemoteHost, vol.RemotePath, vol.MountOptions, labels); err != nil {
+					p.log.Warnf("ensure volume %s (nfs): %v", vol.Name, err)
+				}
+			}
+		case "cifs":
+			if vol.RemoteHost != "" && vol.RemotePath != "" {
+				username, password := "", ""
+				if vol.StorageHostID != "" {
+					if sh, shErr := p.store.GetStorageHost(ctx, vol.StorageHostID); shErr == nil {
+						creds, _ := storage.DecryptCredentials(sh)
+						username = creds
+					}
+				}
+				if _, err := sc.CreateCIFSVolume(ctx, vol.Name, vol.RemoteHost, vol.RemotePath, username, password, vol.MountOptions, labels); err != nil {
+					p.log.Warnf("ensure volume %s (cifs): %v", vol.Name, err)
+				}
+			}
+		case "cephfs":
+			if vol.StorageHostID != "" {
+				if sh, shErr := p.store.GetStorageHost(ctx, vol.StorageHostID); shErr == nil {
+					monitors := storage.CephMonitorAddresses(sh)
+					monStr := strings.Join(monitors, ",")
+					if _, err := sc.CreateCephFSVolume(ctx, vol.Name, monStr, vol.CephFSName, vol.RemotePath, vol.MountOptions, labels); err != nil {
+						p.log.Warnf("ensure volume %s (cephfs): %v", vol.Name, err)
+					}
+				}
+			}
+		case "ceph-rbd":
+			if vol.StorageHostID != "" {
+				if sh, shErr := p.store.GetStorageHost(ctx, vol.StorageHostID); shErr == nil {
+					monitors := storage.CephMonitorAddresses(sh)
+					monStr := strings.Join(monitors, ",")
+					if _, err := sc.CreateCephRBDVolume(ctx, vol.Name, monStr, vol.CephPool, vol.CephImage, vol.MountOptions, labels); err != nil {
+						p.log.Warnf("ensure volume %s (ceph-rbd): %v", vol.Name, err)
+					}
+				}
+			}
+		}
+	}
+}
+
 func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[string]string) {
-	serviceName := "hive-app-" + job["name"]
+	serviceName := p.resolveServiceName(job)
 	image := job["image"]
 	appID := job["app_id"]
 	deploymentID := job["deployment_id"]
@@ -180,13 +378,6 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 	labels := map[string]string{
 		"hive.managed": "true",
 		"hive.app_id":  appID,
-	}
-	if domain := job["domain"]; domain != "" {
-		labels["traefik.enable"] = "true"
-		labels[fmt.Sprintf("traefik.http.routers.%s.rule", serviceName)] = fmt.Sprintf("Host(`%s`)", domain)
-		labels[fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName)] = "websecure"
-		labels[fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName)] = "letsencrypt"
-		labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName)] = fmt.Sprintf("%d", port)
 	}
 
 	spec := swarm.ServiceSpec{
@@ -207,9 +398,11 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 		},
 	}
 
+	var app *store.App
 	if p.store != nil && appID != "" {
-		app, err := p.store.GetApp(ctx, appID)
-		if err == nil && app != nil {
+		var appErr error
+		app, appErr = p.store.GetApp(ctx, appID)
+		if appErr == nil && app != nil {
 			if app.Replicas > 0 {
 				r := uint64(app.Replicas)
 				spec.Mode.Replicated.Replicas = &r
@@ -245,6 +438,19 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 			}
 		}
 
+		domain := job["domain"]
+		if domain == "" && app != nil {
+			domain = app.Domain
+		}
+		if domain != "" {
+			certResolver := p.certResolver(ctx)
+			labels["traefik.enable"] = "true"
+			labels[fmt.Sprintf("traefik.http.routers.%s.rule", serviceName)] = fmt.Sprintf("Host(`%s`)", domain)
+			labels[fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName)] = "websecure"
+			labels[fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName)] = certResolver
+			labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName)] = fmt.Sprintf("%d", port)
+		}
+
 		appSecrets, err := p.store.ListAppSecrets(ctx, appID)
 		if err == nil && len(appSecrets) > 0 {
 			var secretRefs []*swarm.SecretReference
@@ -276,14 +482,11 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 			spec.TaskTemplate.ContainerSpec.Secrets = secretRefs
 		}
 
-		serviceLinkEnv, err := networking.ResolveServiceLinks(ctx, p.store, appID)
-		if err == nil && len(serviceLinkEnv) > 0 {
-			var env []string
-			for k, v := range serviceLinkEnv {
-				env = append(env, k+"="+v)
-			}
+		if env := p.buildMergedEnv(ctx, appID, job["env"]); len(env) > 0 {
 			spec.TaskTemplate.ContainerSpec.Env = env
 		}
+
+		p.ensureAppVolumes(ctx, sc, appID)
 
 		appVolumes, err := p.store.ListAppVolumes(ctx, appID)
 		if err == nil && len(appVolumes) > 0 {
@@ -308,7 +511,7 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 			}
 		}
 
-		if app, err := p.store.GetApp(ctx, appID); err == nil && app != nil {
+		if app != nil {
 			var constraints []string
 			if len(app.PlacementConstraints) > 0 {
 				if err := json.Unmarshal(app.PlacementConstraints, &constraints); err != nil {
@@ -322,93 +525,41 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 				spec.TaskTemplate.Placement.Constraints = append(spec.TaskTemplate.Placement.Constraints, constraints...)
 			}
 
-			var homepageLabels map[string]string
-			if len(app.HomepageLabels) > 0 {
-				if err := json.Unmarshal(app.HomepageLabels, &homepageLabels); err != nil {
-					p.log.Warnf("unmarshal homepage labels: %v", err)
-				}
-			}
-			for k, v := range homepageLabels {
-				labels[k] = v
-			}
-
-			var extraLabels map[string]string
-			if len(app.ExtraLabels) > 0 {
-				if err := json.Unmarshal(app.ExtraLabels, &extraLabels); err != nil {
-					p.log.Warnf("unmarshal extra labels: %v", err)
-				}
-			}
-			for k, v := range extraLabels {
-				labels[k] = v
-			}
-
-			updateDelay := time.Duration(5 * time.Second)
-			if app.UpdateDelay != "" {
-				if d, err := time.ParseDuration(app.UpdateDelay); err == nil {
-					updateDelay = d
-				}
-			}
-
-			parallelism := uint64(1)
-			if app.UpdateParallelism > 0 {
-				parallelism = uint64(app.UpdateParallelism)
-			}
-
-			failureAction := app.UpdateFailureAction
-			if failureAction == "" {
-				failureAction = "rollback"
-			}
-
-			updateOrder := app.UpdateOrder
-			if updateOrder == "" {
-				updateOrder = "stop-first"
-			}
-
-			spec.UpdateConfig = &swarm.UpdateConfig{
-				Parallelism:   parallelism,
-				Delay:         updateDelay,
-				FailureAction: failureAction,
-				Order:         updateOrder,
-				Monitor:       5 * time.Second,
-			}
-			spec.RollbackConfig = &swarm.UpdateConfig{
-				Parallelism:   1,
-				Delay:         5 * time.Second,
-				FailureAction: "pause",
-				Order:         "stop-first",
-			}
+			p.appendAppLabels(app, labels)
+			p.applyAppUpdateStrategy(app, &spec)
 		}
 	}
 
-	exists, err := sc.ServiceExists(ctx, serviceName)
-	if err != nil {
-		p.log.Errorf("deploy: check service: %v", err)
+	if port > 0 {
+		spec.EndpointSpec = &swarm.EndpointSpec{
+			Ports: []swarm.PortConfig{{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    uint32(port),
+				PublishedPort: uint32(port),
+				PublishMode:   swarm.PortConfigPublishModeIngress,
+			}},
+		}
+	}
+
+	var placementConstraints []string
+	if spec.TaskTemplate.Placement != nil {
+		placementConstraints = spec.TaskTemplate.Placement.Constraints
+	}
+	if err := sc.ValidatePlacement(ctx, placementConstraints); err != nil {
+		p.log.Errorf("deploy: preflight failed: %v", err)
 		p.publishProgress(appID, "deployment failed: "+err.Error())
-		p.finishDeployment(deploymentID, "failed", err.Error())
-		p.notifyDeployFailure(appID, job["name"], err.Error())
+		p.finishDeployment(deploymentID, "failed", "preflight: "+err.Error())
+		p.setAppFailed(appID)
+		p.notifyDeployFailure(appID, job["name"], "preflight: "+err.Error())
 		return
 	}
 
-	if exists {
-		svc, err := sc.GetService(ctx, serviceName)
-		if err != nil || svc == nil {
-			p.log.Errorf("deploy: get service: %v", err)
-			p.finishDeployment(deploymentID, "failed", "service lookup failed")
-			return
-		}
-		if err := sc.UpdateService(ctx, svc.ID, svc.Version, spec); err != nil {
-			p.publishProgress(appID, "deployment failed: "+err.Error())
-			p.finishDeployment(deploymentID, "failed", err.Error())
-			p.notifyDeployFailure(appID, job["name"], err.Error())
-			return
-		}
-	} else {
-		if err := sc.CreateService(ctx, spec); err != nil {
-			p.publishProgress(appID, "deployment failed: "+err.Error())
-			p.finishDeployment(deploymentID, "failed", err.Error())
-			p.notifyDeployFailure(appID, job["name"], err.Error())
-			return
-		}
+	if err := p.applyServiceSpec(ctx, sc, serviceName, &spec, port); err != nil {
+		p.publishProgress(appID, "deployment failed: "+err.Error())
+		p.finishDeployment(deploymentID, "failed", err.Error())
+		p.setAppFailed(appID)
+		p.notifyDeployFailure(appID, job["name"], err.Error())
+		return
 	}
 
 	p.publishProgress(appID, "deployment complete")
@@ -421,8 +572,171 @@ func (p *Pool) deployService(ctx context.Context, sc *hiveswarm.Client, job map[
 	p.notifyDeploySuccess(appID, job["name"])
 }
 
+func (p *Pool) applyServiceSpec(ctx context.Context, sc *hiveswarm.Client, serviceName string, spec *swarm.ServiceSpec, port int) error {
+	exists, err := sc.ServiceExists(ctx, serviceName)
+	if err != nil {
+		return fmt.Errorf("check service: %w", err)
+	}
+
+	tryAutoAssign := func() {
+		if spec.EndpointSpec == nil {
+			return
+		}
+		for i := range spec.EndpointSpec.Ports {
+			spec.EndpointSpec.Ports[i].PublishedPort = 0
+		}
+	}
+
+	if exists {
+		svc, err := sc.GetService(ctx, serviceName)
+		if err != nil || svc == nil {
+			return fmt.Errorf("service lookup failed")
+		}
+		if err := sc.UpdateService(ctx, svc.ID, svc.Version, *spec); err != nil {
+			if strings.Contains(err.Error(), "already allocated") && spec.EndpointSpec != nil {
+				p.log.Warnf("deploy: port conflict on update, retrying with auto-assign")
+				tryAutoAssign()
+				if retryErr := sc.UpdateService(ctx, svc.ID, svc.Version, *spec); retryErr != nil {
+					return retryErr
+				}
+				return nil
+			}
+			return err
+		}
+		return nil
+	}
+
+	if err := sc.CreateService(ctx, *spec); err != nil {
+		if strings.Contains(err.Error(), "already allocated") && spec.EndpointSpec != nil {
+			p.log.Warnf("deploy: port %d conflict, retrying with auto-assign", port)
+			tryAutoAssign()
+			if retryErr := sc.CreateService(ctx, *spec); retryErr != nil {
+				return retryErr
+			}
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (p *Pool) buildMergedEnv(ctx context.Context, appID, jobEnv string) []string {
+	// Merge env from all sources (lowest priority first):
+	// 1. Job-level env (from template deploy)
+	// 2. App env vars (user-configured via UI/API)
+	// 3. Service link env (auto-discovered connections)
+	mergedEnv := make(map[string]string)
+
+	if jobEnv != "" {
+		var templateEnv map[string]string
+		if err := json.Unmarshal([]byte(jobEnv), &templateEnv); err == nil {
+			for k, v := range templateEnv {
+				mergedEnv[k] = v
+			}
+		}
+	}
+
+	appEnvVars, err := p.store.ListAppEnvVars(ctx, appID)
+	if err == nil {
+		for _, ev := range appEnvVars {
+			val, decErr := encryption.Decrypt(ev.ValueEncrypted)
+			if decErr != nil {
+				p.log.Warnf("deploy: decrypt env var %s: %v", ev.Key, decErr)
+				continue
+			}
+			mergedEnv[ev.Key] = string(val)
+		}
+	}
+
+	serviceLinkEnv, err := networking.ResolveServiceLinks(ctx, p.store, appID)
+	if err == nil {
+		for k, v := range serviceLinkEnv {
+			mergedEnv[k] = v
+		}
+	}
+
+	if len(mergedEnv) == 0 {
+		return nil
+	}
+	env := make([]string, 0, len(mergedEnv))
+	for k, v := range mergedEnv {
+		env = append(env, k+"="+v)
+	}
+	return env
+}
+
+func (p *Pool) appendAppLabels(app *store.App, labels map[string]string) {
+	var homepageLabels map[string]string
+	if len(app.HomepageLabels) > 0 {
+		if err := json.Unmarshal(app.HomepageLabels, &homepageLabels); err != nil {
+			p.log.Warnf("unmarshal homepage labels: %v", err)
+		}
+	}
+	for k, v := range homepageLabels {
+		labels[k] = v
+	}
+
+	var extraLabels map[string]string
+	if len(app.ExtraLabels) > 0 {
+		if err := json.Unmarshal(app.ExtraLabels, &extraLabels); err != nil {
+			p.log.Warnf("unmarshal extra labels: %v", err)
+		}
+	}
+	for k, v := range extraLabels {
+		labels[k] = v
+	}
+}
+
+func (p *Pool) applyAppUpdateStrategy(app *store.App, spec *swarm.ServiceSpec) {
+	updateDelay := 5 * time.Second
+	if app.UpdateDelay != "" {
+		if d, err := time.ParseDuration(app.UpdateDelay); err == nil {
+			updateDelay = d
+		}
+	}
+
+	parallelism := uint64(1)
+	if app.UpdateParallelism > 0 {
+		parallelism = uint64(app.UpdateParallelism)
+	}
+
+	failureAction := app.UpdateFailureAction
+	if failureAction == "" {
+		failureAction = "rollback"
+	}
+
+	updateOrder := app.UpdateOrder
+	if updateOrder == "" {
+		updateOrder = "stop-first"
+	}
+
+	spec.UpdateConfig = &swarm.UpdateConfig{
+		Parallelism:   parallelism,
+		Delay:         updateDelay,
+		FailureAction: failureAction,
+		Order:         updateOrder,
+		Monitor:       5 * time.Second,
+	}
+	spec.RollbackConfig = &swarm.UpdateConfig{
+		Parallelism:   1,
+		Delay:         5 * time.Second,
+		FailureAction: "pause",
+		Order:         "stop-first",
+	}
+}
+
+// resolveServiceName determines the Docker service name from the job.
+// Preview deploys already carry the full service name; normal app deploys
+// get the "hive-app-" prefix.
+func (p *Pool) resolveServiceName(job map[string]string) string {
+	if job["preview"] == "true" {
+		return job["name"]
+	}
+	return "hive-app-" + job["name"]
+}
+
 func (p *Pool) removeService(ctx context.Context, sc *hiveswarm.Client, job map[string]string) {
-	serviceName := "hive-app-" + job["name"]
+	serviceName := p.resolveServiceName(job)
 	svc, err := sc.GetService(ctx, serviceName)
 	if err != nil || svc == nil {
 		p.log.Warnf("remove: service %s not found", serviceName)
@@ -434,93 +748,51 @@ func (p *Pool) removeService(ctx context.Context, sc *hiveswarm.Client, job map[
 }
 
 func (p *Pool) provisionDatabase(ctx context.Context, sc *hiveswarm.Client, job map[string]string) {
-	p.log.Infof("provisioning database: %s type=%s", job["name"], job["db_type"])
+	p.log.Infof("provisioning database: %s type=%s mode=%s", job["name"], job["db_type"], job["storage_mode"])
 	p.publishProgress(job["db_id"], fmt.Sprintf("provisioning %s database %s", job["db_type"], job["name"]))
 
-	dbImages := map[string]string{
-		"postgres": "postgres:16-alpine",
-		"mysql":    "mysql:8",
-		"redis":    "redis:7-alpine",
-		"mongo":    "mongo:7",
+	provisioner := database.NewProvisioner(sc, p.log)
+	opts := database.ProvisionOptions{
+		StorageMode:   job["storage_mode"],
+		StorageHostID: job["storage_host_id"],
+		NodeID:        job["node_id"],
 	}
 
-	image, ok := dbImages[job["db_type"]]
-	if !ok {
-		p.log.Errorf("provision: unsupported db type: %s", job["db_type"])
-		return
-	}
-	if v := job["version"]; v != "" && v != "latest" {
-		image = fmt.Sprintf("%s:%s", job["db_type"], v)
-	}
-
-	serviceName := fmt.Sprintf("hive-db-%s", job["name"])
-	password := fmt.Sprintf("hive-%s-pass", job["name"])
-
-	var env []string
-	switch job["db_type"] {
-	case "postgres":
-		env = []string{
-			"POSTGRES_DB=" + job["name"],
-			"POSTGRES_USER=" + job["name"],
-			"POSTGRES_PASSWORD=" + password,
-		}
-	case "mysql":
-		env = []string{
-			"MYSQL_DATABASE=" + job["name"],
-			"MYSQL_USER=" + job["name"],
-			"MYSQL_PASSWORD=" + password,
-			"MYSQL_ROOT_PASSWORD=" + password + "-root",
-		}
-	case "redis":
-		env = []string{}
-	case "mongo":
-		env = []string{
-			"MONGO_INITDB_ROOT_USERNAME=" + job["name"],
-			"MONGO_INITDB_ROOT_PASSWORD=" + password,
+	if opts.StorageMode == "remote" && opts.StorageHostID != "" && p.store != nil {
+		sh, err := p.store.GetStorageHost(ctx, opts.StorageHostID)
+		if err == nil {
+			opts.NFSHost = sh.Address
+			opts.NFSPath = sh.DefaultExportPath + "/hive-db-" + job["name"]
 		}
 	}
 
-	replicas := uint64(1)
-	spec := swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
-			Name: serviceName,
-			Labels: map[string]string{
-				"hive.managed":   "true",
-				"hive.component": "database",
-				"hive.db_type":   job["db_type"],
-			},
-		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
-				Image: image,
-				Env:   env,
-			},
-			Networks: []swarm.NetworkAttachmentConfig{
-				{Target: "hive-net"},
-			},
-			Placement: &swarm.Placement{
-				Constraints: []string{"node.role == manager"},
-			},
-		},
-		Mode: swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{Replicas: &replicas},
-		},
-	}
-
-	if err := sc.CreateService(ctx, spec); err != nil {
+	connStr, err := provisioner.ProvisionWithOptions(ctx, job["name"], job["db_type"], job["version"], opts)
+	if err != nil {
 		p.log.Errorf("provision: %v", err)
 		p.publishProgress(job["db_id"], "provisioning failed: "+err.Error())
+		if p.store != nil {
+			_ = p.store.UpdateManagedDatabaseStatus(ctx, job["db_id"], "failed")
+		}
 		return
+	}
+
+	if p.store != nil && connStr != "" {
+		connEncrypted, err := encryption.Encrypt([]byte(connStr))
+		if err == nil {
+			_ = p.store.UpdateManagedDatabaseConnection(ctx, job["db_id"], connEncrypted)
+		}
+		_ = p.store.UpdateManagedDatabaseStatus(ctx, job["db_id"], "running")
 	}
 	p.publishProgress(job["db_id"], "database provisioned successfully")
 }
 
 func (p *Pool) handleBackup(msg *nats.Msg) {
-	var job map[string]string
-	if err := json.Unmarshal(msg.Data, &job); err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal(msg.Data, &raw); err != nil {
 		p.log.Errorf("backup: invalid job: %v", err)
 		return
 	}
+	job := toStringMap(raw)
 
 	if job["action"] == "restore" {
 		p.handleRestore(job)
@@ -564,7 +836,7 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 			return
 		}
 		backupName = vol.Name
-		outputDir := filepath.Join(p.cfg.DataDir, "backups", vol.Name)
+		outputDir := filepath.Join(p.cfg.BackupDir, vol.Name)
 		fileRunner := backup.NewFileBackupRunner(p.log)
 		outputPath, err = fileRunner.BackupVolume(ctx, vol.Name, outputDir)
 		if err != nil {
@@ -588,7 +860,20 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 		backupName = db.Name
 		serviceName := fmt.Sprintf("hive-db-%s", db.Name)
 		password := fmt.Sprintf("hive-%s-pass", db.Name)
-		outputDir := filepath.Join(p.cfg.DataDir, "backups", db.Name)
+		if len(db.ConnectionEncrypted) > 0 {
+			if connBytes, decErr := encryption.Decrypt(db.ConnectionEncrypted); decErr == nil {
+				connStr := string(connBytes)
+				if idx := strings.Index(connStr, "://"); idx >= 0 {
+					rest := connStr[idx+3:]
+					if colonIdx := strings.Index(rest, ":"); colonIdx >= 0 {
+						if atIdx := strings.Index(rest, "@"); atIdx > colonIdx {
+							password = rest[colonIdx+1 : atIdx]
+						}
+					}
+				}
+			}
+		}
+		outputDir := filepath.Join(p.cfg.BackupDir, db.Name)
 
 		runner := database.NewBackupRunner(p.log)
 		outputPath, err = runner.BackupDatabase(ctx, db.DBType, serviceName, db.Name, db.Name, password, outputDir)
@@ -602,14 +887,26 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 		}
 	}
 
-	fileInfo, _ := os.Stat(outputPath)
+	fileInfo, statErr := os.Stat(outputPath)
+	if statErr != nil {
+		p.log.Warnf("backup: stat output file %s: %v", outputPath, statErr)
+	}
 	size := int64(0)
 	if fileInfo != nil {
 		size = fileInfo.Size()
 	}
 
 	targetPath := outputPath
-	if config.S3Bucket != "" {
+	destination := config.Destination
+	if destination == "" && config.S3Bucket != "" {
+		destination = "s3"
+	}
+	if destination == "" {
+		destination = "local"
+	}
+
+	switch destination {
+	case "s3":
 		s3Path := fmt.Sprintf("%s/%s", config.S3Prefix, filepath.Base(outputPath))
 		targetPath = fmt.Sprintf("s3://%s/%s", config.S3Bucket, s3Path)
 
@@ -629,10 +926,38 @@ func (p *Pool) handleBackup(msg *nats.Msg) {
 						p.log.Warnf("backup: S3 upload failed: %v", err)
 					} else {
 						p.log.Infof("backup: uploaded to %s", targetPath)
-					_ = os.Remove(outputPath)
+						_ = os.Remove(outputPath)
+					}
+					_ = f.Close()
 				}
-				_ = f.Close()
-				}
+			}
+		}
+	case "nas":
+		nasPath := config.NASPath
+		if nasPath == "" {
+			nasPath = filepath.Join(p.cfg.DataDir, "nas-backups", backupName)
+		}
+		nasWriter := backup.NewNASBackupWriter(p.log)
+		if dest, err := nasWriter.CopyToNAS(ctx, outputPath, nasPath); err != nil {
+			p.log.Warnf("backup: NAS copy failed: %v", err)
+		} else {
+			targetPath = dest
+			_ = os.Remove(outputPath)
+		}
+		if config.RetentionDays > 0 {
+			nasWriter.EnforceRetention(nasPath, config.RetentionDays)
+		}
+	case "local":
+		if config.LocalPath != "" {
+			nasWriter := backup.NewNASBackupWriter(p.log)
+			if dest, err := nasWriter.CopyToNAS(ctx, outputPath, config.LocalPath); err != nil {
+				p.log.Warnf("backup: local copy failed: %v", err)
+			} else {
+				targetPath = dest
+				_ = os.Remove(outputPath)
+			}
+			if config.RetentionDays > 0 {
+				nasWriter.EnforceRetention(config.LocalPath, config.RetentionDays)
 			}
 		}
 	}
@@ -674,6 +999,42 @@ func (p *Pool) deployStack(ctx context.Context, sc *hiveswarm.Client, job map[st
 		return
 	}
 
+	// Create per-stack overlay network for inter-service DNS resolution
+	stackNetName := stackName + "-net"
+	if err := sc.EnsureNetwork(ctx, stackNetName, network.CreateOptions{
+		Driver:     "overlay",
+		Attachable: true,
+		Labels:     map[string]string{"hive.managed": "true", "hive.stack_id": stackID},
+	}); err != nil {
+		p.log.Warnf("stack deploy: create stack network %s: %v", stackNetName, err)
+	}
+
+	// Create compose-defined networks
+	composeNetMap := make(map[string]string) // compose network name -> actual Docker network name
+	for netName, netDef := range cf.Networks {
+		if netDef.External {
+			composeNetMap[netName] = netName
+			continue
+		}
+		actualName := fmt.Sprintf("%s_%s", stackName, netName)
+		driver := netDef.Driver
+		if driver == "" {
+			driver = "overlay"
+		}
+		if err := sc.EnsureNetwork(ctx, actualName, network.CreateOptions{
+			Driver:     driver,
+			Attachable: true,
+			Labels:     map[string]string{"hive.managed": "true", "hive.stack_id": stackID},
+		}); err != nil {
+			p.log.Warnf("stack deploy: create compose network %s: %v", actualName, err)
+		}
+		composeNetMap[netName] = actualName
+	}
+
+	anyServiceFailed := false
+	stackDomain := strings.TrimSpace(job["domain"])
+	stackDomainAssigned := false
+
 	for _, svc := range services {
 		replicas := uint64(svc.Replicas)
 		var env []string
@@ -688,51 +1049,353 @@ func (p *Pool) deployStack(ctx context.Context, sc *hiveswarm.Client, job map[st
 		for k, v := range svc.Labels {
 			svcLabels[k] = v
 		}
+		for k, v := range svc.DeployLabels {
+			svcLabels[k] = v
+		}
+
+		hasTraefikRule := false
+		for k := range svcLabels {
+			if strings.Contains(k, "traefik.http.routers.") && strings.HasSuffix(k, ".rule") {
+				hasTraefikRule = true
+				break
+			}
+		}
+
+		if len(svc.Ports) > 0 {
+			svcLabels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", svc.Name)] = fmt.Sprintf("%d", svc.Ports[0].Target)
+			if hasTraefikRule || svcLabels["traefik.enable"] == "true" {
+				svcLabels["traefik.enable"] = "true"
+			}
+		}
+
+		if stackDomain != "" && !hasTraefikRule && !stackDomainAssigned && len(svc.Ports) > 0 {
+			certResolver := p.certResolver(ctx)
+			svcLabels["traefik.enable"] = "true"
+			svcLabels[fmt.Sprintf("traefik.http.routers.%s.rule", svc.Name)] = fmt.Sprintf("Host(`%s`)", stackDomain)
+			svcLabels[fmt.Sprintf("traefik.http.routers.%s.entrypoints", svc.Name)] = "websecure"
+			svcLabels[fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", svc.Name)] = certResolver
+			stackDomainAssigned = true
+		}
+
+		var mounts []mount.Mount
+		for _, vm := range svc.Volumes {
+			if vm.Source == "" {
+				// Anonymous volume (single-path in compose, e.g. "/data")
+				mounts = append(mounts, mount.Mount{
+					Type:     mount.TypeVolume,
+					Target:   vm.Target,
+					ReadOnly: vm.ReadOnly,
+				})
+				continue
+			}
+
+			if strings.HasPrefix(vm.Source, "/") {
+				mounts = append(mounts, mount.Mount{
+					Type:     mount.TypeBind,
+					Source:   vm.Source,
+					Target:   vm.Target,
+					ReadOnly: vm.ReadOnly,
+				})
+				continue
+			}
+
+			// Skip relative paths (./data, ~/data) - not valid in Swarm
+			if strings.HasPrefix(vm.Source, ".") || strings.HasPrefix(vm.Source, "~") {
+				p.log.Warnf("stack deploy: skipping relative volume path %q for service %s", vm.Source, svc.Name)
+				continue
+			}
+
+			volName := fmt.Sprintf("%s_%s", stackName, vm.Source)
+			if volDef, ok := cf.Volumes[vm.Source]; ok && !volDef.External && volDef.Driver != "" {
+				labels := map[string]string{"hive.managed": "true", "hive.stack_id": stackID}
+				if volDef.DriverOpts != nil {
+					if volDef.DriverOpts["type"] == "nfs" {
+						addr := volDef.DriverOpts["o"]
+						device := volDef.DriverOpts["device"]
+						if addr != "" && device != "" {
+							if _, err := sc.CreateNFSVolume(ctx, volName, addr, device, "", labels); err != nil {
+								p.log.Warnf("stack deploy: create NFS volume %s: %v", volName, err)
+							}
+						}
+					} else if volDef.DriverOpts["type"] == "cifs" {
+						device := volDef.DriverOpts["device"]
+						opts := volDef.DriverOpts["o"]
+						if device != "" {
+							if _, vErr := sc.CreateVolume(ctx, volName, "local", volDef.DriverOpts, labels); vErr != nil {
+								p.log.Warnf("stack deploy: create CIFS volume %s: %v", volName, vErr)
+							}
+							_ = opts
+						}
+					} else {
+						if _, vErr := sc.CreateVolume(ctx, volName, volDef.Driver, volDef.DriverOpts, labels); vErr != nil {
+							p.log.Warnf("stack deploy: create volume %s with driver %s: %v", volName, volDef.Driver, vErr)
+						}
+					}
+				} else {
+					if _, vErr := sc.CreateVolume(ctx, volName, volDef.Driver, nil, labels); vErr != nil {
+						p.log.Warnf("stack deploy: create volume %s with driver %s: %v", volName, volDef.Driver, vErr)
+					}
+				}
+			}
+			mounts = append(mounts, mount.Mount{
+				Type:     mount.TypeVolume,
+				Source:   volName,
+				Target:   vm.Target,
+				ReadOnly: vm.ReadOnly,
+			})
+		}
+
+		containerSpec := &swarm.ContainerSpec{
+			Image:  svc.Image,
+			Env:    env,
+			Mounts: mounts,
+		}
+
+		if len(svc.Command) > 0 {
+			if len(svc.Command) == 1 {
+				containerSpec.Command = svc.Command
+			} else {
+				containerSpec.Command = svc.Command[:1]
+				containerSpec.Args = svc.Command[1:]
+			}
+		}
+		if len(svc.Entrypoint) > 0 {
+			containerSpec.Command = svc.Entrypoint
+			if len(svc.Command) > 0 {
+				containerSpec.Args = svc.Command
+			}
+		}
+		if svc.User != "" {
+			containerSpec.User = svc.User
+		}
+		if svc.WorkingDir != "" {
+			containerSpec.Dir = svc.WorkingDir
+		}
+		if svc.Hostname != "" {
+			containerSpec.Hostname = svc.Hostname
+		}
+		if len(svc.CapAdd) > 0 {
+			containerSpec.CapabilityAdd = svc.CapAdd
+		}
+		if len(svc.CapDrop) > 0 {
+			containerSpec.CapabilityDrop = svc.CapDrop
+		}
+
+		if svc.Healthcheck != nil {
+			test := deploy.ParseHealthcheckTest(svc.Healthcheck.Test)
+			if len(test) > 0 {
+				hc := &container.HealthConfig{
+					Test: test,
+				}
+				if d := deploy.ParseDuration(svc.Healthcheck.Interval); d > 0 {
+					hc.Interval = d
+				}
+				if d := deploy.ParseDuration(svc.Healthcheck.Timeout); d > 0 {
+					hc.Timeout = d
+				}
+				if svc.Healthcheck.Retries > 0 {
+					hc.Retries = svc.Healthcheck.Retries
+				}
+				if d := deploy.ParseDuration(svc.Healthcheck.StartPeriod); d > 0 {
+					hc.StartPeriod = d
+				}
+				containerSpec.Healthcheck = hc
+			}
+		}
+
+		svcNetworks := []swarm.NetworkAttachmentConfig{
+			{Target: stackNetName, Aliases: []string{svc.ShortName}},
+			{Target: "hive-net"},
+		}
+		for _, netName := range svc.Networks {
+			if actual, ok := composeNetMap[netName]; ok {
+				alreadyAdded := false
+				for _, n := range svcNetworks {
+					if n.Target == actual {
+						alreadyAdded = true
+						break
+					}
+				}
+				if !alreadyAdded {
+					svcNetworks = append(svcNetworks, swarm.NetworkAttachmentConfig{Target: actual})
+				}
+			}
+		}
+
+		taskSpec := swarm.TaskSpec{
+			ContainerSpec: containerSpec,
+			Networks:      svcNetworks,
+		}
+
+		if svc.Resources != nil {
+			taskSpec.Resources = &swarm.ResourceRequirements{}
+			if svc.Resources.Limits != nil {
+				taskSpec.Resources.Limits = &swarm.Limit{}
+				if n := deploy.ParseCPUs(svc.Resources.Limits.CPUs); n > 0 {
+					taskSpec.Resources.Limits.NanoCPUs = n
+				}
+				if m := deploy.ParseMemory(svc.Resources.Limits.Memory); m > 0 {
+					taskSpec.Resources.Limits.MemoryBytes = m
+				}
+			}
+			if svc.Resources.Reservations != nil {
+				taskSpec.Resources.Reservations = &swarm.Resources{}
+				if n := deploy.ParseCPUs(svc.Resources.Reservations.CPUs); n > 0 {
+					taskSpec.Resources.Reservations.NanoCPUs = n
+				}
+				if m := deploy.ParseMemory(svc.Resources.Reservations.Memory); m > 0 {
+					taskSpec.Resources.Reservations.MemoryBytes = m
+				}
+			}
+		}
+
+		if svc.RestartPolicy != nil {
+			rp := &swarm.RestartPolicy{}
+			switch svc.RestartPolicy.Condition {
+			case "none":
+				c := swarm.RestartPolicyConditionNone
+				rp.Condition = c
+			case "on-failure":
+				c := swarm.RestartPolicyConditionOnFailure
+				rp.Condition = c
+			default:
+				c := swarm.RestartPolicyConditionAny
+				rp.Condition = c
+			}
+			if d := deploy.ParseDuration(svc.RestartPolicy.Delay); d > 0 {
+				rp.Delay = &d
+			}
+			if svc.RestartPolicy.MaxAttempts > 0 {
+				ma := uint64(svc.RestartPolicy.MaxAttempts)
+				rp.MaxAttempts = &ma
+			}
+			if d := deploy.ParseDuration(svc.RestartPolicy.Window); d > 0 {
+				rp.Window = &d
+			}
+			taskSpec.RestartPolicy = rp
+		}
+
+		if len(svc.Constraints) > 0 {
+			taskSpec.Placement = &swarm.Placement{
+				Constraints: svc.Constraints,
+			}
+		}
 
 		spec := swarm.ServiceSpec{
 			Annotations: swarm.Annotations{
 				Name:   svc.Name,
 				Labels: svcLabels,
 			},
-			TaskTemplate: swarm.TaskSpec{
-				ContainerSpec: &swarm.ContainerSpec{
-					Image: svc.Image,
-					Env:   env,
-				},
-				Networks: []swarm.NetworkAttachmentConfig{
-					{Target: "hive-net"},
-				},
-			},
+			TaskTemplate: taskSpec,
 			Mode: swarm.ServiceMode{
 				Replicated: &swarm.ReplicatedService{Replicas: &replicas},
 			},
 		}
 
-		if len(svc.Constraints) > 0 {
-			spec.TaskTemplate.Placement = &swarm.Placement{
-				Constraints: svc.Constraints,
+		if svc.ServiceMode == "global" {
+			spec.Mode = swarm.ServiceMode{Global: &swarm.GlobalService{}}
+		}
+
+		if svc.UpdateConfig != nil {
+			spec.UpdateConfig = &swarm.UpdateConfig{}
+			if svc.UpdateConfig.Parallelism > 0 {
+				p := uint64(svc.UpdateConfig.Parallelism)
+				spec.UpdateConfig.Parallelism = p
+			}
+			if d := deploy.ParseDuration(svc.UpdateConfig.Delay); d > 0 {
+				spec.UpdateConfig.Delay = d
+			}
+			switch svc.UpdateConfig.FailureAction {
+			case "rollback":
+				spec.UpdateConfig.FailureAction = "rollback"
+			case "pause":
+				spec.UpdateConfig.FailureAction = "pause"
+			case "continue":
+				spec.UpdateConfig.FailureAction = "continue"
+			}
+			if svc.UpdateConfig.Order != "" {
+				spec.UpdateConfig.Order = svc.UpdateConfig.Order
 			}
 		}
 
-		exists, _ := sc.ServiceExists(ctx, svc.Name)
+		if len(svc.Ports) > 0 {
+			var portConfigs []swarm.PortConfig
+			for _, pm := range svc.Ports {
+				published := uint32(pm.Published)
+				if published == 0 {
+					published = uint32(pm.Target)
+				}
+				proto := swarm.PortConfigProtocolTCP
+				if pm.Protocol == "udp" {
+					proto = swarm.PortConfigProtocolUDP
+				}
+				portConfigs = append(portConfigs, swarm.PortConfig{
+					Protocol:      proto,
+					TargetPort:    uint32(pm.Target),
+					PublishedPort: published,
+					PublishMode:   swarm.PortConfigPublishModeIngress,
+				})
+			}
+			spec.EndpointSpec = &swarm.EndpointSpec{Ports: portConfigs}
+		}
+
+		exists, existsErr := sc.ServiceExists(ctx, svc.Name)
+		if existsErr != nil {
+			p.log.Warnf("stack deploy: check service %s: %v", svc.Name, existsErr)
+			anyServiceFailed = true
+		}
 		if exists {
 			existing, err := sc.GetService(ctx, svc.Name)
 			if err == nil && existing != nil {
 				if err := sc.UpdateService(ctx, existing.ID, existing.Version, spec); err != nil {
-				p.log.Warnf("stack deploy: update service %s: %v", svc.Name, err)
-			}
+					if strings.Contains(err.Error(), "already allocated") && spec.EndpointSpec != nil {
+						p.log.Warnf("stack deploy: port conflict on %s, retrying with auto-assign", svc.Name)
+						for i := range spec.EndpointSpec.Ports {
+							spec.EndpointSpec.Ports[i].PublishedPort = 0
+						}
+						if retryErr := sc.UpdateService(ctx, existing.ID, existing.Version, spec); retryErr != nil {
+							p.log.Warnf("stack deploy: update service %s: %v", svc.Name, retryErr)
+							anyServiceFailed = true
+						}
+					} else {
+						p.log.Warnf("stack deploy: update service %s: %v", svc.Name, err)
+						anyServiceFailed = true
+					}
+				}
+			} else if err != nil {
+				anyServiceFailed = true
 			}
 		} else {
 			if err := sc.CreateService(ctx, spec); err != nil {
-				p.log.Errorf("stack deploy: create service %s: %v", svc.Name, err)
+				if strings.Contains(err.Error(), "already allocated") && spec.EndpointSpec != nil {
+					p.log.Warnf("stack deploy: port conflict on %s, retrying with auto-assign", svc.Name)
+					for i := range spec.EndpointSpec.Ports {
+						spec.EndpointSpec.Ports[i].PublishedPort = 0
+					}
+					if retryErr := sc.CreateService(ctx, spec); retryErr != nil {
+						p.log.Errorf("stack deploy: create service %s: %v", svc.Name, retryErr)
+						anyServiceFailed = true
+					}
+				} else {
+					p.log.Errorf("stack deploy: create service %s: %v", svc.Name, err)
+					anyServiceFailed = true
+				}
 			}
 		}
 	}
 
-	if err := p.store.UpdateStack(ctx, &store.Stack{ID: stackID, Name: stackName, ComposeContent: st.ComposeContent, Status: "running"}); err != nil {
+	finalStatus := "running"
+	if anyServiceFailed {
+		finalStatus = "failed"
+	}
+	if err := p.store.UpdateStackStatus(ctx, stackID, finalStatus); err != nil {
 		p.log.Warnf("failed to update stack status: %v", err)
 	}
-	p.log.Infof("stack deployed: %s (%d services)", stackName, len(services))
+	if anyServiceFailed {
+		p.log.Warnf("stack deployed with failures: %s (%d services)", stackName, len(services))
+	} else {
+		p.log.Infof("stack deployed: %s (%d services)", stackName, len(services))
+	}
 }
 
 func (p *Pool) removeStack(ctx context.Context, sc *hiveswarm.Client, job map[string]string) {
@@ -751,6 +1414,12 @@ func (p *Pool) removeStack(ctx context.Context, sc *hiveswarm.Client, job map[st
 			}
 		}
 	}
+
+	stackNetName := stackName + "-net"
+	if err := sc.RemoveNetwork(ctx, stackNetName); err != nil {
+		p.log.Warnf("stack remove: remove network %s: %v", stackNetName, err)
+	}
+
 	p.log.Infof("stack removed: %s", stackName)
 }
 
@@ -789,10 +1458,14 @@ func (p *Pool) handleHealth(msg *nats.Msg) {
 }
 
 func (p *Pool) publishProgress(appID, message string) {
-	data, _ := json.Marshal(map[string]string{
+	data, marshalErr := json.Marshal(map[string]string{
 		"app_id":  appID,
 		"message": message,
 	})
+	if marshalErr != nil {
+		p.log.Errorf("failed to marshal progress: %v", marshalErr)
+		return
+	}
 	if err := p.nc.Publish("hive.progress."+appID, data); err != nil {
 		p.log.Errorf("failed to publish progress: %v", err)
 	}
@@ -806,6 +1479,26 @@ func (p *Pool) finishDeployment(deploymentID, status, logs string) {
 	if err := p.store.UpdateDeploymentStatus(ctx, deploymentID, status, logs); err != nil {
 		p.log.Warnf("failed to update deployment status: %v", err)
 	}
+}
+
+func (p *Pool) setAppFailed(appID string) {
+	if p.store == nil || appID == "" {
+		return
+	}
+	if err := p.store.UpdateAppStatus(context.Background(), appID, "failed"); err != nil {
+		p.log.Warnf("failed to set app status to failed: %v", err)
+	}
+}
+
+func (p *Pool) certResolver(ctx context.Context) string {
+	if p.store != nil {
+		if mode, err := p.store.GetSetting(ctx, "ingress_mode"); err == nil {
+			if mode == "cloudflare_tunnel" || mode == "both" {
+				return "cloudflare"
+			}
+		}
+	}
+	return "letsencrypt"
 }
 
 func (p *Pool) appendDeploymentLog(deploymentID, logs string) {
@@ -899,7 +1592,7 @@ func (p *Pool) handleRestore(job map[string]string) {
 	backupPath := run.TargetPath
 	isS3 := len(backupPath) > 5 && backupPath[:5] == "s3://"
 	if isS3 {
-		localPath := filepath.Join(p.cfg.DataDir, "restores", filepath.Base(backupPath))
+		localPath := filepath.Join(p.cfg.BackupDir, "restores", filepath.Base(backupPath))
 		if err := os.MkdirAll(filepath.Dir(localPath), 0755); err != nil {
 			p.log.Errorf("restore: create dir: %v", err)
 			return
@@ -1009,12 +1702,21 @@ func (p *Pool) notifyRestoreFailure(configID, reason string) {
 	})
 }
 
+func generateSecurePassword() (string, error) {
+	b := make([]byte, 24)
+	if _, err := cryptorand.Read(b); err != nil {
+		return "", fmt.Errorf("generate secure password: %w", err)
+	}
+	return hex.EncodeToString(b), nil
+}
+
 func (p *Pool) handleMaintenance(msg *nats.Msg) {
-	var job map[string]string
-	if err := json.Unmarshal(msg.Data, &job); err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal(msg.Data, &raw); err != nil {
 		p.log.Errorf("maintenance: invalid job: %v", err)
 		return
 	}
+	job := toStringMap(raw)
 	taskID := job["task_id"]
 	taskType := job["type"]
 	p.log.Infof("maintenance job: type=%s task=%s", taskType, taskID)
@@ -1063,4 +1765,46 @@ func (p *Pool) handleMaintenance(msg *nats.Msg) {
 	if err := p.store.UpdateMaintenanceTaskLastRun(ctx, taskID, status); err != nil {
 		p.log.Warnf("failed to update maintenance task last run: %v", err)
 	}
+}
+
+func (p *Pool) gitHubCloneToken(ctx context.Context) (string, error) {
+	apps, err := p.store.ListGitHubApps(ctx)
+	if err != nil || len(apps) == 0 {
+		return "", fmt.Errorf("no GitHub App")
+	}
+	app := apps[0]
+	if app.InstallationID == 0 {
+		return "", fmt.Errorf("GitHub App not installed")
+	}
+	fullApp, err := p.store.GetGitHubApp(ctx, app.ID)
+	if err != nil {
+		return "", err
+	}
+	pemKey, err := encryption.Decrypt(fullApp.PemEncrypted)
+	if err != nil {
+		return "", err
+	}
+	return github.GenerateInstallationToken(fullApp.AppID, pemKey, fullApp.InstallationID)
+}
+
+func (p *Pool) patCloneToken(ctx context.Context, sourceID string) string {
+	gs, err := p.store.GetGitSource(ctx, sourceID)
+	if err != nil || gs == nil {
+		return ""
+	}
+	token, err := encryption.Decrypt(gs.TokenEncrypted)
+	if err != nil {
+		return ""
+	}
+	return string(token)
+}
+
+func injectTokenInURL(repoURL, token string) string {
+	if strings.HasPrefix(repoURL, "https://") {
+		return strings.Replace(repoURL, "https://", "https://x-access-token:"+token+"@", 1)
+	}
+	if strings.HasPrefix(repoURL, "http://") {
+		return strings.Replace(repoURL, "http://", "http://x-access-token:"+token+"@", 1)
+	}
+	return repoURL
 }

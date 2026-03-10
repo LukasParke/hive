@@ -26,3 +26,20 @@ func (c *Client) EnsureNetwork(ctx context.Context, name string, opts network.Cr
 	c.log.Infof("created network: %s", name)
 	return nil
 }
+
+func (c *Client) RemoveNetwork(ctx context.Context, name string) error {
+	nets, err := c.docker.NetworkList(ctx, network.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("network list: %w", err)
+	}
+	for _, n := range nets {
+		if n.Name == name {
+			if err := c.docker.NetworkRemove(ctx, n.ID); err != nil {
+				return fmt.Errorf("network remove %s: %w", name, err)
+			}
+			c.log.Infof("removed network: %s", name)
+			return nil
+		}
+	}
+	return nil
+}

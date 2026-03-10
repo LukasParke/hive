@@ -1,3 +1,0 @@
-DROP TABLE IF EXISTS ceph_pool;
-DROP TABLE IF EXISTS ceph_osd;
-DROP TABLE IF EXISTS ceph_cluster;

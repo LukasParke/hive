@@ -1,0 +1,27 @@
+kind: Template
+name: i18n-blog
+description: Kuno is an internationalized blogging platform with a backend built in Go and a frontend in Next.js.
+category: blog
+tags:
+    - blog
+    - i18n
+    - nextjs
+    - go
+    - web
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/i18n-blog-kuno.svg
+version: latest
+links:
+    docs: https://github.com/xuemian168/kuno#readme
+    github: https://github.com/xuemian168/kuno
+    website: https://qut.edu.kg/
+image: ictrun/kuno:latest
+volumes:
+    - kuno-data:/app/data
+env:
+    DB_PATH: /app/data/blog.db
+    GIN_MODE: release
+    JWT_SECRET: ""
+    NEXT_PUBLIC_API_URL: ""
+    NODE_ENV: production
+    RECOVERY_MODE: ""
+    UPLOAD_DIR: /app/data/uploads

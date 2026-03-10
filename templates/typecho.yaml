@@ -1,0 +1,33 @@
+kind: Template
+name: typecho
+description: Typecho 是一个轻量级的开源博客程序，基于 PHP 开发，支持多种数据库，简洁而强大。
+category: cms
+tags:
+    - blog
+    - cms
+    - php
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/typecho.svg
+version: stable
+links:
+    docs: http://docs.typecho.org
+    github: https://github.com/typecho/typecho
+    website: https://typecho.org/
+image: mariadb:11
+stack: true
+services:
+    - name: db
+      image: mariadb:11
+      env:
+        MYSQL_DATABASE: typecho
+        MYSQL_PASSWORD: typecho_password
+        MYSQL_ROOT_PASSWORD: root_password
+        MYSQL_USER: typecho
+      volumes:
+        - db_data:/var/lib/mysql
+    - name: typecho
+      image: 80x86/typecho:latest
+      env:
+        PHP_MAX_EXECUTION_TIME: "600"
+        PHP_TZ: Asia/Shanghai
+      volumes:
+        - typecho_data:/data

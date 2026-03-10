@@ -1,0 +1,25 @@
+kind: Template
+name: openhands
+description: OpenHands is an open-source platform for running and managing AI agents.
+category: ai
+tags:
+    - ai
+    - agents
+    - llm
+    - openai
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/openhands.svg
+version: 0.1.1
+links:
+    docs: https://github.com/all-hands-ai/OpenHands
+    github: https://github.com/all-hands-ai/OpenHands
+    website: https://github.com/all-hands-ai/OpenHands
+image: docker.all-hands.dev/all-hands-ai/openhands:latest
+ports:
+    - "3000"
+volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - openhands-config:/.openhands
+    - openhands-workspace:/opt/workspace_base
+env:
+    SANDBOX_RUNTIME_CONTAINER_IMAGE: ""
+    WORKSPACE_MOUNT_PATH: /opt/workspace_base

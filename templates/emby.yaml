@@ -1,0 +1,25 @@
+kind: Template
+name: emby
+description: Emby Server is a personal media server with apps on just about every device.
+category: media
+tags:
+    - media
+    - media system
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/emby.svg
+version: 4.9.1.17
+links:
+    docs: https://emby.media/support/articles/Home.html
+    github: https://github.com/MediaBrowser/Emby
+    website: https://emby.media/
+image: emby/embyserver
+ports:
+    - "8096"
+    - "8920"
+volumes:
+    - /emby/programdata:/config
+    - /emby/series:/mnt/share1
+    - /emby/movies:/mnt/share2
+env:
+    GID: "100"
+    GIDLIST: "100"
+    UID: "1000"

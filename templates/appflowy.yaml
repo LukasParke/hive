@@ -1,0 +1,170 @@
+kind: Template
+name: appflowy
+description: AppFlowy is an open-source alternative to Notion. You are in charge of your data and customizations.
+category: productivity
+tags:
+    - productivity
+    - self-hosted
+    - notes
+    - knowledge-base
+    - notion-alternative
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/app-flowy.svg
+version: 0.9.3
+links:
+    docs: https://docs.appflowy.io/docs
+    github: https://github.com/AppFlowy-IO/AppFlowy
+    website: https://appflowy.io/
+image: appflowyinc/admin_frontend:latest
+stack: true
+services:
+    - name: admin_frontend
+      image: appflowyinc/admin_frontend:latest
+      env:
+        ADMIN_FRONTEND_APPFLOWY_CLOUD_URL: ""
+        ADMIN_FRONTEND_GOTRUE_URL: ""
+        ADMIN_FRONTEND_PATH_PREFIX: /console
+        ADMIN_FRONTEND_REDIS_URL: ""
+        RUST_LOG: info
+    - name: ai
+      image: appflowyinc/appflowy_ai:latest
+      env:
+        AI_APPFLOWY_HOST: ""
+        AI_DATABASE_URL: ""
+        AI_MINIO_URL: ""
+        AI_REDIS_URL: ""
+        AI_SERVER_PORT: "5001"
+        AI_USE_MINIO: "true"
+        APPFLOWY_GOTRUE_JWT_SECRET: ""
+        APPFLOWY_S3_ACCESS_KEY: ""
+        APPFLOWY_S3_BUCKET: appflowy
+        APPFLOWY_S3_REGION: us-east-1
+        APPFLOWY_S3_SECRET_KEY: ""
+        AZURE_OPENAI_API_KEY: ""
+        AZURE_OPENAI_API_VERSION: ""
+        AZURE_OPENAI_ENDPOINT: ""
+        DEFAULT_AI_COMPLETION_MODEL: gpt-4o-mini
+        DEFAULT_AI_MODEL: gpt-4o-mini
+        OPENAI_API_KEY: ""
+    - name: appflowy_cloud
+      image: appflowyinc/appflowy_cloud:latest
+      env:
+        AI_OPENAI_API_KEY: ""
+        AI_SERVER_HOST: ai
+        AI_SERVER_PORT: "5001"
+        APPFLOWY_ACCESS_CONTROL: "true"
+        APPFLOWY_DATABASE_MAX_CONNECTIONS: "40"
+        APPFLOWY_DATABASE_URL: ""
+        APPFLOWY_ENVIRONMENT: production
+        APPFLOWY_GOTRUE_BASE_URL: ""
+        APPFLOWY_GOTRUE_JWT_EXP: "7200"
+        APPFLOWY_GOTRUE_JWT_SECRET: ""
+        APPFLOWY_MAILER_SMTP_EMAIL: ""
+        APPFLOWY_MAILER_SMTP_HOST: ""
+        APPFLOWY_MAILER_SMTP_PASSWORD: ""
+        APPFLOWY_MAILER_SMTP_PORT: ""
+        APPFLOWY_MAILER_SMTP_TLS_KIND: wrapper
+        APPFLOWY_MAILER_SMTP_USERNAME: ""
+        APPFLOWY_REDIS_URI: ""
+        APPFLOWY_S3_ACCESS_KEY: ""
+        APPFLOWY_S3_BUCKET: appflowy
+        APPFLOWY_S3_CREATE_BUCKET: "true"
+        APPFLOWY_S3_MINIO_URL: ""
+        APPFLOWY_S3_PRESIGNED_URL_ENDPOINT: ""
+        APPFLOWY_S3_REGION: us-east-1
+        APPFLOWY_S3_SECRET_KEY: ""
+        APPFLOWY_S3_USE_MINIO: "true"
+        APPFLOWY_WEB_URL: ""
+        APPFLOWY_WEBSOCKET_MAILBOX_SIZE: "6000"
+        RUST_LOG: info
+    - name: appflowy_web
+      image: appflowyinc/appflowy_web:latest
+      env:
+        AF_BASE_URL: ""
+        AF_GOTRUE_URL: /gotrue
+        AF_WS_V2_URL: ""
+    - name: appflowy_worker
+      image: appflowyinc/appflowy_worker:latest
+      env:
+        APPFLOWY_ENVIRONMENT: production
+        APPFLOWY_MAILER_SMTP_EMAIL: ""
+        APPFLOWY_MAILER_SMTP_HOST: ""
+        APPFLOWY_MAILER_SMTP_PASSWORD: ""
+        APPFLOWY_MAILER_SMTP_PORT: ""
+        APPFLOWY_MAILER_SMTP_TLS_KIND: wrapper
+        APPFLOWY_MAILER_SMTP_USERNAME: ""
+        APPFLOWY_S3_ACCESS_KEY: ""
+        APPFLOWY_S3_BUCKET: appflowy
+        APPFLOWY_S3_MINIO_URL: ""
+        APPFLOWY_S3_REGION: us-east-1
+        APPFLOWY_S3_SECRET_KEY: ""
+        APPFLOWY_S3_USE_MINIO: "true"
+        APPFLOWY_WORKER_DATABASE_NAME: ""
+        APPFLOWY_WORKER_DATABASE_URL: ""
+        APPFLOWY_WORKER_ENVIRONMENT: production
+        APPFLOWY_WORKER_IMPORT_TICK_INTERVAL: "30"
+        APPFLOWY_WORKER_REDIS_URL: ""
+        RUST_LOG: info
+    - name: gotrue
+      image: appflowyinc/gotrue:latest
+      env:
+        API_EXTERNAL_URL: ""
+        DATABASE_URL: ""
+        GOTRUE_ADMIN_EMAIL: ""
+        GOTRUE_ADMIN_PASSWORD: ""
+        GOTRUE_DB_DRIVER: postgres
+        GOTRUE_DISABLE_SIGNUP: "false"
+        GOTRUE_EXTERNAL_DISCORD_CLIENT_ID: ""
+        GOTRUE_EXTERNAL_DISCORD_ENABLED: "false"
+        GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI: ""
+        GOTRUE_EXTERNAL_DISCORD_SECRET: ""
+        GOTRUE_EXTERNAL_GITHUB_CLIENT_ID: ""
+        GOTRUE_EXTERNAL_GITHUB_ENABLED: "false"
+        GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI: ""
+        GOTRUE_EXTERNAL_GITHUB_SECRET: ""
+        GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ""
+        GOTRUE_EXTERNAL_GOOGLE_ENABLED: "false"
+        GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: ""
+        GOTRUE_EXTERNAL_GOOGLE_SECRET: ""
+        GOTRUE_JWT_ADMIN_GROUP_NAME: supabase_admin
+        GOTRUE_JWT_EXP: "7200"
+        GOTRUE_JWT_SECRET: ""
+        GOTRUE_MAILER_AUTOCONFIRM: "true"
+        GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: ""
+        GOTRUE_MAILER_URLPATHS_CONFIRMATION: /gotrue/verify
+        GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /gotrue/verify
+        GOTRUE_MAILER_URLPATHS_INVITE: /gotrue/verify
+        GOTRUE_MAILER_URLPATHS_RECOVERY: /gotrue/verify
+        GOTRUE_RATE_LIMIT_EMAIL_SENT: "100"
+        GOTRUE_SAML_ENABLED: "false"
+        GOTRUE_SAML_PRIVATE_KEY: ""
+        GOTRUE_SITE_URL: appflowy-flutter://
+        GOTRUE_SMTP_ADMIN_EMAIL: ""
+        GOTRUE_SMTP_HOST: ""
+        GOTRUE_SMTP_MAX_FREQUENCY: 1ns
+        GOTRUE_SMTP_PASS: ""
+        GOTRUE_SMTP_PORT: ""
+        GOTRUE_SMTP_USER: ""
+        GOTRUE_URI_ALLOW_LIST: '**'
+        PORT: "9999"
+    - name: minio
+      image: minio/minio
+      env:
+        MINIO_BROWSER_REDIRECT_URL: /minio
+        MINIO_ROOT_PASSWORD: minioadmin
+        MINIO_ROOT_USER: minioadmin
+      volumes:
+        - minio_data:/data
+      command: server /data --console-address ":9001"
+    - name: nginx
+      image: nginx
+    - name: postgres
+      image: pgvector/pgvector:pg16
+      env:
+        POSTGRES_DB: postgres
+        POSTGRES_HOST: postgres
+        POSTGRES_PASSWORD: password
+        POSTGRES_USER: postgres
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+    - name: redis
+      image: redis

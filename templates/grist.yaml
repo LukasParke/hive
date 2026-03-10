@@ -1,0 +1,26 @@
+kind: Template
+name: grist
+description: Grist is an open-source spreadsheet and database alternative that combines the flexibility of spreadsheets with the power of databases.
+category: databases
+tags:
+    - spreadsheet
+    - database
+    - productivity
+    - self-hosted
+    - data-management
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/grist.svg
+version: latest
+links:
+    docs: https://support.getgrist.com/self-managed/
+    github: https://github.com/gristlabs/grist-core
+    website: https://www.getgrist.com/
+image: gristlabs/grist:latest
+ports:
+    - "8484"
+volumes:
+    - grist_data:/persist
+env:
+    GRIST_DEFAULT_EMAIL: ""
+    GRIST_HOME_INSTANCE: ""
+    GRIST_SESSION_SECRET: ""
+    GRIST_SINGLE_ORG: ""

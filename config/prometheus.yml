@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'node-exporter'
+    dockerswarm_sd_configs:
+      - host: unix:///var/run/docker.sock
+        role: nodes
+    relabel_configs:
+      - source_labels: [__meta_dockerswarm_node_address]
+        target_label: __address__
+        replacement: '${1}:9100'
+      - source_labels: [__meta_dockerswarm_node_hostname]
+        target_label: node_hostname
+      - source_labels: [__meta_dockerswarm_node_id]
+        target_label: node_id
+      - source_labels: [__meta_dockerswarm_node_hostname]
+        target_label: instance
+
+  - job_name: 'cadvisor'
+    dockerswarm_sd_configs:
+      - host: unix:///var/run/docker.sock
+        role: nodes
+    relabel_configs:
+      - source_labels: [__meta_dockerswarm_node_address]
+        target_label: __address__
+        replacement: '${1}:8180'
+      - source_labels: [__meta_dockerswarm_node_hostname]
+        target_label: node_hostname
+      - source_labels: [__meta_dockerswarm_node_id]
+        target_label: node_id
+      - source_labels: [__meta_dockerswarm_node_hostname]
+        target_label: instance

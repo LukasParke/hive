@@ -2,7 +2,7 @@ kind: Template
 name: tautulli
 description: Monitoring and tracking for Plex Media Server
 category: media
-icon: https://tautulli.com/images/logo.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/tautulli.svg
 image: lscr.io/linuxserver/tautulli:latest
 ports:
   - "8181"

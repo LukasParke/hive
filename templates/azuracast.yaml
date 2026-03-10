@@ -1,0 +1,48 @@
+kind: Template
+name: azuracast
+description: AzuraCast is a self-hosted, all-in-one web radio management suite. Easily manage your online radio stations with a powerful web interface.
+category: media
+tags:
+    - radio
+    - streaming
+    - media
+    - broadcasting
+    - music
+    - entertainment
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/azuracast.svg
+version: latest
+links:
+    docs: https://docs.azuracast.com/
+    github: https://github.com/AzuraCast/AzuraCast
+    website: https://www.azuracast.com/
+image: ghcr.io/azuracast/azuracast:latest
+ports:
+    - "80"
+stack: true
+services:
+    - name: azuracast
+      image: ghcr.io/azuracast/azuracast:latest
+      ports:
+        - "80"
+      env:
+        AZURACAST_DC_REVISION: "1"
+        LANG: en_US.UTF-8
+        MYSQL_DATABASE: azuracast
+        MYSQL_HOST: mariadb
+        MYSQL_PASSWORD: ""
+        MYSQL_PORT: "3306"
+        MYSQL_USER: azuracast
+      volumes:
+        - azuracast-station-data:/var/azuracast/stations
+        - azuracast-data:/var/azuracast/www_tmp
+        - azuracast-uploads:/var/azuracast/uploads
+        - azuracast-backups:/var/azuracast/backups
+    - name: mariadb
+      image: mariadb:11.4
+      env:
+        MYSQL_DATABASE: azuracast
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: azuracast
+      volumes:
+        - mariadb-data:/var/lib/mysql

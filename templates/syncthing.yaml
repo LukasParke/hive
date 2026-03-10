@@ -2,7 +2,7 @@ kind: Template
 name: syncthing
 description: Continuous file synchronization between devices
 category: productivity
-icon: https://syncthing.net/images/syncthing-logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/syncthing.svg
 image: lscr.io/linuxserver/syncthing:latest
 ports:
   - "8384"

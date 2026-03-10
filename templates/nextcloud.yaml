@@ -1,8 +1,8 @@
-kind: App
+kind: Template
 name: nextcloud
 description: Self-hosted file sync and share
 category: productivity
-icon: https://nextcloud.com/wp-content/themes/flavor/assets/img/common/nextcloud-logo.svg
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/nextcloud.svg
 image: nextcloud:stable
 ports:
   - "80:80"

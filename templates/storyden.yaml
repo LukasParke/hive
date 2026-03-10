@@ -1,0 +1,22 @@
+kind: Template
+name: storyden
+description: With a fresh new take on traditional bulletin board forum software, Storyden is a modern, secure and extensible platform for building communities.
+category: communication
+tags:
+    - forum
+    - discussion
+    - community
+    - open-source
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/storyden.svg
+version: latest
+links:
+    discord: https://discord.gg/XF6ZBGF9XF
+    docs: https://www.storyden.org/docs/introduction
+    github: https://github.com/Southclaws/storyden
+    website: https://www.storyden.org/
+image: ghcr.io/southclaws/storyden:latest
+volumes:
+    - storyden_data:/storyden/data
+env:
+    PUBLIC_API_ADDRESS: ""
+    PUBLIC_WEB_ADDRESS: ""

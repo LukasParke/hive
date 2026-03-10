@@ -1,0 +1,19 @@
+kind: Template
+name: homebridge
+description: Bringing HomeKit support where there is none. Homebridge allows you to integrate with smart home devices that do not natively support HomeKit.
+category: home-automation
+tags:
+    - iot
+    - homekit
+    - internet-of-things
+    - self-hosted
+    - server
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/homebridge.svg
+version: latest
+links:
+    docs: https://github.com/homebridge/homebridge/wiki
+    github: https://github.com/homebridge/homebridge
+    website: https://homebridge.io/
+image: homebridge/homebridge:latest
+ports:
+    - "8581"

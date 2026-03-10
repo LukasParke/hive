@@ -1,0 +1,38 @@
+kind: Template
+name: codex-docs
+description: CodeX is a comprehensive platform that brings together passionate engineers, designers, and specialists to create high-quality open-source projects. It includes Editor.js, Hawk.so, CodeX Notes, and more.
+category: documentation
+tags:
+    - documentation
+    - development
+    - collaboration
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/codex-docs.svg
+version: v2.2
+links:
+    docs: https://docs.codex.so
+    github: https://github.com/codex-team/codex.docs
+    website: https://codex.so
+image: ghcr.io/codex-team/codex.docs:v2.2
+ports:
+    - "3000"
+stack: true
+services:
+    - name: codex
+      image: ghcr.io/codex-team/codex.docs:v2.2
+      ports:
+        - "3000"
+      env:
+        APP_CONFIG_auth_password: ""
+        APP_CONFIG_auth_secret: ""
+        APP_CONFIG_database_driver: mongodb
+        APP_CONFIG_database_mongodb_uri: mongodb://mongo:@mongo:27017
+      volumes:
+        - uploads:/usr/src/app/uploads
+        - db:/usr/src/app/db
+    - name: mongo
+      image: mongo:4
+      env:
+        MONGO_INITDB_ROOT_PASSWORD: ""
+        MONGO_INITDB_ROOT_USERNAME: ""
+      volumes:
+        - mongo-data:/data/db

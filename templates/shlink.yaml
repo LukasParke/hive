@@ -1,0 +1,30 @@
+kind: Template
+name: shlink
+description: URL shortener that can be used to serve shortened URLs under your own domain.
+category: sharing
+tags:
+    - sharing
+    - shortener
+    - url
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/shlink.svg
+version: stable
+links:
+    docs: https://shlink.io/documentation
+    github: https://github.com/shlinkio/shlink
+    website: https://shlink.io
+image: shlinkio/shlink:stable
+stack: true
+services:
+    - name: shlink
+      image: shlinkio/shlink:stable
+      env:
+        DEFAULT_DOMAIN: ""
+        INITIAL_API_KEY: ""
+        IS_HTTPS_ENABLED: "false"
+      volumes:
+        - shlink-data:/etc/shlink/data
+    - name: shlink-web
+      image: shlinkio/shlink-web-client
+      env:
+        SHLINK_SERVER_API_KEY: ""
+        SHLINK_SERVER_URL: http://

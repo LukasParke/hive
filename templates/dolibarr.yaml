@@ -1,0 +1,41 @@
+kind: Template
+name: dolibarr
+description: Dolibarr ERP & CRM is a modern software package that helps manage your organization's activities (contacts, quotes, invoices, orders, stocks, agenda, human resources, ecm, manufacturing).
+category: business
+tags:
+    - erp
+    - crm
+    - business
+    - management
+    - invoicing
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/dolibarr.svg
+version: 21.0.0
+links:
+    docs: https://wiki.dolibarr.org/
+    github: https://github.com/Dolibarr/dolibarr
+    website: https://www.dolibarr.org/
+image: mariadb:10.11
+stack: true
+services:
+    - name: db
+      image: mariadb:10.11
+      env:
+        MYSQL_DATABASE: $DB_NAME
+        MYSQL_PASSWORD: $DB_PASSWORD
+        MYSQL_ROOT_PASSWORD: $DB_ROOT_PASSWORD
+        MYSQL_USER: $DB_USER
+      volumes:
+        - db_data:/var/lib/mysql
+    - name: dolibarr
+      image: dolibarr/dolibarr:21.0.0
+      env:
+        DOLI_ADMIN_LOGIN: admin
+        DOLI_ADMIN_PASSWORD: $ADMIN_PASSWORD
+        DOLI_DB_HOST: db
+        DOLI_DB_NAME: $DB_NAME
+        DOLI_DB_PASSWORD: $DB_PASSWORD
+        DOLI_DB_USER: $DB_USER
+        DOLI_URL_ROOT: ""
+      volumes:
+        - dolibarr_documents:/var/www/documents
+        - dolibarr_html:/var/www/html

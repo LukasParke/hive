@@ -1,0 +1,40 @@
+kind: Template
+name: coralproject
+description: Coral is a revolutionary commenting platform designed to enhance website interactions. It features smart technology for meaningful discussions, journalist identification, moderation tools with AI support, and complete data control without ads or trackers. Used by major news sites worldwide.
+category: communication
+tags:
+    - communication
+    - community
+    - privacy
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/coral.svg
+version: 9.7.0
+links:
+    docs: https://docs.coralproject.net/
+    github: https://github.com/coralproject/talk
+    website: https://coralproject.net/
+image: coralproject/talk:9.7.0
+ports:
+    - "3000"
+stack: true
+services:
+    - name: coral
+      image: coralproject/talk:9.7.0
+      ports:
+        - "3000"
+      env:
+        MONGODB_URI: ""
+        NODE_ENV: production
+        REDIS_URI: ""
+        SIGNING_SECRET: ""
+    - name: mongo
+      image: mongo:4
+      env:
+        MONGO_INITDB_ROOT_PASSWORD: ""
+        MONGO_INITDB_ROOT_USERNAME: ""
+      volumes:
+        - mongo-data:/data/db
+    - name: redis
+      image: redis:6
+      volumes:
+        - redis-data:/data
+      command: redis-server --requirepass ${REDIS_PASSWORD}

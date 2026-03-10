@@ -1,0 +1,85 @@
+kind: Template
+name: openclaw
+description: WhatsApp gateway CLI with Pi RPC agent - self-hosted AI-powered messaging platform
+category: communication
+tags:
+    - whatsapp
+    - ai
+    - messaging
+    - chatbot
+    - gateway
+    - self-hosted
+    - automation
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/openclaw.svg
+version: 2026.1.29
+links:
+    docs: https://docs.openclaw.ai/
+    github: https://github.com/openclaw/openclaw
+    website: https://openclaw.ai/
+image: coollabsio/openclaw-browser:latest
+stack: true
+services:
+    - name: browser
+      image: coollabsio/openclaw-browser:latest
+      env:
+        CHROME_CLI: --remote-debugging-port=9222
+        PGID: "1000"
+        PUID: "1000"
+        TZ: Etc/UTC
+      volumes:
+        - browser-data:/config
+    - name: openclaw
+      image: coollabsio/openclaw:2026.2.6
+      env:
+        AI_GATEWAY_API_KEY: ""
+        ANTHROPIC_API_KEY: ""
+        AUTH_PASSWORD: ""
+        AUTH_USERNAME: ""
+        AWS_ACCESS_KEY_ID: ""
+        AWS_REGION: us-east-1
+        AWS_SECRET_ACCESS_KEY: ""
+        AWS_SESSION_TOKEN: ""
+        BEDROCK_PROVIDER_FILTER: anthropic
+        BROWSER_CDP_URL: http://browser:9223
+        BROWSER_DEFAULT_PROFILE: openclaw
+        BROWSER_EVALUATE_ENABLED: "true"
+        BROWSER_REMOTE_HANDSHAKE_TIMEOUT_MS: "3000"
+        BROWSER_REMOTE_TIMEOUT_MS: "1500"
+        BROWSER_SNAPSHOT_MODE: efficient
+        CEREBRAS_API_KEY: ""
+        COPILOT_GITHUB_TOKEN: ""
+        DEEPGRAM_API_KEY: ""
+        DISCORD_BOT_TOKEN: $DISCORD_BOT_TOKEN
+        GEMINI_API_KEY: ""
+        GROQ_API_KEY: ""
+        HOOKS_ENABLED: "false"
+        HOOKS_PATH: /hooks
+        KIMI_API_KEY: ""
+        KIMI_BASE_URL: https://api.moonshot.ai/anthropic
+        MINIMAX_API_KEY: ""
+        MISTRAL_API_KEY: ""
+        MOONSHOT_API_KEY: ""
+        MOONSHOT_BASE_URL: https://api.moonshot.ai/v1
+        OLLAMA_BASE_URL: ""
+        OPENAI_API_KEY: ""
+        OPENCLAW_DOCKER_APT_PACKAGES: $OPENCLAW_DOCKER_APT_PACKAGES
+        OPENCLAW_GATEWAY_BIND: loopback
+        OPENCLAW_GATEWAY_PORT: "18789"
+        OPENCLAW_GATEWAY_TOKEN: ""
+        OPENCLAW_PRIMARY_MODEL: ""
+        OPENCLAW_STATE_DIR: /data/.openclaw
+        OPENCLAW_WORKSPACE_DIR: /data/workspace
+        OPENCODE_API_KEY: ""
+        OPENROUTER_API_KEY: ""
+        PORT: "8080"
+        SLACK_APP_TOKEN: $SLACK_APP_TOKEN
+        SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN
+        SYNTHETIC_API_KEY: ""
+        TELEGRAM_BOT_TOKEN: $TELEGRAM_BOT_TOKEN
+        VENICE_API_KEY: ""
+        WHATSAPP_ENABLED: $WHATSAPP_ENABLED
+        XAI_API_KEY: ""
+        XIAOMI_API_KEY: ""
+        ZAI_API_KEY: ""
+      volumes:
+        - openclaw-data:/data

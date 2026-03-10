@@ -1,0 +1,19 @@
+kind: Template
+name: directory-lister
+description: Directory Lister is a simple PHP application that lists the contents of any web-accessible directory and allows navigation there within.
+category: file-manager
+tags:
+    - file-manager
+    - directory-listing
+    - php
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/directory-lister.svg
+version: latest
+links:
+    docs: https://docs.directorylister.com/
+    github: https://github.com/DirectoryLister/DirectoryLister
+    website: https://www.directorylister.com/
+image: directorylister/directorylister:latest
+ports:
+    - "80"
+volumes:
+    - directory-lister-data:/data

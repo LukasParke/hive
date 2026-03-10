@@ -1,0 +1,39 @@
+kind: Template
+name: gitea-postgres
+description: Gitea bundled with PostgreSQL.
+category: development
+tags:
+    - git
+    - scm
+    - postgres
+    - developer-tools
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/gitea-postgresql.svg
+version: 1.24.4
+links:
+    docs: https://docs.gitea.com/
+    github: https://github.com/go-gitea/gitea
+    website: https://gitea.io/
+image: docker.gitea.com/gitea:1.24.4
+stack: true
+services:
+    - name: gitea
+      image: docker.gitea.com/gitea:1.24.4
+      env:
+        GITEA__database__DB_TYPE: postgres
+        GITEA__database__HOST: postgres:5432
+        GITEA__database__NAME: gitea
+        GITEA__database__PASSWD: gitea
+        GITEA__database__USER: gitea
+        USER_GID: "1000"
+        USER_UID: "1000"
+      volumes:
+        - gitea-data:/data
+    - name: postgres
+      image: docker.io/library/postgres:14
+      env:
+        POSTGRES_DB: gitea
+        POSTGRES_PASSWORD: gitea
+        POSTGRES_USER: gitea
+      volumes:
+        - pg-data:/var/lib/postgresql/data

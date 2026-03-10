@@ -1,0 +1,31 @@
+kind: Template
+name: yamtrack
+description: Yamtrack is a self-hosted anime and manga tracker with Redis backend support.
+category: media
+tags:
+    - media
+    - anime
+    - manga
+    - tracker
+    - redis
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/yamtrack.svg
+version: latest
+links:
+    docs: https://github.com/fuzzygrim/yamtrack
+    github: https://github.com/fuzzygrim/yamtrack
+    website: https://github.com/fuzzygrim/yamtrack
+image: redis:7-alpine
+stack: true
+services:
+    - name: redis
+      image: redis:7-alpine
+      volumes:
+        - redis_data:/data
+    - name: yamtrack
+      image: ghcr.io/fuzzygrim/yamtrack
+      env:
+        REDIS_URL: redis://redis:6379
+        SECRET: ""
+        TZ: Europe/Berlin
+      volumes:
+        - yamtrack-db:/yamtrack/db

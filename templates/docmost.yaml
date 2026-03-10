@@ -1,0 +1,32 @@
+kind: Template
+name: docmost
+description: Docmost, is an open-source collaborative wiki and documentation software.
+category: self-hosted
+tags:
+    - self-hosted
+    - open-source
+    - manager
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/docmost.svg
+version: 0.4.1
+links:
+    docs: https://docmost.com/docs/
+    github: https://github.com/docmost/docmost
+    website: https://docmost.com/
+image: postgres:16-alpine
+stack: true
+services:
+    - name: db
+      image: postgres:16-alpine
+      volumes:
+        - db_docmost_data:/var/lib/postgresql/data
+    - name: docmost
+      image: docmost/docmost:0.4.1
+      env:
+        DATABASE_URL: postgresql://:@db:5432/?schema=public
+        REDIS_URL: redis://redis:6379
+      volumes:
+        - docmost:/app/data/storage
+    - name: redis
+      image: redis:7.2-alpine
+      volumes:
+        - redis_docmost_data:/data

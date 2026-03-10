@@ -1,0 +1,32 @@
+kind: Template
+name: unleash
+description: Open-source feature management platform
+category: feature-flag
+tags:
+    - feature-flag
+    - feature-management
+    - feature-toggle
+    - remote-configuration
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/unleash.svg
+version: 7.4.0
+links:
+    docs: https://docs.getunleash.io/
+    github: https://github.com/unleash/unleash
+    website: https://www.getunleash.io/
+image: postgres:15
+stack: true
+services:
+    - name: db
+      image: postgres:15
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - db_data:/var/lib/postgresql/data
+    - name: unleash
+      image: unleashorg/unleash-server:7.4.0
+      env:
+        DATABASE_SSL: "false"
+        DATABASE_URL: postgres://:@db/
+        LOG_LEVEL: warn

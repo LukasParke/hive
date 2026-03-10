@@ -2,7 +2,7 @@ kind: Template
 name: plex
 description: Media server for movies, TV shows, and music
 category: media
-icon: https://www.plex.tv/wp-content/uploads/2018/05/plex-logo-e1527750822778.png
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plex.svg
 image: plr.cx/plex/plex-media-server:latest
 ports:
   - "32400"

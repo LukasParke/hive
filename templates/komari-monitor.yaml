@@ -1,0 +1,16 @@
+kind: Template
+name: komari-monitor
+description: A lightweight, self-hosted server monitoring tool for tracking server performance.
+category: monitoring
+tags:
+    - monitoring
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/komari-monitor.svg
+version: latest
+links:
+    docs: https://github.com/komari-monitor/komari#readme
+    github: https://github.com/komari-monitor/komari
+    website: https://github.com/komari-monitor/komari
+image: ghcr.io/komari-monitor/komari:latest
+volumes:
+    - komari-data:/app/data

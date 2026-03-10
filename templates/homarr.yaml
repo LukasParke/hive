@@ -1,0 +1,18 @@
+kind: Template
+name: homarr
+description: A sleek, modern dashboard that puts all your apps and services in one place with Docker integration.
+category: monitoring
+tags:
+    - dashboard
+    - monitoring
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/homarr.svg
+version: latest
+links:
+    docs: https://homarr.dev/docs/getting-started/installation/docker
+    github: https://github.com/homarr-labs/homarr
+    website: https://homarr.dev/
+image: ghcr.io/homarr-labs/homarr:latest
+ports:
+    - "7575"
+env:
+    SECRET_ENCRYPTION_KEY: ""

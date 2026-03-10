@@ -1,0 +1,45 @@
+kind: Template
+name: akaunting
+description: Akaunting is a self-hosted, open-source accounting app for small businesses.
+category: finance
+tags:
+    - finance
+    - accounting
+    - php
+    - mariadb
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/akaunting.svg
+version: latest
+links:
+    docs: https://akaunting.com/docs
+    github: https://github.com/akaunting/akaunting
+    website: https://akaunting.com
+image: docker.io/akaunting/akaunting:latest
+stack: true
+services:
+    - name: akaunting
+      image: docker.io/akaunting/akaunting:latest
+      env:
+        ADMIN_EMAIL: ""
+        ADMIN_PASSWORD: ""
+        APP_URL: ""
+        COMPANY_EMAIL: ""
+        COMPANY_NAME: ""
+        DB_HOST: akaunting-db
+        DB_NAME: ""
+        DB_PASSWORD: ""
+        DB_PORT: "3306"
+        DB_PREFIX: ""
+        DB_USERNAME: ""
+        LOCALE: ""
+      volumes:
+        - akaunting-data:/var/www/html
+    - name: akaunting-db
+      image: mariadb:10.11
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+        MYSQL_USER: ""
+      volumes:
+        - akaunting-db:/var/lib/mysql

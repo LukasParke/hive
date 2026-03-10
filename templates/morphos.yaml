@@ -1,0 +1,15 @@
+kind: Template
+name: morphos
+description: Morphos is a lightweight service for distributed operations and orchestration.
+category: server
+tags:
+    - server
+    - orchestration
+    - lightweight
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/morphos.svg
+version: latest
+links:
+    docs: https://github.com/danvergara/morphos-server#readme
+    github: https://github.com/danvergara/morphos-server
+    website: https://github.com/danvergara/morphos-server
+image: ghcr.io/danvergara/morphos-server:latest

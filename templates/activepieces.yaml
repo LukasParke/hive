@@ -1,0 +1,51 @@
+kind: Template
+name: activepieces
+description: Open-source no-code business automation tool. An alternative to Zapier, Make.com, and Tray.
+category: automation
+tags:
+    - automation
+    - workflow
+    - no-code
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/activepieces.svg
+version: 0.35.0
+links:
+    docs: https://www.activepieces.com/docs
+    github: https://github.com/activepieces/activepieces
+    website: https://www.activepieces.com/
+image: activepieces/activepieces:0.35.0
+stack: true
+services:
+    - name: activepieces
+      image: activepieces/activepieces:0.35.0
+      env:
+        AP_API_KEY: ""
+        AP_ENCRYPTION_KEY: ""
+        AP_ENGINE_EXECUTABLE_PATH: dist/packages/engine/main.js
+        AP_ENVIRONMENT: prod
+        AP_EXECUTION_MODE: UNSANDBOXED
+        AP_FRONTEND_URL: https://
+        AP_JWT_SECRET: ""
+        AP_POSTGRES_DATABASE: activepieces
+        AP_POSTGRES_HOST: postgres
+        AP_POSTGRES_PASSWORD: ""
+        AP_POSTGRES_PORT: "5432"
+        AP_POSTGRES_USERNAME: activepieces
+        AP_REDIS_HOST: redis
+        AP_REDIS_PORT: "6379"
+        AP_SANDBOX_RUN_TIME_SECONDS: "600"
+        AP_TELEMETRY_ENABLED: "false"
+        AP_TEMPLATES_SOURCE_URL: https://cloud.activepieces.com/api/v1/flow-templates
+        AP_TRIGGER_DEFAULT_POLL_INTERVAL: "5"
+        AP_WEBHOOK_TIMEOUT_SECONDS: "30"
+    - name: postgres
+      image: postgres:14
+      env:
+        POSTGRES_DB: activepieces
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: activepieces
+      volumes:
+        - postgres_data:/var/lib/postgresql/data
+    - name: redis
+      image: redis:7
+      volumes:
+        - redis_data:/data

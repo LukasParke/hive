@@ -1,0 +1,38 @@
+kind: Template
+name: forgejo
+description: Forgejo is a self-hosted lightweight software forge. Easy to install and low maintenance, it just does the job
+category: storage
+tags:
+    - self-hosted
+    - storage
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/forgejo.svg
+version: "10"
+links:
+    docs: https://forgejo.org/docs/latest/
+    github: https://codeberg.org/forgejo/forgejo
+    website: https://forgejo.org/
+image: postgres:17
+stack: true
+services:
+    - name: db
+      image: postgres:17
+      env:
+        POSTGRES_DB: forgejo
+        POSTGRES_PASSWORD: forgejo
+        POSTGRES_USER: forgejo
+      volumes:
+        - forgejo_db:/var/lib/postgresql/data
+    - name: forgejo
+      image: codeberg.org/forgejo/forgejo:10
+      env:
+        FORGEJO__database__DB_TYPE: postgres
+        FORGEJO__database__HOST: db:5432
+        FORGEJO__database__NAME: forgejo
+        FORGEJO__database__PASSWD: forgejo
+        FORGEJO__database__USER: forgejo
+        USER_GID: ""
+        USER_UID: ""
+      volumes:
+        - forgejo_server:/data
+        - /etc/timezone:/etc/timezone:ro
+        - /etc/localtime:/etc/localtime:ro

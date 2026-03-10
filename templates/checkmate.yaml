@@ -1,0 +1,38 @@
+kind: Template
+name: checkmate
+description: Checkmate is an open-source, self-hosted tool designed to track and monitor server hardware, uptime, response times, and incidents in real-time with beautiful visualizations.
+category: monitoring
+tags:
+    - self-hosted
+    - monitoring
+    - uptime
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/checkmate.svg
+version: latest
+links:
+    docs: https://docs.checkmate.so
+    github: https://github.com/bluewave-labs/checkmate
+    website: https://checkmate.so/
+image: ghcr.io/bluewave-labs/checkmate-backend-mono:latest
+ports:
+    - "52345"
+stack: true
+services:
+    - name: mongodb
+      image: ghcr.io/bluewave-labs/checkmate-mongo:latest
+      command:
+        - mongod
+        - --quiet
+        - --replSet
+        - rs0
+        - --bind_ip_all
+    - name: server
+      image: ghcr.io/bluewave-labs/checkmate-backend-mono:latest
+      ports:
+        - "52345"
+      env:
+        CLIENT_HOST: ""
+        DB_CONNECTION_STRING: ""
+        JWT_SECRET: ""
+        REDIS_URL: ""
+        UPTIME_APP_API_BASE_URL: ""
+        UPTIME_APP_CLIENT_HOST: ""

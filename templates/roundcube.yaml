@@ -1,0 +1,20 @@
+kind: Template
+name: roundcube
+description: Free and open source webmail software for the masses, written in PHP.
+category: communication
+tags:
+    - self-hosted
+    - email
+    - webmail
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/roundcube.svg
+version: 1.6.9
+links:
+    docs: https://roundcube.net/about/
+    github: https://github.com/roundcube/roundcubemail
+    website: https://roundcube.net/
+image: roundcube/roundcubemail:1.6.9-apache
+env:
+    ROUNDCUBEMAIL_DB_TYPE: sqlite
+    ROUNDCUBEMAIL_DEFAULT_HOST: ""
+    ROUNDCUBEMAIL_SKIN: elastic
+    ROUNDCUBEMAIL_SMTP_SERVER: ""

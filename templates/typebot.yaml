@@ -1,0 +1,51 @@
+kind: Template
+name: typebot
+description: Typebot is an open-source chatbot builder platform.
+category: chatbot
+tags:
+    - chatbot
+    - builder
+    - open-source
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/typebot.svg
+version: 2.27.0
+links:
+    docs: https://docs.typebot.io/get-started/introduction
+    github: https://github.com/baptisteArno/typebot.io
+    website: https://typebot.io/
+image: baptistearno/typebot-builder:2.27
+stack: true
+services:
+    - name: typebot-builder
+      image: baptistearno/typebot-builder:2.27
+      env:
+        ADMIN_EMAIL: ""
+        DATABASE_URL: postgresql://typebot:typebot@typebot-db:5432/typebot
+        DEFAULT_WORKSPACE_PLAN: ""
+        ENCRYPTION_SECRET: ""
+        NEXT_PUBLIC_SMTP_FROM: ""
+        NEXT_PUBLIC_VIEWER_URL: ""
+        NEXTAUTH_URL: ""
+        SMTP_HOST: ""
+        SMTP_PASSWORD: ""
+        SMTP_USERNAME: ""
+    - name: typebot-db
+      image: postgres:14-alpine
+      env:
+        POSTGRES_DB: typebot
+        POSTGRES_PASSWORD: typebot
+        POSTGRES_USER: typebot
+      volumes:
+        - db-data:/var/lib/postgresql/data
+    - name: typebot-viewer
+      image: baptistearno/typebot-viewer:2.27.0
+      env:
+        ADMIN_EMAIL: ""
+        DATABASE_URL: postgresql://typebot:typebot@typebot-db:5432/typebot
+        DEFAULT_WORKSPACE_PLAN: ""
+        ENCRYPTION_SECRET: ""
+        NEXT_PUBLIC_SMTP_FROM: ""
+        NEXT_PUBLIC_VIEWER_URL: ""
+        NEXTAUTH_URL: ""
+        SMTP_HOST: ""
+        SMTP_PASSWORD: ""
+        SMTP_USERNAME: ""

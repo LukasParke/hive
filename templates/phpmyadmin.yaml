@@ -1,0 +1,31 @@
+kind: Template
+name: phpmyadmin
+description: Phpmyadmin is a free and open-source web interface for MySQL and MariaDB that allows you to manage your databases.
+category: databases
+tags:
+    - database
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/phpmyadmin.svg
+version: 5.2.1
+links:
+    docs: https://www.phpmyadmin.net/docs/
+    github: https://github.com/phpmyadmin/phpmyadmin
+    website: https://www.phpmyadmin.net/
+image: mariadb:11
+stack: true
+services:
+    - name: db
+      image: mariadb:11
+      env:
+        MYSQL_DATABASE: tu_base_de_datos
+        MYSQL_PASSWORD: ""
+        MYSQL_ROOT_PASSWORD: ""
+        MYSQL_USER: ""
+      volumes:
+        - db_data:/var/lib/mysql
+    - name: phpmyadmin
+      image: phpmyadmin/phpmyadmin:5.2.1
+      env:
+        PMA_ARBITRARY: "1"
+        PMA_HOST: db
+        PMA_PASSWORD: ""
+        PMA_USER: ""

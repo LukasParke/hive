@@ -1,0 +1,33 @@
+kind: Template
+name: docuseal
+description: Docuseal is a self-hosted document management system.
+category: document-signing
+tags:
+    - document-signing
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/docuseal.svg
+version: latest
+links:
+    docs: https://www.docuseal.com/
+    github: https://github.com/docusealco/docuseal
+    website: https://www.docuseal.com/
+image: docuseal/docuseal:latest
+stack: true
+services:
+    - name: app
+      image: docuseal/docuseal:latest
+      env:
+        DATABASE_URL: postgresql://docuseal:@docu-postgres:5432/docuseal
+      volumes:
+        - docuseal:/data/docuseal
+    - name: docu-postgres
+      image: postgres:latest
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""
+      volumes:
+        - docuseal-db:/var/lib/postgresql/data
+    - name: docu-redis
+      image: redis:alpine
+      volumes:
+        - docuseal-redis-data:/data

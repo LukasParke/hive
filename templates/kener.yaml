@@ -1,0 +1,47 @@
+kind: Template
+name: kener
+description: Kener is an open-source status page system for monitoring and alerting. It provides a modern interface for tracking service uptime and sending notifications.
+category: monitoring
+tags:
+    - monitoring
+    - status-page
+    - alerting
+    - self-hosted
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/kener.svg
+version: latest
+links:
+    docs: https://kener.ing/docs/
+    github: https://github.com/rajnandan1/kener
+    website: https://kener.ing/
+image: rajnandan1/kener:latest
+ports:
+    - "3000"
+stack: true
+services:
+    - name: kener
+      image: rajnandan1/kener:latest
+      ports:
+        - "3000"
+      env:
+        DATABASE_URL: ""
+        KENER_BASE_PATH: ""
+        KENER_SECRET_KEY: ""
+        ORIGIN: ""
+        RESEND_API_KEY: ""
+        RESEND_SENDER_EMAIL: ""
+        TZ: ""
+      volumes:
+        - kener_db:/app/database
+    - name: mysql
+      image: mariadb:11
+      env:
+        MYSQL_DATABASE: ""
+        MYSQL_PASSWORD: ""
+        MYSQL_RANDOM_ROOT_PASSWORD: "true"
+        MYSQL_USER: ""
+    - name: postgres
+      image: postgres:alpine
+      env:
+        POSTGRES_DB: ""
+        POSTGRES_PASSWORD: ""
+        POSTGRES_USER: ""

@@ -1,0 +1,23 @@
+kind: Template
+name: clickhouse
+description: ClickHouse is an open-source column-oriented DBMS (columnar database management system) for online analytical processing (OLAP) that allows users to generate analytical reports using SQL queries in real-time. ClickHouse works 100-1000x faster than traditional database management systems, and processes hundreds of millions to over a billion rows and tens of gigabytes of data per server per second.
+category: databases
+tags:
+    - self-hosted
+    - open-source
+    - database
+    - olap
+    - analytics
+icon: https://cdn.jsdelivr.net/gh/selfhst/icons/svg/clickhouse.svg
+version: latest
+links:
+    docs: https://clickhouse.com/docs
+    github: https://github.com/ClickHouse/ClickHouse
+    website: https://clickhouse.com/
+image: clickhouse/clickhouse-server:latest
+volumes:
+    - clickhouse-data:/var/lib/clickhouse
+    - clickhouse-logs:/var/log/clickhouse-server
+env:
+    CLICKHOUSE_PASSWORD: ""
+    CLICKHOUSE_USER: ""
