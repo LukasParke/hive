@@ -23,7 +23,7 @@
 		"@types/pg": "^8.18.0",
 		"esbuild": "^0.25.0",
 		"prisma": "^7.4.2",
-		"svelte": "^5.51.0",
+		"svelte": "^5.55.7",
 		"svelte-check": "^4.4.2",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1"
