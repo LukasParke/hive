@@ -1,0 +1,68 @@
+name: Go Build and Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  control-plane:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: control-plane
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - run: go vet ./...
+      - run: go test -race ./...
+  agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - run: go vet ./...
+      - run: go test -race ./...
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: golangci-lint control-plane
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: control-plane
+          args: --timeout=5m
+      - name: golangci-lint agent
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: agent
+          args: --timeout=5m
+  proto-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - uses: bufbuild/buf-setup-action@v1
+      - name: Regenerate protos
+        run: cd proto && buf generate
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain proto/gen/)" ]; then
+            echo "Proto generated code is out of date. Run 'make proto' and commit."
+            git diff proto/gen/
+            exit 1
+          fi

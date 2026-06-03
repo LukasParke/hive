@@ -1,0 +1,198 @@
+version: "3.9"
+
+services:
+  control-plane:
+    image: ghcr.io/hive/control-plane:${HIVE_IMAGE_TAG:-latest}
+    command: ["/control-plane"]
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/hive?sslmode=disable
+      - MASTER_KEY_FILE=/run/secrets/dokploy-master-key
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == manager
+      update_config:
+        order: start-first
+        failure_action: rollback
+      labels:
+        - hive.service=control-plane
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks: [dokploy_internal, dokploy_proxy]
+    ports:
+      - target: 3000
+        published: ${HIVE_CONTROL_PLANE_PORT:-3000}
+        protocol: tcp
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - shared:/data/shared
+    tmpfs:
+      - /data/local:size=2g
+    secrets:
+      - dokploy-master-key
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.hive.rule=Host(`${DOKPLOY_DOMAIN}`)
+      - traefik.http.routers.hive.entrypoints=websecure
+      - traefik.http.routers.hive.tls.certresolver=letsencrypt
+      - traefik.http.services.hive.loadbalancer.server.port=3000
+      - traefik.http.services.hive.loadbalancer.sticky.cookie.name=dokploy_sticky
+
+  agent:
+    image: ghcr.io/hive/agent:${HIVE_IMAGE_TAG:-latest}
+    deploy:
+      mode: global
+      labels:
+        - hive.service=agent
+    ports:
+      - target: 9090
+        published: ${HIVE_AGENT_PORT:-9090}
+        protocol: tcp
+      - target: 9091
+        published: ${HIVE_AGENT_METRICS_PORT:-9091}
+        protocol: tcp
+    networks: [dokploy_internal]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/host:ro
+      - /var/run/dbus:/var/run/dbus:ro
+      - agent-certs:/data/agent/certs
+    environment:
+      - HOST_ROOT=/host
+      - HOST_MGMT_ENABLED=${HIVE_HOST_MGMT:-false}
+      - CONTROL_PLANE_URL=http://control-plane:3000
+    secrets:
+      - agent-bootstrap-token
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9091/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  traefik:
+    image: traefik:v3.2
+    command:
+      - --providers.swarm=true
+      - --providers.swarm.exposedByDefault=false
+      - --providers.swarm.network=dokploy_proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/data/shared/acme.json
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role == manager
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - shared:/data/shared
+    networks: [dokploy_proxy]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=hive
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres-password
+    deploy:
+      placement:
+        constraints:
+          - node.labels.db == true
+    ports:
+      - target: 5432
+        published: ${HIVE_POSTGRES_PORT:-5432}
+        protocol: tcp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    secrets:
+      - postgres-password
+    networks: [dokploy_internal]
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      - DB_USER=postgres
+      - DB_PASSWORD_FILE=/run/secrets/postgres-password
+      - DB_HOST=postgres
+      - DB_NAME=hive
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=200
+      - DEFAULT_POOL_SIZE=20
+    secrets:
+      - postgres-password
+    ports:
+      - target: 5432
+        published: ${HIVE_PGBOUNCER_PORT:-6432}
+        protocol: tcp
+    networks: [dokploy_internal]
+
+  buildkit:
+    image: moby/buildkit:latest
+    command: ["buildkitd", "--addr", "tcp://0.0.0.0:1234"]
+    deploy:
+      placement:
+        constraints:
+          - node.labels.builder == true
+    ports:
+      - target: 1234
+        published: ${HIVE_BUILDKIT_PORT:-1234}
+        protocol: tcp
+    networks: [dokploy_internal]
+    volumes:
+      - buildkit-cache:/var/lib/buildkit
+
+  registry:
+    image: registry:2
+    deploy:
+      placement:
+        constraints:
+          - node.labels.registry == true
+    ports:
+      - target: 5000
+        published: ${HIVE_REGISTRY_PORT:-5000}
+        protocol: tcp
+    networks: [dokploy_internal]
+    volumes:
+      - registry-data:/var/lib/registry
+
+networks:
+  dokploy_internal:
+    driver: overlay
+    driver_opts:
+      encrypted: "true"
+  dokploy_proxy:
+    driver: overlay
+    attachable: true
+
+volumes:
+  pgdata: {}
+  shared: {}
+  buildkit-cache: {}
+  registry-data: {}
+  agent-certs: {}
+
+secrets:
+  dokploy-master-key:
+    external: true
+  postgres-password:
+    external: true
+  agent-bootstrap-token:
+    external: true

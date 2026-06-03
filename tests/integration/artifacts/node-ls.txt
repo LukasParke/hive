@@ -1,0 +1,4 @@
+ID                            HOSTNAME       STATUS    AVAILABILITY   MANAGER STATUS   ENGINE VERSION
+i6jrgvw0xhpa9e206jiqoyz63     4b6a6b26c8b7   Ready     Active         Reachable        27.5.1
+0dos3rkx4hikw5lk1q8i0wkzn     22ad5eaee1c3   Ready     Active         Reachable        27.5.1
+58o77qt2289s01gsd1qr3s0wm *   43a879094426   Ready     Active         Leader           27.5.1

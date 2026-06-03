@@ -1,0 +1,52 @@
+name: Database Migrations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hive
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hive"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: control-plane
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Migration up/down/up idempotency
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          up_files=$(ls internal/db/migrations/*.up.sql | sort)
+          down_files=$(ls internal/db/migrations/*.down.sql | sort -r)
+          for f in $up_files; do psql -h localhost -U postgres -d hive -v ON_ERROR_STOP=1 -f "$f"; done
+          for f in $down_files; do psql -h localhost -U postgres -d hive -v ON_ERROR_STOP=1 -f "$f"; done
+          for f in $up_files; do psql -h localhost -U postgres -d hive -v ON_ERROR_STOP=1 -f "$f"; done
+      - name: Install sqlc
+        run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+      - name: Compile sqlc queries
+        run: sqlc compile
+      - name: Verify generated code is up-to-date
+        run: |
+          sqlc generate
+          git diff --exit-code internal/db/generated/ || (echo "Generated code is out of date. Run 'sqlc generate' and commit the changes." && exit 1)
+      - run: go test ./...
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/hive?sslmode=disable

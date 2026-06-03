@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package agent.v1;
+
+service AgentService {
+  rpc ExecStream(stream ExecInput) returns (stream ExecOutput);
+  rpc GetContainerStats(StatsRequest) returns (StatsResponse);
+  rpc StreamContainerLogs(LogRequest) returns (stream LogChunk);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+message ExecInput {
+  oneof body {
+    ExecStart start = 1;
+    bytes stdin = 2;
+    ResizeTerminal resize = 3;
+  }
+}
+
+message ExecStart {
+  string container_id = 1;
+  repeated string command = 2;
+  bool tty = 3;
+  int32 rows = 4;
+  int32 cols = 5;
+}
+
+message ResizeTerminal {
+  int32 rows = 1;
+  int32 cols = 2;
+}
+
+message ExecOutput {
+  oneof body {
+    bytes stdout = 1;
+    bytes stderr = 2;
+    int32 exit_code = 3;
+  }
+}
+
+message StatsRequest {
+  repeated string container_ids = 1;
+}
+
+message ContainerStats {
+  string container_id = 1;
+  double cpu_percent = 2;
+  uint64 memory_usage = 3;
+  uint64 memory_limit = 4;
+  uint64 network_rx = 5;
+  uint64 network_tx = 6;
+  uint64 block_read = 7;
+  uint64 block_write = 8;
+}
+
+message StatsResponse {
+  repeated ContainerStats items = 1;
+}
+
+message LogRequest {
+  string container_id = 1;
+  bool follow = 2;
+  int32 tail = 3;
+  bool timestamps = 4;
+}
+
+message LogChunk {
+  bytes data = 1;
+  bool is_stderr = 2;
+  string timestamp = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string agent_version = 1;
+  string docker_version = 2;
+  string node_id = 3;
+  string hostname = 4;
+}

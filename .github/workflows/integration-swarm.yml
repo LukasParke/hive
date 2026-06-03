@@ -1,0 +1,68 @@
+name: Integration (Swarm dind)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: swarm-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DIND_MANAGER_HOST: tcp://127.0.0.1:2375
+      DOKPLOY_DOMAIN: ci.local
+      ACME_EMAIL: ci@example.com
+      STACK_NAME: hive
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Start dind swarm
+        run: ./tests/integration/scripts/start_dind_swarm.sh
+
+      - name: Build CI images in dind manager
+        run: |
+          docker --host "$DIND_MANAGER_HOST" build -t hive/control-plane:ci ./control-plane
+          docker --host "$DIND_MANAGER_HOST" build -t hive/agent:ci ./agent
+
+      - name: Seed swarm prerequisites
+        run: ./tests/integration/scripts/seed_swarm_prereqs.sh
+
+      - name: Deploy stack
+        run: |
+          docker --host "$DIND_MANAGER_HOST" stack deploy \
+            -c deploy/dokploy-stack.yml \
+            -c deploy/dokploy-stack.ci.yml \
+            "$STACK_NAME"
+
+      - name: Wait for stack readiness
+        run: ./tests/integration/scripts/wait_for_stack_ready.sh
+
+      - name: Run integration tests
+        run: |
+          set -o pipefail
+          mkdir -p tests/integration/artifacts
+          cd control-plane
+          HIVE_API_BASE_URL="http://127.0.0.1:3000" \
+          HIVE_DOCKER_HOST="$DIND_MANAGER_HOST" \
+          HIVE_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:6432/hive?sslmode=disable" \
+          go test -tags integration -v ./tests/integration -count=1 -timeout 20m \
+            | tee ../tests/integration/artifacts/go-test-output.txt
+
+      - name: Collect debug artifacts on failure
+        if: failure()
+        run: ./tests/integration/scripts/collect_debug_artifacts.sh
+
+      - name: Upload debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swarm-integration-debug
+          path: tests/integration/artifacts

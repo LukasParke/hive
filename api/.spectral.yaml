@@ -1,0 +1,87 @@
+extends: ["spectral:oas"]
+
+rules:
+  # Disable noisy built-in rules we don't care about yet
+  operation-tags: off
+  info-contact: off
+
+  # Enforce schemas on all 2xx responses
+  operation-success-response-schema:
+    description: All 2xx responses must have a schema.
+    given: "$.paths.*.*.responses[?(@property.match(/^2/))]"
+    then:
+      - field: content
+        function: defined
+      - field: "content.application/json.schema"
+        function: defined
+
+  # Enforce requestBody on mutating operations
+  operation-mutation-request-body:
+    description: POST, PUT, and PATCH operations must have a requestBody.
+    given:
+      - "$.paths.*.post"
+      - "$.paths.*.put"
+      - "$.paths.*.patch"
+    then:
+      - field: requestBody
+        function: defined
+      - field: "requestBody.content.application/json.schema"
+        function: defined
+
+  # Require operation summaries (only on actual HTTP methods)
+  operation-summary-required:
+    description: Every operation must have a summary.
+    given:
+      - "$.paths.*.get"
+      - "$.paths.*.post"
+      - "$.paths.*.put"
+      - "$.paths.*.patch"
+      - "$.paths.*.delete"
+    then:
+      - field: summary
+        function: defined
+
+  # Require operationId (only on actual HTTP methods)
+  operation-operationId-required:
+    description: Every operation must have an operationId.
+    given:
+      - "$.paths.*.get"
+      - "$.paths.*.post"
+      - "$.paths.*.put"
+      - "$.paths.*.patch"
+      - "$.paths.*.delete"
+    then:
+      - field: operationId
+        function: defined
+
+  # Require descriptions on schemas
+  schema-description-required:
+    description: Schema objects should have descriptions.
+    given: "$.components.schemas.*"
+    then:
+      - field: description
+        function: defined
+    severity: warn
+
+  # Require examples on key request schemas
+  request-schema-example:
+    description: Major request schemas should have examples.
+    given: "$.components.schemas[?(@.type == 'object' && @property.match(/Request$/))]"
+    then:
+      - field: example
+        function: defined
+    severity: warn
+
+  # Require security on protected endpoints
+  operation-security-required:
+    description: Endpoints should have security defined.
+    given:
+      - "$.paths.*.get"
+      - "$.paths.*.post"
+      - "$.paths.*.put"
+      - "$.paths.*.patch"
+      - "$.paths.*.delete"
+    then:
+      - field: security
+        function: defined
+    severity: warn

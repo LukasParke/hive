@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    networks: [dokploy_internal]
+
+  grafana:
+    image: grafana/grafana:latest
+    networks: [dokploy_internal, dokploy_proxy]
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.grafana.rule=Host(`grafana.${DOKPLOY_DOMAIN}`)
+        - traefik.http.routers.grafana.entrypoints=websecure
+        - traefik.http.routers.grafana.tls.certresolver=letsencrypt
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    deploy:
+      mode: global
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [dokploy_internal]
+
+networks:
+  dokploy_internal:
+    external: true
+  dokploy_proxy:
+    external: true

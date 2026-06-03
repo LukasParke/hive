@@ -1,0 +1,224 @@
+syntax = "proto3";
+
+package agent.v1;
+
+option go_package = "github.com/luke/hive/proto/gen/agent/v1;agentv1";
+
+service AgentService {
+  // Container RPCs
+  rpc ExecStream(stream ExecInput) returns (stream ExecOutput);
+  rpc GetContainerStats(StatsRequest) returns (StatsResponse);
+  rpc StreamContainerLogs(LogRequest) returns (stream LogChunk);
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Host RPCs
+  rpc GetHostMetrics(HostMetricsRequest) returns (HostMetricsResponse);
+  rpc StreamHostMetrics(HostMetricsStreamRequest) returns (stream HostMetricsResponse);
+  rpc GetPackageStatus(PackageStatusRequest) returns (PackageStatusResponse);
+  rpc HostExec(HostOperationRequest) returns (HostOperationResponse);
+}
+
+// ─── Container Messages ──────────────────────────────────────────
+
+message ExecInput {
+  oneof body {
+    ExecStart start = 1;
+    bytes stdin = 2;
+    ResizeTerminal resize = 3;
+  }
+}
+
+message ExecStart {
+  string container_id = 1;
+  repeated string command = 2;
+  bool tty = 3;
+  int32 rows = 4;
+  int32 cols = 5;
+}
+
+message ResizeTerminal {
+  int32 rows = 1;
+  int32 cols = 2;
+}
+
+message ExecOutput {
+  oneof body {
+    bytes stdout = 1;
+    bytes stderr = 2;
+    int32 exit_code = 3;
+  }
+}
+
+message StatsRequest {
+  repeated string container_ids = 1;
+}
+
+message ContainerStats {
+  string container_id = 1;
+  string name = 2;
+  double cpu_percent = 3;
+  uint64 memory_usage = 4;
+  uint64 memory_limit = 5;
+  uint64 network_rx = 6;
+  uint64 network_tx = 7;
+  uint64 block_read = 8;
+  uint64 block_write = 9;
+}
+
+message StatsResponse {
+  repeated ContainerStats items = 1;
+}
+
+message LogRequest {
+  string container_id = 1;
+  bool follow = 2;
+  int32 tail = 3;
+  bool timestamps = 4;
+}
+
+message LogChunk {
+  bytes data = 1;
+  bool is_stderr = 2;
+  string timestamp = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  string agent_version = 1;
+  string docker_version = 2;
+  string node_id = 3;
+  string hostname = 4;
+  uint64 memory_total = 5;
+  uint64 memory_used = 6;
+  int32 cpu_count = 7;
+  uint64 disk_total = 8;
+  uint64 disk_used = 9;
+}
+
+// ─── Host Metrics Messages ───────────────────────────────────────
+
+message HostMetricsRequest {}
+
+message HostMetricsStreamRequest {
+  int32 interval_seconds = 1; // default 15
+}
+
+message HostMetricsResponse {
+  string os_name = 1;
+  string os_version = 2;
+  string kernel_version = 3;
+  string hostname = 4;
+  uint64 uptime_seconds = 5;
+  double load_avg_1 = 6;
+  double load_avg_5 = 7;
+  double load_avg_15 = 8;
+
+  // CPU
+  repeated CpuCoreUsage cpu_cores = 9;
+  double cpu_total_percent = 10;
+
+  // Memory
+  uint64 memory_total = 11;
+  uint64 memory_used = 12;
+  uint64 memory_available = 13;
+  uint64 memory_cached = 14;
+  uint64 swap_total = 15;
+  uint64 swap_used = 16;
+
+  // Filesystems
+  repeated FilesystemInfo filesystems = 17;
+
+  // Network
+  repeated NetworkInterfaceInfo network_interfaces = 18;
+
+  // Disk I/O
+  repeated DiskIOInfo disk_io = 19;
+
+  int64 collected_at = 20; // unix timestamp
+}
+
+message CpuCoreUsage {
+  int32 core = 1;
+  double percent = 2;
+}
+
+message FilesystemInfo {
+  string device = 1;
+  string mount_point = 2;
+  string fs_type = 3;
+  uint64 total_bytes = 4;
+  uint64 used_bytes = 5;
+  uint64 available_bytes = 6;
+  double usage_percent = 7;
+  uint64 inodes_total = 8;
+  uint64 inodes_used = 9;
+}
+
+message NetworkInterfaceInfo {
+  string name = 1;
+  uint64 bytes_recv = 2;
+  uint64 bytes_sent = 3;
+  uint64 packets_recv = 4;
+  uint64 packets_sent = 5;
+  uint64 errors_in = 6;
+  uint64 errors_out = 7;
+  uint64 drops_in = 8;
+  uint64 drops_out = 9;
+}
+
+message DiskIOInfo {
+  string device = 1;
+  uint64 read_bytes = 2;
+  uint64 write_bytes = 3;
+  uint64 read_count = 4;
+  uint64 write_count = 5;
+  uint64 io_time_ms = 6;
+  uint64 weighted_io_time_ms = 7;
+}
+
+// ─── Package Status Messages ─────────────────────────────────────
+
+message PackageStatusRequest {}
+
+message PackageStatusResponse {
+  string package_manager = 1; // apt, yum, dnf, apk
+  int32 total_installed = 2;
+  int32 upgradable_count = 3;
+  int32 security_count = 4;
+  bool reboot_required = 5;
+  repeated PackageUpdate available_updates = 6;
+  int64 last_checked_at = 7; // unix timestamp
+}
+
+message PackageUpdate {
+  string name = 1;
+  string current_version = 2;
+  string available_version = 3;
+  bool is_security = 4;
+}
+
+// ─── Host Operations Messages ────────────────────────────────────
+
+enum HostOperation {
+  HOST_OPERATION_UNSPECIFIED = 0;
+  HOST_OPERATION_PACKAGE_UPDATE_CHECK = 1;
+  HOST_OPERATION_PACKAGE_UPGRADE_ALL = 2;
+  HOST_OPERATION_PACKAGE_UPGRADE_SECURITY = 3;
+  HOST_OPERATION_REBOOT_SCHEDULE = 4;
+  HOST_OPERATION_REBOOT_CANCEL = 5;
+  HOST_OPERATION_SYSTEMCTL_STATUS = 6;
+  HOST_OPERATION_JOURNALCTL_TAIL = 7;
+}
+
+message HostOperationRequest {
+  HostOperation operation = 1;
+  map<string, string> params = 2;
+}
+
+message HostOperationResponse {
+  int32 exit_code = 1;
+  string stdout = 2;
+  string stderr = 3;
+  int64 duration_ms = 4;
+}

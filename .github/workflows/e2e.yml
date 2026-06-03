@@ -1,0 +1,88 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - "control-plane/**"
+      - "ui/**"
+      - "api/**"
+      - "tests/e2e/**"
+      - ".github/workflows/e2e.yml"
+  push:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hive
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hive"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build control-plane
+        run: cd control-plane && go build -o /tmp/control-plane ./cmd/control-plane
+
+      - name: Start control-plane
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/hive?sslmode=disable
+          HTTP_ADDR: :3000
+          DOCKER_HOST: unix:///var/run/docker.sock
+          BUILDKIT_ADDR: tcp://localhost:1234
+          REGISTRY_ADDR: localhost:5000
+          MASTER_KEY_FILE: /dev/null
+          AGENT_BOOTSTRAP_TOKEN: test-bootstrap-token
+          JWT_SECRET: test-jwt-secret-must-be-at-least-32-characters-long
+        run: |
+          /tmp/control-plane &
+          echo $! > /tmp/cp.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/v1/health >/dev/null 2>&1; then
+              echo "Control plane is healthy"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Install Playwright
+        run: cd tests/e2e && npm install
+
+      - name: Install Playwright browsers
+        run: cd tests/e2e && npx playwright install chromium
+
+      - name: Run E2E tests
+        run: cd tests/e2e && npx playwright test
+        env:
+          HIVE_BASE_URL: http://localhost:3000
+
+      - name: Stop control-plane
+        if: always()
+        run: |
+          if [ -f /tmp/cp.pid ]; then
+            kill $(cat /tmp/cp.pid) || true
+          fi
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/

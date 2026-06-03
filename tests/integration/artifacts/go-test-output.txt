@@ -1,0 +1,16 @@
+=== RUN   TestClusterBootstrap
+--- PASS: TestClusterBootstrap (0.00s)
+=== RUN   TestAuthOrgRBACFlow
+--- PASS: TestAuthOrgRBACFlow (0.11s)
+=== RUN   TestApplicationGitDeploy
+--- PASS: TestApplicationGitDeploy (2.11s)
+=== RUN   TestRollbackQueueFlow
+--- PASS: TestRollbackQueueFlow (6.12s)
+=== RUN   TestControlPlaneHA
+--- PASS: TestControlPlaneHA (0.10s)
+=== RUN   TestPlatformDomainEndpoints
+--- PASS: TestPlatformDomainEndpoints (0.11s)
+=== RUN   TestGithubWebhookSignatureFlow
+--- PASS: TestGithubWebhookSignatureFlow (18.14s)
+PASS
+ok  	github.com/luke/hive/control-plane/tests/integration	26.693s

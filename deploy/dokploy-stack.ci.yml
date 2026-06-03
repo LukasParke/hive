@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  control-plane:
+    image: hive/control-plane:ci
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/hive?sslmode=disable
+      - MASTER_KEY_FILE=/run/secrets/dokploy-master-key
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AGENT_BOOTSTRAP_TOKEN=ci-bootstrap-token
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.ci == true
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: host
+
+  agent:
+    image: hive/agent:ci
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.ci == true
+
+  traefik:
+    deploy:
+      mode: replicated
+      replicas: 0
+
+  postgres:
+    ports:
+      - target: 5432
+        published: 5432
+        protocol: tcp
+        mode: host
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci == true
+
+  pgbouncer:
+    ports:
+      - target: 6432
+        published: 6432
+        protocol: tcp
+        mode: host
+
+  buildkit:
+    deploy:
+      mode: replicated
+      replicas: 0
+      placement:
+        constraints:
+          - node.labels.ci == true
+
+  registry:
+    deploy:
+      placement:
+        constraints:
+          - node.labels.ci == true
+
+secrets:
+  dokploy-master-key:
+    external: true
+  postgres-password:
+    external: true
+  agent-bootstrap-token:
+    external: true

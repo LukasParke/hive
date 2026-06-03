@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5
+    command: ["/usr/local/bin/etcd", "--name", "default"]
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        constraints:
+          - node.role == manager
+    networks: [dokploy_internal]
+
+  patroni:
+    image: ghcr.io/hive/postgres-patroni:latest
+    deploy:
+      mode: replicated
+      replicas: 3
+    networks: [dokploy_internal]
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      - DB_USER=postgres
+      - DB_HOST=patroni
+      - DB_NAME=hive
+      - POOL_MODE=transaction
+    networks: [dokploy_internal]
+
+networks:
+  dokploy_internal:
+    external: true

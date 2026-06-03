@@ -1,0 +1,192 @@
+/* ── Hive Design System: Gold & Black ── */
+
+:root {
+  /* Surfaces (warm blacks) */
+  --bg-root: #0e0e0e;
+  --bg-primary: #141414;
+  --bg-secondary: #1a1a18;
+  --bg-tertiary: #222220;
+  --bg-input: #1a1a18;
+  --bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* Gold accent (honey/amber) */
+  --gold-500: #d4a017;
+  --gold-400: #e0b030;
+  --gold-600: #b8860b;
+  --gold-alpha-10: rgba(212, 160, 23, 0.10);
+  --gold-alpha-20: rgba(212, 160, 23, 0.20);
+
+  /* Text */
+  --text-primary: #e8e4de;
+  --text-secondary: #9a9489;
+  --text-faint: #6b6560;
+  --text-heading: #f0ece6;
+  --text-on-gold: #1a1400;
+
+  /* Borders */
+  --border-primary: #2a2927;
+  --border-secondary: #333230;
+  --border-input: #3a3835;
+  --border-focus: #d4a017;
+
+  /* Semantic status */
+  --success-bg: #0f2419;
+  --success-fg: #4ade80;
+  --error-bg: #2a1215;
+  --error-fg: #f87171;
+  --warning-bg: #2a2008;
+  --warning-fg: #fbbf24;
+  --info-bg: #0c1a2e;
+  --info-fg: #60a5fa;
+  --deploying-bg: #1a1530;
+  --deploying-fg: #a78bfa;
+  --neutral-bg: #222220;
+  --neutral-fg: #9a9489;
+  --danger-text: #f87171;
+  --danger-bg: #991b1b;
+
+  /* Code */
+  --code-bg: #1a1a18;
+
+  /* Effects */
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-gold: 0 0 0 2px rgba(212, 160, 23, 0.3);
+  --transition-fast: 120ms ease;
+  --transition-normal: 180ms ease;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+/* Body */
+body {
+  background: var(--bg-root);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+/* Typography */
+h1, h2, h3, h4 {
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+a {
+  color: var(--gold-500);
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--gold-400);
+}
+
+/* Inputs */
+input, select, textarea {
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-gold);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-faint);
+}
+
+/* Buttons */
+button {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+button:hover {
+  background: #2a2a28;
+  border-color: var(--border-secondary);
+}
+button:active {
+  background: #1a1a18;
+}
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-gold);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Labels */
+label {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Scrollbar (WebKit) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+/* Scrollbar (Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-secondary) var(--bg-primary);
+}
+
+/* Selection */
+::selection {
+  background: rgba(212, 160, 23, 0.3);
+  color: var(--text-heading);
+}
+
+/* Keyframes */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}

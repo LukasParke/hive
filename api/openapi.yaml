@@ -1,0 +1,5586 @@
+openapi: 3.1.0
+info:
+  title: Hive API
+  version: 0.3.0
+  description: 'Hive is a Swarm-native platform control plane. This spec is the single
+
+    source of truth for all API contracts. Every request body, response, and
+
+    error shape is defined here.
+
+    '
+servers:
+- url: /api/v1
+  description: Control plane API v1
+components:
+  schemas:
+    ErrorResponse:
+      description: ErrorResponse schema.
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+        message:
+          type: string
+          description: Human-readable error message.
+      example:
+        code: bad_request
+        message: invalid payload
+    StatusResponse:
+      description: StatusResponse schema.
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: Current status.
+      example:
+        status: ok
+    UpdateStatus:
+      description: Self-update status.
+      type: object
+      additionalProperties: false
+      required:
+      - currentVersion
+      - latestVersion
+      - updateAvailable
+      properties:
+        currentVersion:
+          type: string
+          description: Currently running version.
+        latestVersion:
+          type: string
+          description: Latest available version from GitHub releases.
+        updateAvailable:
+          type: boolean
+          description: Whether a newer version is available.
+        lastCheckedAt:
+          type: string
+          format: date-time
+          description: ISO timestamp of the last check.
+    IdResponse:
+      description: IdResponse schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+    RegisterRequest:
+      description: RegisterRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address.
+        password:
+          type: string
+          minLength: 8
+          description: Password.
+        displayName:
+          type: string
+          description: Display name.
+      example:
+        email: user@example.com
+        password: secure123
+        displayName: John Doe
+    LoginRequest:
+      description: LoginRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address.
+        password:
+          type: string
+          description: Password.
+      example:
+        email: user@example.com
+        password: secure123
+    RefreshRequest:
+      description: RefreshRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token.
+      example:
+        refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    LogoutRequest:
+      description: LogoutRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token.
+      example:
+        refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    SessionResponse:
+      description: SessionResponse schema.
+      type: object
+      additionalProperties: false
+      required:
+      - accessToken
+      - refreshToken
+      properties:
+        accessToken:
+          type: string
+          description: Access token.
+        refreshToken:
+          type: string
+          description: Refresh token.
+    SendResetPasswordRequest:
+      description: SendResetPasswordRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address.
+      example:
+        email: user@example.com
+    ResetPasswordRequest:
+      description: ResetPasswordRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - token
+      - newPassword
+      properties:
+        token:
+          type: string
+          description: Token value.
+        newPassword:
+          type: string
+          minLength: 8
+          description: New password.
+      example:
+        token: abc123
+        newPassword: newsecure123
+    User:
+      description: User schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - email
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        email:
+          type: string
+          format: email
+          description: Email address.
+        displayName:
+          type: string
+          description: Display name.
+    Organization:
+      description: Organization schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - slug
+      - role
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        slug:
+          type: string
+          description: URL-friendly slug.
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+    CreateOrganizationRequest:
+      description: CreateOrganizationRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - slug
+      properties:
+        name:
+          type: string
+          description: Display name.
+        slug:
+          type: string
+          description: URL-friendly slug.
+      example:
+        name: Acme Corp
+        slug: acme-corp
+    Member:
+      description: Member schema.
+      type: object
+      additionalProperties: false
+      required:
+      - userId
+      - email
+      - role
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: User ID.
+        email:
+          type: string
+          format: email
+          description: Email address.
+        displayName:
+          type: string
+          description: Display name.
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+    UpdateMemberRoleRequest:
+      description: UpdateMemberRoleRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - role
+      properties:
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+      example:
+        role: admin
+    Invitation:
+      description: Invitation schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - email
+      - role
+      - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        email:
+          type: string
+          format: email
+          description: Email address.
+        role:
+          type: string
+          description: Member role.
+        status:
+          type: string
+          enum:
+          - pending
+          - accepted
+          - expired
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateInvitationRequest:
+      description: CreateInvitationRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - role
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email address.
+        role:
+          type: string
+          enum:
+          - admin
+          - member
+      example:
+        email: newuser@example.com
+        role: member
+    ApiKey:
+      description: ApiKey schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateApiKeyRequest:
+      description: CreateApiKeyRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: Display name.
+      example:
+        name: CI/CD Key
+    Project:
+      description: Project schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateProjectRequest:
+      description: CreateProjectRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: Display name.
+      example:
+        name: Website
+    UpdateProjectRequest:
+      description: UpdateProjectRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          description: Display name.
+      example:
+        name: Website V2
+    Environment:
+      description: Environment schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - projectId
+      - name
+      - slug
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        name:
+          type: string
+          description: Display name.
+        slug:
+          type: string
+          description: URL-friendly slug.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateEnvironmentRequest:
+      description: CreateEnvironmentRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - name
+      - slug
+      properties:
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        name:
+          type: string
+          description: Display name.
+        slug:
+          type: string
+          description: URL-friendly slug.
+      example:
+        projectId: 550e8400-e29b-41d4-a716-446655440000
+        name: production
+        slug: prod
+    UpdateEnvironmentRequest:
+      description: UpdateEnvironmentRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Display name.
+        slug:
+          type: string
+          description: URL-friendly slug.
+      example:
+        name: staging
+        slug: stg
+    Application:
+      description: Application schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - projectId
+      - name
+      - sourceType
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        name:
+          type: string
+          description: Display name.
+        sourceType:
+          type: string
+          enum:
+          - git
+          - image
+        image:
+          type: string
+          description: Docker image reference.
+        repositoryUrl:
+          type: string
+          description: Repository url.
+        gitRef:
+          type: string
+          description: Git ref.
+        containerPort:
+          type: integer
+          description: Container port.
+        watchPaths:
+          type: array
+          items:
+            type: string
+          description: Watch paths.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateApplicationRequest:
+      description: CreateApplicationRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - name
+      - sourceType
+      properties:
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        name:
+          type: string
+          description: Display name.
+        sourceType:
+          type: string
+          enum:
+          - git
+          - image
+        image:
+          type: string
+          description: Docker image reference.
+        repositoryUrl:
+          type: string
+          description: Repository url.
+        gitRef:
+          type: string
+          description: Git ref.
+        containerPort:
+          type: integer
+          default: 3000
+          description: Container port.
+        watchPaths:
+          type: array
+          items:
+            type: string
+          description: Watch paths.
+      example:
+        projectId: 550e8400-e29b-41d4-a716-446655440000
+        name: api
+        sourceType: git
+        image: myapp:latest
+        repositoryUrl: https://github.com/org/api
+        gitRef: main
+        containerPort: 8080
+        watchPaths:
+        - src/
+    UpdateApplicationRequest:
+      description: UpdateApplicationRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Display name.
+        image:
+          type: string
+          description: Docker image reference.
+        repositoryUrl:
+          type: string
+          description: Repository url.
+        gitRef:
+          type: string
+          description: Git ref.
+        containerPort:
+          type: integer
+          description: Container port.
+      example:
+        name: api-v2
+        image: myapp:v2
+        repositoryUrl: https://github.com/org/api
+        gitRef: develop
+        containerPort: 8080
+    Deployment:
+      description: Deployment schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - applicationId
+      - imageTag
+      - status
+      - trigger
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID.
+        imageTag:
+          type: string
+          description: Docker image tag.
+        status:
+          type: string
+          description: Current status.
+        trigger:
+          type: string
+          description: Trigger.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    BuildJob:
+      description: BuildJob schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - applicationId
+      - status
+      - trigger
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID.
+        status:
+          type: string
+          enum:
+          - queued
+          - building
+          - pushing
+          - deploying
+          - complete
+          - failed
+          - cancelled
+        trigger:
+          type: string
+          description: Trigger.
+        imageTag:
+          type: string
+          description: Docker image tag.
+        retries:
+          type: integer
+          description: Retries.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    Stack:
+      description: Stack schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - projectId
+      - name
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        name:
+          type: string
+          description: Display name.
+        composeContent:
+          type: string
+          description: Compose content.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateStackRequest:
+      description: CreateStackRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - name
+      - composeContent
+      properties:
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        name:
+          type: string
+          description: Display name.
+        composeContent:
+          type: string
+          description: Compose content.
+      example:
+        projectId: 550e8400-e29b-41d4-a716-446655440000
+        name: monitoring
+        composeContent: "version: \"3.8\"\nservices:\n  prometheus:\n    image: prom/prometheus\n"
+    UpdateStackRequest:
+      description: UpdateStackRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - composeContent
+      properties:
+        composeContent:
+          type: string
+          description: Compose content.
+      example:
+        composeContent: "version: \"3.8\"\nservices:\n  grafana:\n    image: grafana/grafana\n"
+    Domain:
+      description: Domain schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - applicationId
+      - hostname
+      - tlsEnabled
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID.
+        hostname:
+          type: string
+          description: System hostname.
+        tlsEnabled:
+          type: boolean
+          description: Tls enabled.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateDomainRequest:
+      description: CreateDomainRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - applicationId
+      - hostname
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID.
+        hostname:
+          type: string
+          description: System hostname.
+        tlsEnabled:
+          type: boolean
+          default: true
+          description: Tls enabled.
+      example:
+        applicationId: 550e8400-e29b-41d4-a716-446655440001
+        hostname: api.example.com
+        tlsEnabled: true
+    UpdateDomainRequest:
+      description: UpdateDomainRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        hostname:
+          type: string
+          description: System hostname.
+        tlsEnabled:
+          type: boolean
+          description: Tls enabled.
+      example:
+        hostname: api-v2.example.com
+        tlsEnabled: true
+    Registry:
+      description: Registry schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - url
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        url:
+          type: string
+          description: URL address.
+        username:
+          type: string
+          description: Username for authentication.
+        secretName:
+          type: string
+          description: Secret name.
+        isDefault:
+          type: boolean
+          description: Is default.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateRegistryRequest:
+      description: CreateRegistryRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - url
+      properties:
+        name:
+          type: string
+          description: Display name.
+        url:
+          type: string
+          description: URL address.
+        username:
+          type: string
+          description: Username for authentication.
+        secretName:
+          type: string
+          description: Secret name.
+        isDefault:
+          type: boolean
+          default: false
+          description: Is default.
+      example:
+        name: Docker Hub
+        url: https://index.docker.io/v1/
+        username: dockeruser
+    UpdateRegistryRequest:
+      description: UpdateRegistryRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Display name.
+        url:
+          type: string
+          description: URL address.
+        username:
+          type: string
+          description: Username for authentication.
+        secretName:
+          type: string
+          description: Secret name.
+        isDefault:
+          type: boolean
+          description: Is default.
+      example:
+        name: Docker Hub Pro
+    Node:
+      description: Node schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - hostname
+      - status
+      - role
+      properties:
+        id:
+          type: string
+          description: Unique identifier.
+        hostname:
+          type: string
+          description: System hostname.
+        status:
+          type: string
+          description: Current status.
+        role:
+          type: string
+          enum:
+          - manager
+          - worker
+        availability:
+          type: string
+          description: Availability percentage.
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels.
+    Service:
+      description: Service schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        image:
+          type: string
+          description: Docker image reference.
+        replicas:
+          type: integer
+          description: Number of replicas.
+        running:
+          type: integer
+          description: Running.
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels.
+    SwarmSecret:
+      description: SwarmSecret schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - createdAt
+      properties:
+        id:
+          type: string
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    SwarmConfig:
+      description: SwarmConfig schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - createdAt
+      properties:
+        id:
+          type: string
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    Network:
+      description: Network schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - driver
+      properties:
+        id:
+          type: string
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        driver:
+          type: string
+          description: Storage driver.
+        scope:
+          type: string
+          description: Scope (local or global).
+        internal:
+          type: boolean
+          description: Internal flag.
+        attachable:
+          type: boolean
+          description: Attachable flag.
+    Schedule:
+      description: Schedule schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - cronExpr
+      - targetType
+      - targetId
+      - enabled
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        cronExpr:
+          type: string
+          description: Cron expr.
+        targetType:
+          type: string
+          description: Target type.
+        targetId:
+          type: string
+          format: uuid
+          description: Target id.
+        enabled:
+          type: boolean
+          description: Whether the feature is enabled.
+        lastRunAt:
+          type: string
+          format: date-time
+          description: Last run at.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateScheduleRequest:
+      description: CreateScheduleRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - cronExpr
+      - targetType
+      - targetId
+      properties:
+        name:
+          type: string
+          description: Display name.
+        cronExpr:
+          type: string
+          description: Cron expr.
+        targetType:
+          type: string
+          description: Target type.
+        targetId:
+          type: string
+          format: uuid
+          description: Target id.
+        enabled:
+          type: boolean
+          default: true
+          description: Whether the feature is enabled.
+      example:
+        name: nightly-backup
+        cronExpr: 0 2 * * *
+        targetType: backup
+        targetId: 550e8400-e29b-41d4-a716-446655440002
+        enabled: true
+    UpdateScheduleRequest:
+      description: UpdateScheduleRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Display name.
+        cronExpr:
+          type: string
+          description: Cron expr.
+        targetType:
+          type: string
+          description: Target type.
+        targetId:
+          type: string
+          format: uuid
+          description: Target id.
+        enabled:
+          type: boolean
+          description: Whether the feature is enabled.
+      example:
+        name: nightly-backup-v2
+        cronExpr: 0 3 * * *
+        targetType: backup
+        targetId: 550e8400-e29b-41d4-a716-446655440002
+        enabled: true
+    BackupDestination:
+      description: BackupDestination schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - type
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        type:
+          type: string
+          description: Type or category.
+        config:
+          type: object
+          description: Config.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateBackupDestinationRequest:
+      description: CreateBackupDestinationRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - type
+      properties:
+        name:
+          type: string
+          description: Display name.
+        type:
+          type: string
+          description: Type or category.
+        config:
+          type: object
+          description: Config.
+      example:
+        name: S3
+        type: s3
+        config:
+          bucket: my-backups
+          region: us-east-1
+    UpdateBackupDestinationRequest:
+      description: UpdateBackupDestinationRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: Display name.
+        type:
+          type: string
+          description: Type or category.
+        config:
+          type: object
+          description: Config.
+      example:
+        name: S3 EU
+        type: s3
+        config:
+          bucket: my-backups-eu
+          region: eu-west-1
+    DatabaseService:
+      description: DatabaseService schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - projectId
+      - engine
+      - name
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        engine:
+          type: string
+          description: Database engine.
+        name:
+          type: string
+          description: Display name.
+        version:
+          type: string
+          description: Version string.
+        username:
+          type: string
+          description: Username for authentication.
+        databaseName:
+          type: string
+          description: Database name.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateDatabaseServiceRequest:
+      description: CreateDatabaseServiceRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - engine
+      - name
+      properties:
+        projectId:
+          type: string
+          format: uuid
+          description: Project ID.
+        engine:
+          type: string
+          description: Database engine.
+        name:
+          type: string
+          description: Display name.
+        version:
+          type: string
+          description: Version string.
+        username:
+          type: string
+          description: Username for authentication.
+        passwordSecretName:
+          type: string
+          description: Password secret name.
+        databaseName:
+          type: string
+          description: Database name.
+      example:
+        projectId: 550e8400-e29b-41d4-a716-446655440000
+        engine: postgres
+        name: main-db
+        version: '15'
+        username: dbuser
+        passwordSecretName: db-password
+        databaseName: appdb
+    GitProvider:
+      description: GitProvider schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - type
+      - name
+      - baseUrl
+      - enabled
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        type:
+          type: string
+          description: Type or category.
+        name:
+          type: string
+          description: Display name.
+        baseUrl:
+          type: string
+          description: Base url.
+        tokenSecretName:
+          type: string
+          description: Token secret name.
+        webhookSecret:
+          type: string
+          description: Webhook secret.
+        enabled:
+          type: boolean
+          description: Whether the feature is enabled.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateGitProviderRequest:
+      description: CreateGitProviderRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - type
+      - name
+      - baseUrl
+      properties:
+        type:
+          type: string
+          description: Type or category.
+        name:
+          type: string
+          description: Display name.
+        baseUrl:
+          type: string
+          description: Base url.
+        tokenSecretName:
+          type: string
+          description: Token secret name.
+        webhookSecret:
+          type: string
+          description: Webhook secret.
+        enabled:
+          type: boolean
+          default: true
+          description: Whether the feature is enabled.
+      example:
+        type: github
+        name: GitHub
+        baseUrl: https://github.com
+        tokenSecretName: github-token
+        webhookSecret: whsecret
+        enabled: true
+    Notification:
+      description: Notification schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - channel
+      - target
+      - enabled
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        channel:
+          type: string
+          description: Notification channel.
+        target:
+          type: string
+          description: Target reference.
+        enabled:
+          type: boolean
+          description: Whether the feature is enabled.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+    CreateNotificationRequest:
+      description: CreateNotificationRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - channel
+      - target
+      properties:
+        channel:
+          type: string
+          description: Notification channel.
+        target:
+          type: string
+          description: Target reference.
+        enabled:
+          type: boolean
+          default: true
+          description: Whether the feature is enabled.
+      example:
+        channel: slack
+        target: '#alerts'
+        enabled: true
+    UpdateNotificationRequest:
+      description: UpdateNotificationRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        channel:
+          type: string
+          description: Notification channel.
+        target:
+          type: string
+          description: Target reference.
+        enabled:
+          type: boolean
+          description: Whether the feature is enabled.
+      example:
+        channel: slack
+        target: '#new-alerts'
+        enabled: true
+    EnvVar:
+      description: EnvVar schema.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - key
+      - isSecret
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        key:
+          type: string
+          description: Key material or identifier.
+        value:
+          type: string
+          description: Value.
+        isSecret:
+          type: boolean
+          description: Is secret.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp (ISO 8601).
+    CreateEnvVarRequest:
+      description: CreateEnvVarRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - key
+      - value
+      properties:
+        key:
+          type: string
+          pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+          description: Key material or identifier.
+        value:
+          type: string
+          description: Value.
+        isSecret:
+          type: boolean
+          default: false
+          description: Is secret.
+      example:
+        key: DATABASE_URL
+        value: postgres://localhost/db
+    UpdateEnvVarRequest:
+      description: UpdateEnvVarRequest schema.
+      type: object
+      additionalProperties: false
+      required:
+      - value
+      properties:
+        value:
+          type: string
+          description: Value.
+      example:
+        value: postgres://remote/db
+    Settings:
+      type: object
+      additionalProperties: true
+      description: Key-value map of global application settings.
+    NodeResources:
+      description: NodeResources schema.
+      type: object
+      additionalProperties: false
+      required:
+      - nodeId
+      - hostname
+      - status
+      properties:
+        nodeId:
+          type: string
+          description: Node ID.
+        hostname:
+          type: string
+          description: System hostname.
+        status:
+          type: string
+          description: Current status.
+        cpuCores:
+          type: integer
+          description: Cpu cores.
+        cpuPercent:
+          type: number
+          description: Cpu percent.
+        memoryTotal:
+          type: integer
+          description: Memory total.
+        memoryUsed:
+          type: integer
+          description: Memory used.
+        diskTotal:
+          type: integer
+          description: Disk total.
+        diskUsed:
+          type: integer
+          description: Disk used.
+    ClusterResources:
+      description: ClusterResources schema.
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - totalCpuCores
+      - totalMemory
+      - totalDisk
+      - usedMemory
+      - usedDisk
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeResources'
+          description: Items.
+        totalCpuCores:
+          type: integer
+          description: Total cpu cores.
+        totalMemory:
+          type: integer
+          description: Total memory.
+        totalDisk:
+          type: integer
+          description: Total disk.
+        usedMemory:
+          type: integer
+          description: Used memory.
+        usedDisk:
+          type: integer
+          description: Used disk.
+    NodeMaintenanceRequest:
+      description: NodeMaintenanceRequest schema.
+      type: object
+      additionalProperties: false
+      properties:
+        operations:
+          type: array
+          items:
+            type: string
+            enum:
+            - security_updates
+            - all_updates
+          description: Operations.
+        rebootIfNeeded:
+          type: boolean
+          default: false
+          description: Reboot if needed.
+      example:
+        operations:
+        - security_updates
+        rebootIfNeeded: false
+    WebhookPayload:
+      type: object
+      additionalProperties: true
+      description: Provider-specific webhook payload (GitHub, GitLab, Bitbucket, Gitea).
+    Redirect:
+      description: HTTP redirect rule for domain routing
+      type: object
+      required:
+      - id
+      - domainId
+      - path
+      - target
+      - statusCode
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Redirect ID
+        domainId:
+          type: string
+          format: uuid
+          description: Domain ID
+        path:
+          type: string
+          description: Source path pattern
+        target:
+          type: string
+          description: Target URL or path
+        statusCode:
+          type: integer
+          enum:
+          - 301
+          - 302
+          - 307
+          - 308
+          description: HTTP redirect status code
+        permanent:
+          type: boolean
+          description: Whether this is a permanent redirect
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        domainId: 550e8400-e29b-41d4-a716-446655440001
+        path: /old-path
+        target: /new-path
+        statusCode: 301
+        permanent: true
+        createdAt: '2026-01-01T00:00:00Z'
+    RedirectList:
+      description: List of redirects
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Redirect'
+    CreateRedirectRequest:
+      description: Create redirect request
+      type: object
+      required:
+      - domainId
+      - path
+      - target
+      - statusCode
+      properties:
+        domainId:
+          type: string
+          format: uuid
+          description: Domain ID
+        path:
+          type: string
+          description: Source path pattern
+        target:
+          type: string
+          description: Target URL or path
+        statusCode:
+          type: integer
+          enum:
+          - 301
+          - 302
+          - 307
+          - 308
+          description: HTTP redirect status code
+        permanent:
+          type: boolean
+          description: Whether this is a permanent redirect
+      example:
+        domainId: 550e8400-e29b-41d4-a716-446655440001
+        path: /old-path
+        target: /new-path
+        statusCode: 301
+        permanent: true
+    Mount:
+      description: Volume mount configuration for a service
+      type: object
+      required:
+      - id
+      - applicationId
+      - type
+      - source
+      - target
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Mount ID
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID
+        type:
+          type: string
+          enum:
+          - volume
+          - bind
+          - tmpfs
+          description: Mount type
+        source:
+          type: string
+          description: Source path or volume name
+        target:
+          type: string
+          description: Target path in container
+        readOnly:
+          type: boolean
+          description: Whether the mount is read-only
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        applicationId: 550e8400-e29b-41d4-a716-446655440001
+        type: volume
+        source: my-data
+        target: /data
+        readOnly: false
+        createdAt: '2026-01-01T00:00:00Z'
+    MountList:
+      description: List of mounts
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mount'
+    CreateMountRequest:
+      description: Create mount request
+      type: object
+      required:
+      - applicationId
+      - type
+      - source
+      - target
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID
+        type:
+          type: string
+          enum:
+          - volume
+          - bind
+          - tmpfs
+          description: Mount type
+        source:
+          type: string
+          description: Source path or volume name
+        target:
+          type: string
+          description: Target path in container
+        readOnly:
+          type: boolean
+          description: Whether the mount is read-only
+      example:
+        applicationId: 550e8400-e29b-41d4-a716-446655440001
+        type: volume
+        source: my-data
+        target: /data
+        readOnly: false
+    PortPolicy:
+      description: Port exposure policy for a service
+      type: object
+      required:
+      - id
+      - applicationId
+      - publishedPort
+      - targetPort
+      - protocol
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Port policy ID
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID
+        publishedPort:
+          type: integer
+          description: Published port on host
+        targetPort:
+          type: integer
+          description: Target port in container
+        protocol:
+          type: string
+          enum:
+          - tcp
+          - udp
+          - sctp
+          description: Port protocol
+        mode:
+          type: string
+          enum:
+          - ingress
+          - host
+          description: Publish mode
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        applicationId: 550e8400-e29b-41d4-a716-446655440001
+        publishedPort: 8080
+        targetPort: 80
+        protocol: tcp
+        mode: ingress
+        createdAt: '2026-01-01T00:00:00Z'
+    PortPolicyList:
+      description: List of port policies
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortPolicy'
+    CreatePortPolicyRequest:
+      description: Create port policy request
+      type: object
+      required:
+      - applicationId
+      - publishedPort
+      - targetPort
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID
+        publishedPort:
+          type: integer
+          description: Published port on host
+        targetPort:
+          type: integer
+          description: Target port in container
+        protocol:
+          type: string
+          enum:
+          - tcp
+          - udp
+          - sctp
+          description: Port protocol
+        mode:
+          type: string
+          enum:
+          - ingress
+          - host
+          description: Publish mode
+      example:
+        applicationId: 550e8400-e29b-41d4-a716-446655440001
+        publishedPort: 8080
+        targetPort: 80
+        protocol: tcp
+        mode: ingress
+    VolumeBackup:
+      description: Volume backup job record
+      type: object
+      required:
+      - id
+      - volumeName
+      - status
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Backup ID
+        volumeName:
+          type: string
+          description: Source volume name
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - complete
+          - failed
+          description: Backup status
+        sizeBytes:
+          type: integer
+          description: Backup size in bytes
+        destinationId:
+          type: string
+          format: uuid
+          description: Backup destination ID
+        errorMessage:
+          type: string
+          description: Error message if failed
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        completedAt:
+          type: string
+          format: date-time
+          description: Completion timestamp
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        volumeName: pgdata
+        status: complete
+        sizeBytes: 104857600
+        destinationId: 550e8400-e29b-41d4-a716-446655440001
+        createdAt: '2026-01-01T00:00:00Z'
+        completedAt: '2026-01-01T00:05:00Z'
+    VolumeBackupList:
+      description: List of volume backups
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VolumeBackup'
+    CreateVolumeBackupRequest:
+      description: Create volume backup request
+      type: object
+      required:
+      - volumeName
+      - destinationId
+      properties:
+        volumeName:
+          type: string
+          description: Volume name to backup
+        destinationId:
+          type: string
+          format: uuid
+          description: Backup destination ID
+      example:
+        volumeName: pgdata
+        destinationId: 550e8400-e29b-41d4-a716-446655440001
+    PreviewDeployment:
+      description: Preview deployment for a pull request
+      type: object
+      required:
+      - id
+      - applicationId
+      - prNumber
+      - branch
+      - status
+      - url
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Preview deployment ID
+        applicationId:
+          type: string
+          format: uuid
+          description: Application ID
+        prNumber:
+          type: integer
+          description: Pull request number
+        branch:
+          type: string
+          description: Git branch name
+        commitSha:
+          type: string
+          description: Git commit SHA
+        status:
+          type: string
+          enum:
+          - building
+          - deploying
+          - ready
+          - failed
+          - expired
+          description: Preview status
+        url:
+          type: string
+          description: Preview URL
+        expiresAt:
+          type: string
+          format: date-time
+          description: Expiration timestamp
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        applicationId: 550e8400-e29b-41d4-a716-446655440001
+        prNumber: 42
+        branch: feature/new-ui
+        commitSha: abc123
+        status: ready
+        url: https://pr-42--myapp.preview.example.com
+        expiresAt: '2026-01-08T00:00:00Z'
+        createdAt: '2026-01-01T00:00:00Z'
+    PreviewDeploymentList:
+      description: List of preview deployments
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreviewDeployment'
+    PreviewDeploymentCreateRequest:
+      description: Request to create a preview deployment
+      type: object
+      required:
+      - prNumber
+      - branch
+      properties:
+        prNumber:
+          type: integer
+          description: Pull request number
+        branch:
+          type: string
+          description: Git branch name
+        commitSha:
+          type: string
+          description: Git commit SHA
+      example:
+        prNumber: 42
+        branch: feature/new-ui
+        commitSha: abc123
+    Profile:
+      description: User profile
+      type: object
+      required:
+      - id
+      - email
+      - displayName
+      - isActive
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User ID
+        email:
+          type: string
+          description: Email address
+        displayName:
+          type: string
+          description: Display name
+        isActive:
+          type: boolean
+          description: Whether the user account is active
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        email: alice@example.com
+        displayName: Alice
+        isActive: true
+        createdAt: '2026-01-01T00:00:00Z'
+    ProfileUpdateRequest:
+      description: Request to update user profile
+      type: object
+      properties:
+        displayName:
+          type: string
+          description: New display name
+      example:
+        displayName: Alice Smith
+    ChangePasswordRequest:
+      description: Request to change password
+      type: object
+      required:
+      - currentPassword
+      - newPassword
+      properties:
+        currentPassword:
+          type: string
+          description: Current password
+        newPassword:
+          type: string
+          description: New password
+      example:
+        currentPassword: oldsecret
+        newPassword: newsecret
+    SecurityRule:
+      description: Security rule for edge protection
+      type: object
+      required:
+      - id
+      - name
+      - type
+      - config
+      - priority
+      - enabled
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Rule ID
+        applicationId:
+          type: string
+          format: uuid
+          description: Target application ID
+        name:
+          type: string
+          description: Rule name
+        type:
+          type: string
+          enum:
+          - ip_allowlist
+          - ip_blocklist
+          - country_block
+          - header_security
+          - rate_limit
+          description: Rule type
+        config:
+          type: object
+          description: Type-specific configuration
+        priority:
+          type: integer
+          description: Rule priority (higher = applied first)
+        enabled:
+          type: boolean
+          description: Whether the rule is active
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        applicationId: 550e8400-e29b-41d4-a716-446655440001
+        name: Block bad actors
+        type: ip_blocklist
+        config:
+          sourceRange:
+          - 10.0.0.0/8
+        priority: 10
+        enabled: true
+        createdAt: '2026-01-01T00:00:00Z'
+        updatedAt: '2026-01-01T00:00:00Z'
+    SecurityRuleList:
+      description: List of security rules
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityRule'
+    SecurityRuleCreateRequest:
+      description: Request to create a security rule
+      type: object
+      required:
+      - name
+      - type
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          description: Target application ID
+        name:
+          type: string
+          description: Rule name
+        type:
+          type: string
+          enum:
+          - ip_allowlist
+          - ip_blocklist
+          - country_block
+          - header_security
+          - rate_limit
+          description: Rule type
+        config:
+          type: object
+          description: Type-specific configuration
+        priority:
+          type: integer
+          description: Rule priority
+        enabled:
+          type: boolean
+          description: Whether the rule is active
+      example:
+        name: Block bad actors
+        type: ip_blocklist
+        config:
+          sourceRange:
+          - 10.0.0.0/8
+        priority: 10
+        enabled: true
+  parameters:
+    IdParam:
+      description: IdParam schema.
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  securitySchemes:
+    bearerAuth:
+      description: bearerAuth schema.
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+      description: Retrieve health
+      security: []
+  /ready:
+    get:
+      operationId: getReady
+      summary: Readiness check
+      responses:
+        '200':
+          description: Ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '503':
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      description: Retrieve ready
+      security: []
+  /auth/register:
+    post:
+      operationId: register
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create auth register
+      security: []
+  /auth/login:
+    post:
+      operationId: login
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      description: Create auth login
+      security: []
+  /auth/refresh:
+    post:
+      operationId: refresh
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      description: Create auth refresh
+      security: []
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+      description: Create auth logout
+      security: []
+  /auth/me:
+    get:
+      operationId: me
+      summary: Current principal
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Current principal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      description: Retrieve auth me
+  /profile:
+    get:
+      operationId: getProfile
+      summary: Get current user profile
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      description: Retrieve current user profile
+    put:
+      operationId: updateProfile
+      summary: Update current user profile
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdateRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Update current user profile
+  /profile/change-password:
+    post:
+      operationId: changePassword
+      summary: Change password
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      description: Change current user password
+  /auth/send-reset-password:
+    post:
+      operationId: sendResetPassword
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendResetPasswordRequest'
+      responses:
+        '200':
+          description: Reset email sent (or privacy-preserving ok)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+      description: Create auth send reset password
+      security: []
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      summary: Reset password with token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create auth reset password
+      security: []
+  /organizations:
+    get:
+      operationId: listOrganizations
+      summary: List organizations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Organization list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+      description: Retrieve organizations
+    post:
+      operationId: createOrganization
+      summary: Create organization
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create organizations
+  /organizations/{id}/api-keys:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: listApiKeys
+      summary: List API keys for organization
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: API key list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKey'
+      description: Retrieve organizations id api keys
+    post:
+      operationId: createApiKey
+      summary: Create API key
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - token
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  token:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create organizations id api keys
+  /organizations/{id}/api-keys/{keyId}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    - name: keyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    delete:
+      operationId: deleteApiKey
+      summary: Revoke API key
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: API key revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Delete organizations id api keys keyId
+    post:
+      operationId: regenerateApiKey
+      summary: Regenerate API key
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: New API key token
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - token
+                properties:
+                  token:
+                    type: string
+                    description: New API key token
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Regenerate an API key (replaces old key with a new token)
+  /organizations/{id}/members:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: listOrganizationMembers
+      summary: List organization members
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Member'
+      description: Retrieve organizations id members
+    put:
+      operationId: updateOrganizationMemberRole
+      summary: Update member role
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMemberRoleRequest'
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Update organizations id members
+  /organizations/{id}/invitations:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: listOrganizationInvitations
+      summary: List pending invitations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Invitation list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invitation'
+      description: Retrieve organizations id invitations
+    post:
+      operationId: createOrganizationInvitation
+      summary: Invite user to organization
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationRequest'
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create organizations id invitations
+  /organizations/{id}/invitations/{inviteId}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    - name: inviteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    delete:
+      operationId: deleteOrganizationInvitation
+      summary: Cancel invitation
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Invitation cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Delete organizations id invitations inviteId
+  /organizations/{id}/invitations/{inviteId}/resend:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    - name: inviteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: resendOrganizationInvitation
+      summary: Resend invitation
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Invitation resent
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - token
+                - email
+                - status
+                properties:
+                  id:
+                    type: string
+                  token:
+                    type: string
+                  email:
+                    type: string
+                  status:
+                    type: string
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Resend an organization invitation with a new token and extended expiry
+  /organizations/{id}/invitations/{inviteId}/revoke:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    - name: inviteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: revokeOrganizationInvitation
+      summary: Revoke invitation
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Invitation revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Revoke an organization invitation (marks as revoked without deleting)
+  /invitations/{token}:
+    get:
+      operationId: getInvitationByToken
+      summary: Get invitation by token
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Invitation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve invitations token
+      security: []
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitationByToken
+      summary: Accept invitation
+      security: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create invitations token accept
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /projects:
+    get:
+      operationId: listProjects
+      summary: List projects
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Project list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+      description: Retrieve projects
+    post:
+      operationId: createProject
+      summary: Create project
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create projects
+  /projects/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getProject
+      summary: Get project
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve projects id
+    put:
+      operationId: updateProject
+      summary: Update project
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update projects id
+    delete:
+      operationId: deleteProject
+      summary: Delete project
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Project deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete projects id
+  /environments:
+    get:
+      operationId: listEnvironments
+      summary: List environments
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Environment list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Environment'
+      description: Retrieve environments
+    post:
+      operationId: createEnvironment
+      summary: Create environment
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEnvironmentRequest'
+      responses:
+        '201':
+          description: Environment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create environments
+  /environments/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getEnvironment
+      summary: Get environment
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Environment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve environments id
+    put:
+      operationId: updateEnvironment
+      summary: Update environment
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEnvironmentRequest'
+      responses:
+        '200':
+          description: Environment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Environment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update environments id
+    delete:
+      operationId: deleteEnvironment
+      summary: Delete environment
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Environment deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete environments id
+  /applications:
+    get:
+      operationId: listApplications
+      summary: List applications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Application list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Application'
+      description: Retrieve applications
+    post:
+      operationId: createApplication
+      summary: Create application
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create applications
+  /applications/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getApplication
+      summary: Get application
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve applications id
+    put:
+      operationId: updateApplication
+      summary: Update application
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationRequest'
+      responses:
+        '200':
+          description: Application updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update applications id
+    delete:
+      operationId: deleteApplication
+      summary: Delete application
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Application deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete applications id
+  /applications/{id}/deploy:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: deployApplication
+      summary: Deploy application
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Deployment enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create applications id deploy
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /applications/{id}/deployments:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: listApplicationDeployments
+      summary: List application deployments
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Deployment history list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Deployment'
+      description: Retrieve applications id deployments
+  /applications/{id}/rollback:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: rollbackApplication
+      summary: Rollback application
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Rollback enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create applications id rollback
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /applications/{id}/start:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: startApplication
+      summary: Start application
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Application started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create applications id start
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /applications/{id}/stop:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: stopApplication
+      summary: Stop application
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Application stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create applications id stop
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /applications/{id}/restart:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: restartApplication
+      summary: Restart application
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Application restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create applications id restart
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /applications/{id}/logs:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: applicationLogs
+      summary: Get application deployment logs
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Application log lines
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - lines
+                properties:
+                  lines:
+                    type: array
+                    items:
+                      type: string
+      description: Retrieve applications id logs
+  /applications/{id}/env:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: listAppEnvVars
+      summary: List application environment variables
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Environment variable list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EnvVar'
+      description: Retrieve applications id env
+    post:
+      operationId: createAppEnvVar
+      summary: Create environment variable
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEnvVarRequest'
+      responses:
+        '201':
+          description: Env var created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create applications id env
+  /applications/{id}/env/{varId}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    - name: varId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    put:
+      operationId: updateAppEnvVar
+      summary: Update environment variable
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEnvVarRequest'
+      responses:
+        '200':
+          description: Env var updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update applications id env varId
+    delete:
+      operationId: deleteAppEnvVar
+      summary: Delete environment variable
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Env var deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete applications id env varId
+  /services:
+    get:
+      operationId: listServices
+      summary: List Swarm services
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Service list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+      description: Retrieve services
+  /nodes:
+    get:
+      operationId: listNodes
+      summary: List Swarm nodes
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Node list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Node'
+      description: Retrieve nodes
+  /nodes/{id}/metrics:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: getNodeMetrics
+      summary: Get node metrics from agent
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Node metrics
+          content:
+            application/json:
+              schema:
+                type: object
+        '502':
+          $ref: '#/components/responses/BadRequest'
+      description: Retrieve nodes id metrics
+  /nodes/{id}/packages:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: getNodePackages
+      summary: Get node package status
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Package status
+          content:
+            application/json:
+              schema:
+                type: object
+        '502':
+          $ref: '#/components/responses/BadRequest'
+      description: Retrieve nodes id packages
+  /nodes/{id}/packages/check:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: triggerPackageCheck
+      summary: Trigger package update check
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Check triggered
+          content:
+            application/json:
+              schema:
+                type: object
+        '502':
+          $ref: '#/components/responses/BadRequest'
+      description: Create nodes id packages check
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /nodes/{id}/maintain:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      operationId: triggerNodeMaintenance
+      summary: Run node maintenance operations
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeMaintenanceRequest'
+      responses:
+        '200':
+          description: Maintenance results
+          content:
+            application/json:
+              schema:
+                type: object
+        '502':
+          $ref: '#/components/responses/BadRequest'
+      description: Create nodes id maintain
+  /cluster/resources:
+    get:
+      operationId: getClusterResources
+      summary: Get cluster resource overview
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Cluster resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterResources'
+      description: Retrieve cluster resources
+  /domains:
+    get:
+      operationId: listDomains
+      summary: List domains
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Domain list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Domain'
+      description: Retrieve domains
+    post:
+      operationId: createDomain
+      summary: Create domain
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDomainRequest'
+      responses:
+        '201':
+          description: Domain created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create domains
+  /domains/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getDomain
+      summary: Get domain
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Domain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve domains id
+    put:
+      operationId: updateDomain
+      summary: Update domain
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDomainRequest'
+      responses:
+        '200':
+          description: Domain updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update domains id
+    delete:
+      operationId: deleteDomain
+      summary: Delete domain
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Domain deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete domains id
+  /registries:
+    get:
+      operationId: listRegistries
+      summary: List registries
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Registry list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Registry'
+      description: Retrieve registries
+    post:
+      operationId: createRegistry
+      summary: Create registry
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRegistryRequest'
+      responses:
+        '201':
+          description: Registry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create registries
+  /registries/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getRegistry
+      summary: Get registry
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Registry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registry'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve registries id
+    put:
+      operationId: updateRegistry
+      summary: Update registry
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRegistryRequest'
+      responses:
+        '200':
+          description: Registry updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update registries id
+    delete:
+      operationId: deleteRegistry
+      summary: Delete registry
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Registry deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete registries id
+  /registries/{id}/test:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: testRegistry
+      summary: Test registry connectivity
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Registry test passed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create registries id test
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /stacks:
+    get:
+      operationId: listStacks
+      summary: List stacks
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Stack list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Stack'
+      description: Retrieve stacks
+    post:
+      operationId: createStack
+      summary: Create stack
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStackRequest'
+      responses:
+        '201':
+          description: Stack created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create stacks
+  /stacks/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getStack
+      summary: Get stack
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Stack
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stack'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve stacks id
+    put:
+      operationId: updateStack
+      summary: Update stack
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStackRequest'
+      responses:
+        '200':
+          description: Stack updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update stacks id
+    delete:
+      operationId: deleteStack
+      summary: Delete stack
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Stack removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete stacks id
+  /stacks/{id}/deploy:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: deployStack
+      summary: Deploy stack
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Stack deploy enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create stacks id deploy
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /secrets:
+    get:
+      operationId: listSecrets
+      summary: List Swarm secrets
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Secret list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SwarmSecret'
+      description: Retrieve secrets
+    post:
+      operationId: createSecret
+      summary: Create Swarm secret
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - data
+              properties:
+                name:
+                  type: string
+                data:
+                  type: string
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        '201':
+          description: Secret created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create secrets
+  /configs:
+    get:
+      operationId: listConfigs
+      summary: List Swarm configs
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Config list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SwarmConfig'
+      description: Retrieve configs
+    post:
+      operationId: createConfig
+      summary: Create Swarm config
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - data
+              properties:
+                name:
+                  type: string
+                data:
+                  type: string
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        '201':
+          description: Config created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create configs
+  /networks:
+    get:
+      operationId: listNetworks
+      summary: List Swarm networks
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Network list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Network'
+      description: Retrieve networks
+    post:
+      operationId: createNetwork
+      summary: Create Swarm network
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - driver
+              properties:
+                name:
+                  type: string
+                driver:
+                  type: string
+                  default: overlay
+                internal:
+                  type: boolean
+                  default: false
+                attachable:
+                  type: boolean
+                  default: false
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        '201':
+          description: Network created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create networks
+  /builds:
+    get:
+      operationId: listBuilds
+      summary: List builds
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Build list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BuildJob'
+      description: Retrieve builds
+  /builds/queue:
+    get:
+      operationId: listBuildQueue
+      summary: List build queue
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Build queue list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BuildJob'
+      description: Retrieve builds queue
+  /builds/{id}/cancel:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: cancelBuild
+      summary: Cancel build
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Build canceled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create builds id cancel
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /builds/{id}/retry:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: retryBuild
+      summary: Retry build
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Build retry accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create builds id retry
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /settings:
+    get:
+      operationId: getSettings
+      summary: Get global settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Settings map
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    $ref: '#/components/schemas/Settings'
+      description: Retrieve settings
+    put:
+      operationId: putSettings
+      summary: Update global settings
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Settings'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Update settings
+  /schedules:
+    get:
+      operationId: listSchedules
+      summary: List schedules
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Schedule list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Schedule'
+      description: Retrieve schedules
+    post:
+      operationId: createSchedule
+      summary: Create schedule
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScheduleRequest'
+      responses:
+        '201':
+          description: Schedule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create schedules
+  /schedules/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    put:
+      operationId: updateSchedule
+      summary: Update schedule
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScheduleRequest'
+      responses:
+        '200':
+          description: Schedule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update schedules id
+    delete:
+      operationId: deleteSchedule
+      summary: Delete schedule
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Schedule deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete schedules id
+  /schedules/{id}/run:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: runScheduleNow
+      summary: Run schedule now
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Schedule run accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create schedules id run
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /backups:
+    get:
+      operationId: listBackups
+      summary: List backups
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Backups list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        targetType:
+                          type: string
+                        targetId:
+                          type: string
+                          format: uuid
+                        status:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+      description: Retrieve backups
+    post:
+      operationId: createBackup
+      summary: Create backup
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - targetType
+              - targetId
+              properties:
+                targetType:
+                  type: string
+                targetId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Backup run created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create backups
+  /backups/{id}/restore:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: restoreBackup
+      summary: Restore backup
+      security:
+      - bearerAuth: []
+      responses:
+        '202':
+          description: Restore enqueued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create backups id restore
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /backup/destinations:
+    get:
+      operationId: listBackupDestinations
+      summary: List backup destinations
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Backup destinations list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BackupDestination'
+      description: Retrieve backup destinations
+    post:
+      operationId: createBackupDestination
+      summary: Create backup destination
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBackupDestinationRequest'
+      responses:
+        '201':
+          description: Backup destination created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create backup destinations
+  /backup/destinations/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getBackupDestination
+      summary: Get backup destination
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Backup destination
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupDestination'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve backup destinations id
+    put:
+      operationId: updateBackupDestination
+      summary: Update backup destination
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBackupDestinationRequest'
+      responses:
+        '200':
+          description: Backup destination updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupDestination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update backup destinations id
+    delete:
+      operationId: deleteBackupDestination
+      summary: Delete backup destination
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Backup destination deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete backup destinations id
+  /backup/destinations/{id}/test:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: testBackupDestination
+      summary: Test backup destination
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Backup destination test passed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create backup destinations id test
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /database-services:
+    get:
+      operationId: listDatabaseServices
+      summary: List database services
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Database services list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DatabaseService'
+      description: Retrieve database services
+    post:
+      operationId: createDatabaseService
+      summary: Create database service
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatabaseServiceRequest'
+      responses:
+        '201':
+          description: Database service created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create database services
+  /database-services/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getDatabaseService
+      summary: Get database service
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Database service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseService'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve database services id
+  /git/providers:
+    get:
+      operationId: listGitProviders
+      summary: List git providers
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Providers list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GitProvider'
+      description: Retrieve git providers
+    post:
+      operationId: createGitProvider
+      summary: Create git provider
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGitProviderRequest'
+      responses:
+        '201':
+          description: Provider created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create git providers
+  /webhooks/github:
+    post:
+      operationId: githubWebhook
+      summary: GitHub webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '202':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+      description: Create webhooks github
+      security: []
+  /webhooks/gitlab:
+    post:
+      operationId: gitlabWebhook
+      summary: GitLab webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '202':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+      description: Create webhooks gitlab
+      security: []
+  /webhooks/bitbucket:
+    post:
+      operationId: bitbucketWebhook
+      summary: Bitbucket webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '202':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+      description: Create webhooks bitbucket
+      security: []
+  /webhooks/gitea:
+    post:
+      operationId: giteaWebhook
+      summary: Gitea webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '202':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+      description: Create webhooks gitea
+      security: []
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: List notifications
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+      description: Retrieve notifications
+    post:
+      operationId: createNotification
+      summary: Create notification
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNotificationRequest'
+      responses:
+        '201':
+          description: Notification created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      description: Create notifications
+  /notifications/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getNotification
+      summary: Get notification
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Retrieve notifications id
+    put:
+      operationId: updateNotification
+      summary: Update notification
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNotificationRequest'
+      responses:
+        '200':
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update notifications id
+    delete:
+      operationId: deleteNotification
+      summary: Delete notification
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Notification deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete notifications id
+  /notifications/{id}/test:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: testNotification
+      summary: Test notification
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Notification test passed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Create notifications id test
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+  /ws/events:
+    get:
+      operationId: wsEvents
+      summary: WebSocket events stream
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: WebSocket upgrade response.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: WebSocket stream.
+      description: Retrieve ws events
+  /metrics:
+    get:
+      operationId: getMetrics
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: Prometheus metrics in text format.
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Prometheus metrics text.
+            application/json:
+              schema:
+                type: string
+                description: Prometheus metrics text (also available as text/plain).
+      description: Retrieve metrics
+      security: []
+  /redirects:
+    get:
+      operationId: listRedirects
+      summary: List redirects
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectList'
+      description: List all redirect rules
+      security:
+      - bearerAuth: []
+    post:
+      operationId: createRedirect
+      summary: Create redirect
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRedirectRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create a new redirect rule
+      security:
+      - bearerAuth: []
+  /redirects/{id}:
+    get:
+      operationId: getRedirect
+      summary: Get redirect
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Redirect'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Get redirect by ID
+      security:
+      - bearerAuth: []
+    put:
+      operationId: updateRedirect
+      summary: Update redirect
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRedirectRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update redirect rule
+      security:
+      - bearerAuth: []
+    delete:
+      operationId: deleteRedirect
+      summary: Delete redirect
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete redirect rule
+      security:
+      - bearerAuth: []
+  /mounts:
+    get:
+      operationId: listMounts
+      summary: List mounts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MountList'
+      description: List all volume mounts
+      security:
+      - bearerAuth: []
+    post:
+      operationId: createMount
+      summary: Create mount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMountRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create a new volume mount
+      security:
+      - bearerAuth: []
+  /mounts/{id}:
+    get:
+      operationId: getMount
+      summary: Get mount
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mount'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Get mount by ID
+      security:
+      - bearerAuth: []
+    put:
+      operationId: updateMount
+      summary: Update mount
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMountRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update mount configuration
+      security:
+      - bearerAuth: []
+    delete:
+      operationId: deleteMount
+      summary: Delete mount
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete mount configuration
+      security:
+      - bearerAuth: []
+  /ports:
+    get:
+      operationId: listPortPolicies
+      summary: List port policies
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortPolicyList'
+      description: List all port policies
+      security:
+      - bearerAuth: []
+    post:
+      operationId: createPortPolicy
+      summary: Create port policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePortPolicyRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create a new port policy
+      security:
+      - bearerAuth: []
+  /ports/{id}:
+    get:
+      operationId: getPortPolicy
+      summary: Get port policy
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortPolicy'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Get port policy by ID
+      security:
+      - bearerAuth: []
+    put:
+      operationId: updatePortPolicy
+      summary: Update port policy
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePortPolicyRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update port policy
+      security:
+      - bearerAuth: []
+    delete:
+      operationId: deletePortPolicy
+      summary: Delete port policy
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete port policy
+      security:
+      - bearerAuth: []
+  /volume-backups:
+    get:
+      operationId: listVolumeBackups
+      summary: List volume backups
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeBackupList'
+      description: List all volume backups
+      security:
+      - bearerAuth: []
+    post:
+      operationId: createVolumeBackup
+      summary: Create volume backup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVolumeBackupRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Queue a volume backup job
+      security:
+      - bearerAuth: []
+  /volume-backups/{id}:
+    get:
+      operationId: getVolumeBackup
+      summary: Get volume backup
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeBackup'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Get volume backup by ID
+      security:
+      - bearerAuth: []
+    delete:
+      operationId: deleteVolumeBackup
+      summary: Delete volume backup
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete volume backup record
+      security:
+      - bearerAuth: []
+  /security-rules:
+    get:
+      operationId: listSecurityRules
+      summary: List security rules
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityRuleList'
+      description: List security rules for the organization
+    post:
+      operationId: createSecurityRule
+      summary: Create a security rule
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecurityRuleCreateRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create a security rule
+  /security-rules/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getSecurityRule
+      summary: Get security rule
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityRule'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Get security rule by ID
+    put:
+      operationId: updateSecurityRule
+      summary: Update security rule
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecurityRuleCreateRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityRule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Update security rule
+    delete:
+      operationId: deleteSecurityRule
+      summary: Delete security rule
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete security rule
+  /applications/{id}/previews:
+    get:
+      operationId: listPreviewDeployments
+      summary: List preview deployments
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewDeploymentList'
+      description: List preview deployments for an application
+      security:
+      - bearerAuth: []
+    post:
+      operationId: createPreviewDeployment
+      summary: Create a preview deployment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewDeploymentCreateRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Create a preview deployment for a pull request
+      security:
+      - bearerAuth: []
+  /applications/{id}/previews/{previewId}:
+    get:
+      operationId: getPreviewDeployment
+      summary: Get preview deployment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: previewId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewDeployment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Get preview deployment by ID
+      security:
+      - bearerAuth: []
+    delete:
+      operationId: deletePreviewDeployment
+      summary: Delete preview deployment
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: previewId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete a preview deployment
+      security:
+      - bearerAuth: []
+  /system/update:
+    get:
+      operationId: getUpdateStatus
+      summary: Get self-update status
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Update status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateStatus'
+      description: Returns the current version and whether an update is available.
+    post:
+      operationId: triggerUpdate
+      summary: Trigger self-update
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Update triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+      description: Checks for updates and triggers a Swarm rolling update if available.

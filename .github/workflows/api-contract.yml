@@ -1,0 +1,39 @@
+name: API Contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Install lint tools
+        run: npm install -g @stoplight/spectral-cli
+      - name: Lint OpenAPI spec (Spectral)
+        run: spectral lint api/openapi.yaml --ruleset api/.spectral.yaml
+      - name: Validate TypeScript client generation
+        run: npx openapi-typescript api/openapi.yaml -o /tmp/hive-openapi-types.ts
+      - name: Validate Go server generation
+        run: |
+          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+          oapi-codegen -generate types,chi-server -o /tmp/hive-openapi-types.go -package api api/openapi.yaml
+      - name: Breaking change check (main vs PR)
+        run: |
+          BASE_REF="${{ github.base_ref || 'main' }}"
+          mkdir -p .tmp
+          if git show "origin/${BASE_REF}:api/openapi.yaml" > .tmp/openapi-base.yaml 2>/dev/null; then
+            docker run --rm -t -v "$PWD:/work" -w /work tufin/oasdiff:latest breaking .tmp/openapi-base.yaml api/openapi.yaml
+          else
+            echo "No base OpenAPI found on origin/${BASE_REF}; skipping breaking check"
+          fi

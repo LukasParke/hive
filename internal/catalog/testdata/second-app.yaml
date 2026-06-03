@@ -1,5 +1,0 @@
-kind: app
-name: second-app
-description: Another app
-category: tools
-image: redis:7

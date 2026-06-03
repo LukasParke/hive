@@ -1,4 +1,0 @@
-DROP TABLE IF EXISTS app_volume;
-DROP TABLE IF EXISTS app_secret;
-DROP TABLE IF EXISTS volume;
-DROP TABLE IF EXISTS secret;
