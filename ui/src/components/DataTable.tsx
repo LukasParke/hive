@@ -15,18 +15,20 @@ interface DataTableProps {
 
 export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items yet." }: DataTableProps) {
   if (rows.length === 0) {
-    return <p style={{ color: "var(--text-secondary)", padding: 12 }}>{emptyMessage}</p>;
+    return (
+      <div className="card" style={{ padding: 40 }}>
+        <div className="empty-state">{emptyMessage}</div>
+      </div>
+    );
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+    <div className="table-wrap">
+      <table className="table">
         <thead>
           <tr>
             {columns.map((col) => (
-              <th key={col.key} style={{ textAlign: "left", padding: "8px 12px", borderBottom: "2px solid var(--border-secondary)", fontWeight: 600, whiteSpace: "nowrap", color: "var(--text-faint)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                {col.label}
-              </th>
+              <th key={col.key}>{col.label}</th>
             ))}
           </tr>
         </thead>
@@ -35,13 +37,11 @@ export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items 
             <tr
               key={String(row.id ?? i)}
               onClick={() => onRowClick?.(row)}
-              style={{ cursor: onRowClick ? "pointer" : "default", borderBottom: "1px solid var(--border-primary)", transition: "background var(--transition-fast)" }}
-              onMouseEnter={(e) => { if (onRowClick) e.currentTarget.style.background = "var(--bg-tertiary)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = ""; }}
+              style={{ cursor: onRowClick ? "pointer" : "default" }}
             >
               {columns.map((col) => (
-                <td key={col.key} style={{ padding: "8px 12px" }}>
-                  {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? "")}
+                <td key={col.key}>
+                  {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? "—")}
                 </td>
               ))}
             </tr>

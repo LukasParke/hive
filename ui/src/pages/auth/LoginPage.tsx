@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import { AuthLayout } from "../../components/AuthLayout";
 
 export function LoginPage() {
   const { login, register } = useAuth();
   const toast = useToast();
-  const navigate = useNavigate();
 
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("password123");
@@ -42,29 +42,92 @@ export function LoginPage() {
   }
 
   return (
-    <section style={{ width: 460, border: "1px solid var(--border-primary)", borderRadius: "var(--radius-lg)", padding: 24, background: "var(--bg-secondary)", boxShadow: "var(--shadow-lg)" }}>
-      <h1 style={{ marginTop: 0 }}>{isRegistering ? "Create Account" : "Sign in to Hive"}</h1>
-      <div style={{ display: "grid", gap: 10 }}>
-        {isRegistering && <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Display name" />}
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
-        <div style={{ display: "flex", gap: 8 }}>
+    <AuthLayout>
+      <h2 style={{ margin: "0 0 4px", fontSize: 20 }}>
+        {isRegistering ? "Create Account" : "Sign in to Hive"}
+      </h2>
+      <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>
+        {isRegistering ? "Set up your admin account" : "Enter your credentials to continue"}
+      </p>
+
+      <div className="form-stack">
+        {isRegistering && (
+          <div className="form-group">
+            <label>Display name</label>
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Admin"
+            />
+          </div>
+        )}
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@example.com"
+            type="email"
+          />
+        </div>
+        <div className="form-group">
+          <label>Password</label>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            type="password"
+          />
+        </div>
+
+        {error && (
+          <div
+            style={{
+              background: "var(--error-bg)",
+              color: "var(--error-fg)",
+              padding: "10px 14px",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           {isRegistering ? (
-            <button onClick={handleRegister} disabled={loading} style={{ padding: "8px 20px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600 }}>
-              {loading ? "Creating..." : "Register"}
+            <button onClick={handleRegister} disabled={loading} className="btn-primary" style={{ flex: 1 }}>
+              {loading ? "Creating…" : "Create Account"}
             </button>
           ) : (
-            <button onClick={handleLogin} disabled={loading} style={{ padding: "8px 20px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600 }}>
-              {loading ? "Signing in..." : "Login"}
+            <button onClick={handleLogin} disabled={loading} className="btn-primary" style={{ flex: 1 }}>
+              {loading ? "Signing in…" : "Sign In"}
             </button>
           )}
-          <button onClick={() => setIsRegistering((v) => !v)} style={{ padding: "8px 16px" }}>
-            {isRegistering ? "Back to login" : "Create account"}
-          </button>
         </div>
-        <Link to="/reset-password" style={{ fontSize: 13, color: "var(--text-secondary)" }}>Forgot password?</Link>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: 13,
+          }}
+        >
+          <button
+            onClick={() => { setIsRegistering((v) => !v); setError(null); }}
+            className="btn-ghost"
+            style={{ padding: 0, fontSize: 13 }}
+          >
+            {isRegistering ? "Back to sign in" : "Create account"}
+          </button>
+          {!isRegistering && (
+            <Link to="/reset-password" style={{ color: "var(--text-faint)", fontSize: 13 }}>
+              Forgot password?
+            </Link>
+          )}
+        </div>
       </div>
-      {error && <p style={{ color: "var(--error-fg)", marginTop: 12 }}>Error: {error}</p>}
-    </section>
+    </AuthLayout>
   );
 }

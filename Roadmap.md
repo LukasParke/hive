@@ -1,6 +1,6 @@
-# Hive Swarm-Native Migration Roadmap
+# Hive Swarm-Native Platform Roadmap
 
-This document is the canonical migration roadmap for rebuilding Dokploy as a Swarm-native platform in `hive`.
+This document tracks the phased development of Hive as a self-hosted Docker Swarm platform.
 
 ## Objectives
 
@@ -131,7 +131,7 @@ Workflow 1 — API Spec Validation: Spectral linting (custom ruleset), breaking 
 
 Workflow 2 — Go Build & Test: go vet, staticcheck, golangci-lint (errcheck, gosec, gocritic, revive), go test -race with coverage gate (start 60%, ratchet up). Fail on lint errors, test failures, race conditions.
 
-Workflow 3 — Integration Tests (Swarm): Start 3-node dind Swarm cluster (1 manager, 2 workers). Deploy Dokploy stack. Run full test suite: service CRUD, stack deploy, secret/config lifecycle, node operations, build pipeline, failover. 15-minute timeout.
+Workflow 3 — Integration Tests (Swarm): Start 3-node dind Swarm cluster (1 manager, 2 workers). Deploy Hive stack. Run full test suite: service CRUD, stack deploy, secret/config lifecycle, node operations, build pipeline, failover. 15-minute timeout.
 
 Workflow 4 — Database Migrations: Start Postgres via testcontainers. Apply all migrations forward, verify schema (sqlc compile), apply all backward (rollback), re-apply forward (idempotency). Fail on migration errors.
 
@@ -157,7 +157,7 @@ Makefile, docker-bake.hcl, .github/workflows/` }
     goal: "Replace SQLite with PostgreSQL. Establish the data access layer (sqlc), job queue (River), distributed locking (advisory locks), and event bus (LISTEN/NOTIFY).",
     steps: [
       { id: "1.1", t: "Audit and design the Postgres schema", time: "Week 4",
-        b: `Walk through Dokploy's existing SQLite schema. For each table document: current SQLite DDL, target Postgres DDL, type changes (TEXT→JSONB, INTEGER→BOOLEAN, TEXT dates→TIMESTAMPTZ, AUTOINCREMENT→GENERATED ALWAYS AS IDENTITY), data transformation needed.
+        b: `Walk through the existing SQLite schema. For each table document: current SQLite DDL, target Postgres DDL, type changes (TEXT→JSONB, INTEGER→BOOLEAN, TEXT dates→TIMESTAMPTZ, AUTOINCREMENT→GENERATED ALWAYS AS IDENTITY), data transformation needed.
 
 Key new/modified tables:
 
@@ -396,7 +396,7 @@ Control plane and agent expose /metrics via prometheus/client_golang: API latenc
   },
   {
     id: "p7", phase: "Phase 7 — HA Control Plane & Self-Deployment", dur: "Weeks 23–26",
-    goal: "Control plane as replicated Swarm service. Leader election, health checks, zero-downtime updates, automatic rollback. Dokploy manages itself.",
+    goal: "Control plane as replicated Swarm service. Leader election, health checks, zero-downtime updates, automatic rollback. Hive manages itself.",
     steps: [
       { id: "7.1", t: "Implement leader election", time: "Week 23",
         b: `Elector uses session-level Postgres advisory lock. Run loop: acquire connection → pg_try_advisory_lock(LockLeaderElection) → if acquired: set isLeader=true, start singleton tasks (Swarm event watcher, periodic job scheduler, state reconciler) in cancellable context. Hold lock by keeping connection alive with periodic SELECT 1. On connection loss: cancel context, set isLeader=false, stop singletons, retry after 15s.
@@ -516,7 +516,7 @@ export default function App() {
   return (
     <div style={{ fontFamily: "system-ui, -apple-system, sans-serif", background: "#0f1117", color: "#e2e8f0", minHeight: "100vh", padding: "20px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 21, fontWeight: 700, marginBottom: 2, color: "#f1f5f9" }}>Dokploy Swarm-Native — Master Implementation Plan</h1>
+        <h1 style={{ fontSize: 21, fontWeight: 700, marginBottom: 2, color: "#f1f5f9" }}>Hive Swarm-Native — Master Implementation Plan</h1>
         <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 4 }}>{P.length} phases, {totalSteps} steps, ~30 weeks</p>
         <p style={{ fontSize: 12, color: "#64748b", marginBottom: 20 }}>Click a phase to expand, then click any step for full implementation detail.</p>
 

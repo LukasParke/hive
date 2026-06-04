@@ -1,41 +1,45 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { SystemUpdateBanner } from "./SystemUpdateBanner";
+import { Logo } from "./Logo";
 
-type NavGroup = { label: string; items: { to: string; label: string }[] };
+type NavItem = { to: string; label: string; icon: string };
+type NavGroup = { label: string; items: NavItem[] };
 
 const navGroups: NavGroup[] = [
   {
     label: "",
-    items: [{ to: "/dashboard/overview", label: "Overview" }],
+    items: [
+      { to: "/dashboard/overview", label: "Overview", icon: "◈" },
+    ],
   },
   {
     label: "Applications",
     items: [
-      { to: "/dashboard/projects", label: "Projects" },
-      { to: "/dashboard/deployments", label: "Deployments" },
-      { to: "/dashboard/stacks", label: "Stacks" },
-      { to: "/dashboard/database/create", label: "Databases" },
+      { to: "/dashboard/projects", label: "Projects", icon: "◫" },
+      { to: "/dashboard/deployments", label: "Deployments", icon: "▶" },
+      { to: "/dashboard/stacks", label: "Stacks", icon: "▣" },
+      { to: "/dashboard/database/create", label: "Databases", icon: "◉" },
     ],
   },
   {
     label: "Infrastructure",
     items: [
-      { to: "/dashboard/runtime", label: "Runtime / Nodes" },
-      { to: "/dashboard/monitoring", label: "Monitoring" },
-      { to: "/dashboard/secrets", label: "Secrets" },
-      { to: "/dashboard/configs", label: "Configs" },
-      { to: "/dashboard/networks", label: "Networks" },
-      { to: "/dashboard/domains", label: "Domains" },
-      { to: "/dashboard/security", label: "Security" },
+      { to: "/dashboard/runtime", label: "Runtime / Nodes", icon: "◐" },
+      { to: "/dashboard/monitoring", label: "Monitoring", icon: "◎" },
+      { to: "/dashboard/secrets", label: "Secrets", icon: "◈" },
+      { to: "/dashboard/configs", label: "Configs", icon: "◫" },
+      { to: "/dashboard/networks", label: "Networks", icon: "◯" },
+      { to: "/dashboard/domains", label: "Domains", icon: "◊" },
+      { to: "/dashboard/security", label: "Security", icon: "◈" },
     ],
   },
   {
     label: "System",
     items: [
-      { to: "/dashboard/environments", label: "Environments" },
-      { to: "/dashboard/settings", label: "Settings" },
-      { to: "/dashboard/events", label: "Events" },
+      { to: "/dashboard/environments", label: "Environments", icon: "◐" },
+      { to: "/dashboard/settings", label: "Settings", icon: "◫" },
+      { to: "/dashboard/events", label: "Events", icon: "◎" },
     ],
   },
 ];
@@ -44,53 +48,132 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { session, logout } = useAuth();
 
-  const isActive = (to: string) => location.pathname === to || location.pathname.startsWith(to + "/");
+  const isActive = (to: string) =>
+    location.pathname === to || location.pathname.startsWith(to + "/");
 
   return (
-    <section style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 16, minHeight: "calc(100vh - 80px)" }}>
-      <aside style={{ background: "var(--bg-secondary)", borderRight: "1px solid var(--border-primary)", paddingRight: 10, borderRadius: "var(--radius-md) 0 0 var(--radius-md)" }}>
-        <div style={{ display: "grid", gap: 2 }}>
+    <section
+      style={{
+        display: "grid",
+        gridTemplateColumns: "240px 1fr",
+        gap: 0,
+        minHeight: "100vh",
+        background: "var(--bg-root)",
+      }}
+    >
+      <aside
+        style={{
+          background: "var(--bg-primary)",
+          borderRight: "1px solid var(--border-primary)",
+          display: "flex",
+          flexDirection: "column",
+          padding: "20px 0 16px",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: 240,
+          height: "100vh",
+          overflowY: "auto",
+          zIndex: 50,
+        }}
+      >
+        {/* Logo */}
+        <div style={{ padding: "0 20px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+          <Logo size={28} />
+          <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text-heading)", letterSpacing: "-0.02em" }}>
+            Hive
+          </span>
+        </div>
+
+        {/* Nav */}
+        <nav style={{ flex: 1, display: "grid", gap: 18, padding: "0 12px" }}>
           {navGroups.map((group, gi) => (
             <div key={gi}>
               {group.label && (
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: 1, padding: "12px 8px 4px" }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: "var(--text-faint)",
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    padding: "0 8px 6px",
+                  }}
+                >
                   {group.label}
                 </div>
               )}
-              {group.items.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  style={{
-                    display: "block",
-                    padding: "6px 8px",
-                    borderRadius: 4,
-                    fontWeight: isActive(item.to) ? 600 : 400,
-                    background: isActive(item.to) ? "var(--gold-alpha-10)" : "transparent",
-                    color: isActive(item.to) ? "var(--gold-500)" : "var(--text-secondary)",
-                    textDecoration: "none",
-                    fontSize: 14,
-                    borderLeft: isActive(item.to) ? "2px solid var(--gold-500)" : "2px solid transparent",
-                    transition: "background var(--transition-fast), color var(--transition-fast)",
-                  }}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              <div style={{ display: "grid", gap: 1 }}>
+                {group.items.map((item) => {
+                  const active = isActive(item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "7px 10px",
+                        borderRadius: "var(--radius-sm)",
+                        fontWeight: active ? 600 : 450,
+                        background: active ? "var(--gold-alpha-10)" : "transparent",
+                        color: active ? "var(--gold-500)" : "var(--text-secondary)",
+                        textDecoration: "none",
+                        fontSize: 13,
+                        borderLeft: active ? "2px solid var(--gold-500)" : "2px solid transparent",
+                        transition: "background var(--transition-fast), color var(--transition-fast)",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      <span style={{ fontSize: 12, opacity: active ? 1 : 0.6 }}>{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           ))}
-        </div>
+        </nav>
 
-        <div style={{ marginTop: 24, padding: "12px 8px", borderTop: "1px solid var(--border-primary)" }}>
-          <div style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 4 }}>Org: {session?.orgId?.slice(0, 8) ?? "none"}</div>
-          <Link to="/dashboard/profile" style={{ display: "block", fontSize: 13, color: "var(--text-secondary)", textDecoration: "none", marginBottom: 8 }}>Profile</Link>
-          <button onClick={logout} style={{ fontSize: 13, padding: "4px 12px" }}>Logout</button>
+        {/* Footer */}
+        <div
+          style={{
+            marginTop: "auto",
+            padding: "14px 16px 0",
+            borderTop: "1px solid var(--border-primary)",
+            display: "grid",
+            gap: 6,
+          }}
+        >
+          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>
+            Org: {session?.orgId?.slice(0, 8) ?? "none"}
+          </div>
+          <Link
+            to="/dashboard/profile"
+            style={{
+              fontSize: 12,
+              color: "var(--text-secondary)",
+              textDecoration: "none",
+              padding: "4px 0",
+            }}
+          >
+            Profile
+          </Link>
+          <button
+            onClick={logout}
+            className="btn-ghost btn-sm"
+            style={{ justifyContent: "flex-start", width: "fit-content" }}
+          >
+            Logout
+          </button>
         </div>
       </aside>
-      <section style={{ minWidth: 0 }}>
+
+      <main style={{ marginLeft: 240, minWidth: 0, padding: "24px 28px 40px" }}>
         <SystemUpdateBanner />
         {children}
-      </section>
+      </main>
     </section>
   );
 }

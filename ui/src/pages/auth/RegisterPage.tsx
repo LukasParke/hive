@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import { AuthLayout } from "../../components/AuthLayout";
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -29,20 +30,64 @@ export function RegisterPage() {
   }
 
   return (
-    <section style={{ width: 460, border: "1px solid var(--border-primary)", borderRadius: "var(--radius-lg)", padding: 24, background: "var(--bg-secondary)", boxShadow: "var(--shadow-lg)" }}>
-      <h1 style={{ marginTop: 0 }}>Create Account</h1>
-      <div style={{ display: "grid", gap: 10 }}>
-        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Display name" />
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-        <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={handleRegister} disabled={loading} style={{ padding: "8px 20px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600 }}>
-            {loading ? "Creating..." : "Register"}
-          </button>
-          <Link to="/" style={{ padding: "8px 16px", color: "var(--text-secondary)", textDecoration: "none" }}>Back to login</Link>
+    <AuthLayout>
+      <h2 style={{ margin: "0 0 4px", fontSize: 20 }}>Create Account</h2>
+      <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>
+        Set up your Hive admin account
+      </p>
+
+      <div className="form-stack">
+        <div className="form-group">
+          <label>Display name</label>
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="Admin"
+          />
+        </div>
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="admin@example.com"
+            type="email"
+          />
+        </div>
+        <div className="form-group">
+          <label>Password</label>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            type="password"
+          />
+        </div>
+
+        {error && (
+          <div
+            style={{
+              background: "var(--error-bg)",
+              color: "var(--error-fg)",
+              padding: "10px 14px",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <button onClick={handleRegister} disabled={loading} className="btn-primary">
+          {loading ? "Creating…" : "Create Account"}
+        </button>
+
+        <div style={{ textAlign: "center", fontSize: 13 }}>
+          <Link to="/" style={{ color: "var(--text-faint)" }}>
+            Back to sign in
+          </Link>
         </div>
       </div>
-      {error && <p style={{ color: "var(--error-fg)", marginTop: 12 }}>Error: {error}</p>}
-    </section>
+    </AuthLayout>
   );
 }
