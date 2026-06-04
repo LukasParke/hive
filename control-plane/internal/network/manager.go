@@ -20,6 +20,6 @@ var unsafe = regexp.MustCompile(`[^a-z0-9_-]+`)
 
 func (m *Manager) EnsureProjectNetwork(ctx context.Context, projectSlug string) (string, error) {
 	slug := unsafe.ReplaceAllString(projectSlug, "-")
-	name := fmt.Sprintf("dokploy_project_%s", slug)
+	name := fmt.Sprintf("hive_project_%s", slug)
 	return m.client.CreateNetwork(ctx, name)
 }

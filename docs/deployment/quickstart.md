@@ -14,7 +14,7 @@
 2. Set environment variables:
 
 ```sh
-export DOKPLOY_DOMAIN=example.com
+export HIVE_DOMAIN=example.com
 export ACME_EMAIL=ops@example.com
 # Optional: pin to a specific release instead of latest
 # export HIVE_IMAGE_TAG=v0.1.0
@@ -28,7 +28,7 @@ export ACME_EMAIL=ops@example.com
 
 This script will:
 - Verify Swarm is active
-- Generate required secrets (`dokploy-master-key`, `postgres-password`, `agent-bootstrap-token`)
+- Generate required secrets (`hive-master-key`, `postgres-password`, `agent-bootstrap-token`)
 - Label the current node with `db=true`, `builder=true`, `registry=true`
 - Deploy the Hive stack
 - Poll the health endpoint until the control plane is ready
@@ -65,7 +65,7 @@ curl https://example.com/api/v1/health
 
 ## Stack Services
 
-The default `dokploy-stack.yml` deploys:
+The default `hive-stack.yml` deploys:
 
 | Service | Replicas | Purpose |
 |---------|----------|---------|
@@ -85,7 +85,7 @@ To upgrade to a new version:
 export HIVE_IMAGE_TAG=v0.1.0
 docker pull ghcr.io/hive/control-plane:${HIVE_IMAGE_TAG}
 docker pull ghcr.io/hive/agent:${HIVE_IMAGE_TAG}
-docker stack deploy -c deploy/dokploy-stack.yml hive
+docker stack deploy -c deploy/hive-stack.yml hive
 ```
 
 Swarm performs a rolling update with `start-first` and auto-rollback on health failure.

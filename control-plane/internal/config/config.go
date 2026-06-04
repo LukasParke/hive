@@ -25,7 +25,7 @@ func Load() Config {
 		DockerHost:        getenv("DOCKER_HOST", "unix:///var/run/docker.sock"),
 		BuildkitAddr:      getenv("BUILDKIT_ADDR", "tcp://buildkit:1234"),
 		RegistryAddr:      getenv("REGISTRY_ADDR", "registry:5000"),
-		MasterKeyFile:     getenv("MASTER_KEY_FILE", "/run/secrets/dokploy-master-key"),
+		MasterKeyFile:     getenv("MASTER_KEY_FILE", "/run/secrets/hive-master-key"),
 		AgentBootstrapKey: getenv("AGENT_BOOTSTRAP_TOKEN", ""),
 		JWTSecret:         getenv("JWT_SECRET", "dev-jwt-secret-change-me"),
 	}

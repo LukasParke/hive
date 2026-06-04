@@ -144,7 +144,7 @@ func (h *Handler) Handle(ctx context.Context, jobID string) error {
 		services, _ := h.swarm.ListServices(ctx)
 		var targetServiceID string
 		for _, svc := range services {
-			if svc.Spec.Labels["dokploy.app.id"] == applicationID {
+			if svc.Spec.Labels["hive.app.id"] == applicationID {
 				targetServiceID = svc.ID
 				break
 			}

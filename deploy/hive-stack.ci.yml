@@ -5,7 +5,7 @@ services:
     image: hive/control-plane:ci
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/hive?sslmode=disable
-      - MASTER_KEY_FILE=/run/secrets/dokploy-master-key
+      - MASTER_KEY_FILE=/run/secrets/hive-master-key
       - DOCKER_HOST=unix:///var/run/docker.sock
       - AGENT_BOOTSTRAP_TOKEN=ci-bootstrap-token
     deploy:
@@ -66,7 +66,7 @@ services:
           - node.labels.ci == true
 
 secrets:
-  dokploy-master-key:
+  hive-master-key:
     external: true
   postgres-password:
     external: true

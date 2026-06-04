@@ -10,14 +10,14 @@ services:
       placement:
         constraints:
           - node.role == manager
-    networks: [dokploy_internal]
+    networks: [hive_internal]
 
   patroni:
     image: ghcr.io/hive/postgres-patroni:latest
     deploy:
       mode: replicated
       replicas: 3
-    networks: [dokploy_internal]
+    networks: [hive_internal]
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -26,8 +26,8 @@ services:
       - DB_HOST=patroni
       - DB_NAME=hive
       - POOL_MODE=transaction
-    networks: [dokploy_internal]
+    networks: [hive_internal]
 
 networks:
-  dokploy_internal:
+  hive_internal:
     external: true

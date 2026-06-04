@@ -32,7 +32,7 @@ func DeployApplication(ctx context.Context, cli *swarmclient.Client, spec Applic
 	var existing *dockerswarm.Service
 	for i := range services {
 		svc := services[i]
-		if svc.Spec.Labels["dokploy.app.id"] == spec.AppID {
+		if svc.Spec.Labels["hive.app.id"] == spec.AppID {
 			existing = &svc
 			break
 		}
@@ -60,8 +60,8 @@ func DeployApplication(ctx context.Context, cli *swarmclient.Client, spec Applic
 		Annotations: dockerswarm.Annotations{
 			Name: spec.ServiceName,
 			Labels: map[string]string{
-				"dokploy.app.id":        spec.AppID,
-				"dokploy.app.port":      strconv.Itoa(spec.ContainerPort),
+				"hive.app.id":        spec.AppID,
+				"hive.app.port":      strconv.Itoa(spec.ContainerPort),
 			},
 		},
 		TaskTemplate: dockerswarm.TaskSpec{
@@ -70,8 +70,8 @@ func DeployApplication(ctx context.Context, cli *swarmclient.Client, spec Applic
 				Env:   envStrings,
 				Secrets: secretRefs,
 				Labels: map[string]string{
-					"dokploy.app.id":   spec.AppID,
-					"dokploy.app.port": strconv.Itoa(spec.ContainerPort),
+					"hive.app.id":   spec.AppID,
+					"hive.app.port": strconv.Itoa(spec.ContainerPort),
 				},
 			},
 			RestartPolicy: &dockerswarm.RestartPolicy{

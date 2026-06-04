@@ -144,7 +144,7 @@ Workflow 5 — Frontend Build: Type check (tsc), lint (eslint), build, verify ge
   /internal/db/queries/ — sqlc SQL query files
   /internal/db/generated/ — sqlc output (DO NOT EDIT)
 /ui/ — React frontend (src/api generated client, components, pages, hooks)
-/deploy/ — dokploy-stack.yml, patroni-stack.yml, monitoring-stack.yml, init.sh
+/deploy/ — hive-stack.yml, patroni-stack.yml, monitoring-stack.yml, init.sh
 /images/postgres-patroni/ — Custom Patroni image (Dockerfile, patroni.yml.template, entrypoint.sh)
 /docs/adr/ — Architecture Decision Records
 /tests/integration/ — Go integration tests (dind Swarm)
@@ -205,9 +205,9 @@ Emit NOTIFY in transactions using sqlc custom query: SELECT pg_notify(@channel, 
 
 NOTIFY is for discrete state changes (small payloads, <8KB). NOT for data streams (logs, metrics). Log streams go directly from Swarm API/agents to the WebSocket replica.` },
       { id: "1.6", t: "Deploy Postgres in the Swarm stack", time: "Weeks 6–7",
-        b: `dokploy-stack.yml: postgres service (postgres:16-alpine, replicas 1, placement node.labels.db==true, health check pg_isready, persistent volume pgdata, on dokploy_internal network). PgBouncer service (transaction mode, MAX_CLIENT_CONN=200, DEFAULT_POOL_SIZE=20, on dokploy_internal).
+        b: `hive-stack.yml: postgres service (postgres:16-alpine, replicas 1, placement node.labels.db==true, health check pg_isready, persistent volume pgdata, on hive_internal network). PgBouncer service (transaction mode, MAX_CLIENT_CONN=200, DEFAULT_POOL_SIZE=20, on hive_internal).
 
-init.sh bootstrap script: pre-check Swarm active, generate secrets (postgres-password, dokploy-master-key, replication-password via openssl rand), label current node (db=true, builder=true, registry=true), docker stack deploy, poll health endpoint until ready.
+init.sh bootstrap script: pre-check Swarm active, generate secrets (postgres-password, hive-master-key, replication-password via openssl rand), label current node (db=true, builder=true, registry=true), docker stack deploy, poll health endpoint until ready.
 
 patroni-stack.yml (Tier 2 overlay): 3x Postgres+Patroni, 3x etcd on managers, PgBouncer configured for Patroni primary discovery. Separate file — users compose with base stack.` }
     ]
@@ -227,7 +227,7 @@ SHARED-DURABLE-LARGE (shared volume at /data/shared/): Traefik ACME state (acme.
 
 NODE-LOCAL-FIXED: /var/run/docker.sock — no change needed.` },
       { id: "2.2", t: "Implement the encrypted secrets store", time: "Weeks 7–8",
-        b: `AES-256-GCM encryption with per-record random nonce. Master key from Swarm secret (DOKPLOY_MASTER_KEY → /run/secrets/dokploy-master-key). Key derivation via HKDF with unique context per secret type.
+        b: `AES-256-GCM encryption with per-record random nonce. Master key from Swarm secret (DOKPLOY_MASTER_KEY → /run/secrets/hive-master-key). Key derivation via HKDF with unique context per secret type.
 
 Store.Put(): generate nonce, encrypt, prepend nonce to ciphertext, upsert to DB.
 Store.Get(): read from DB, split nonce/ciphertext, decrypt.
@@ -299,7 +299,7 @@ Mount: Chi router with Logger/Recoverer/auth middleware, API handlers, static UI
     goal: "Images built by Buildkit, pushed to registry, deployed via Swarm service update. No local docker build anywhere.",
     steps: [
       { id: "4.1", t: "Deploy registry as a Swarm service", time: "Weeks 14–15",
-        b: `registry:2 in dokploy-stack.yml: replicas 1, placement node.labels.registry==true, persistent volume, on dokploy_internal + dokploy_proxy (if external access needed), health check on /v2/.
+        b: `registry:2 in hive-stack.yml: replicas 1, placement node.labels.registry==true, persistent volume, on hive_internal + hive_proxy (if external access needed), health check on /v2/.
 
 RegistryConfig model: URL, Username, Password (in secrets_store), IsDefault. Connectivity test via /v2/ endpoint.
 
@@ -307,7 +307,7 @@ Image naming convention: {registry}/{project}/{application}:{git-sha-short}. Enf
 
 External registry support: Docker Hub, GHCR, ECR, GCR — just configure URL + credentials.` },
       { id: "4.2", t: "Deploy Buildkit as a Swarm service", time: "Week 15",
-        b: `moby/buildkit:latest in dokploy-stack.yml: replicas 1, placement node.labels.builder==true, 4G memory limit / 2G reservation, persistent cache volume, on dokploy_internal, entrypoint buildkitd --addr tcp://0.0.0.0:1234.
+        b: `moby/buildkit:latest in hive-stack.yml: replicas 1, placement node.labels.builder==true, 4G memory limit / 2G reservation, persistent cache volume, on hive_internal, entrypoint buildkitd --addr tcp://0.0.0.0:1234.
 
 Control plane connects via Go client (github.com/moby/buildkit/client) at tcp://buildkit:1234. Registry auth passed via session auth provider.
 
@@ -315,7 +315,7 @@ Multi-builder: increase replicas for high build volume, each on different worker
       { id: "4.3", t: "Implement the build worker (River job handler)", time: "Weeks 15–17",
         b: `BuildWorker River handler: (1) Update status to 'building' + NOTIFY, (2) git.Clone to /data/local/builds/{jobID}, (3) Determine strategy (Dockerfile direct / Nixpacks generate / Buildpacks via pack CLI), (4) Build with Buildkit SolveOpt (frontend dockerfile.v0, exports to image with push=true, session auth for registry), (5) Stream build logs to DB for real-time UI, (6) On success: update build record with image tag + NOTIFY, (7) Enqueue DeployJob.
 
-DeployWorker: load app + spec, find existing Swarm service by label dokploy.app.id, create if first deploy or update with new image tag (triggers Swarm rolling update per UpdateConfig).
+DeployWorker: load app + spec, find existing Swarm service by label hive.app.id, create if first deploy or update with new image tag (triggers Swarm rolling update per UpdateConfig).
 
 Build log streaming: Buildkit SolveStatus channel → buffer → periodic flush to DB. UI subscribes via WebSocket → fanout → NOTIFY signals progress, UI fetches latest logs from builds API.` }
     ]
@@ -325,21 +325,21 @@ Build log streaming: Buildkit SolveStatus channel → buffer → periodic flush 
     goal: "Switch routing from file-provider to Swarm service labels. Domains and TLS work natively across the cluster.",
     steps: [
       { id: "5.1", t: "Configure Traefik for Swarm-native mode", time: "Week 17",
-        b: `Traefik v3 in dokploy-stack.yml: global service on managers, ports 80/443 in host mode (real client IP, no double NAT), Docker socket read-only.
+        b: `Traefik v3 in hive-stack.yml: global service on managers, ports 80/443 in host mode (real client IP, no double NAT), Docker socket read-only.
 
-Command flags: --providers.swarm=true, --providers.swarm.exposedByDefault=false, --providers.swarm.network=dokploy_proxy, entrypoints web (80) + websecure (443), HTTP→HTTPS redirect, ACME cert resolver with storage on shared volume.
+Command flags: --providers.swarm=true, --providers.swarm.exposedByDefault=false, --providers.swarm.network=hive_proxy, entrypoints web (80) + websecure (443), HTTP→HTTPS redirect, ACME cert resolver with storage on shared volume.
 
 Install swarm-refresh plugin for reliable label change detection. Host mode means each Traefik instance binds directly — Swarm's ingress mesh routes any-node requests to a manager running Traefik.` },
       { id: "5.2", t: "Implement domain-to-label management", time: "Weeks 17–18",
-        b: `DomainManager.ApplyDomain(): find Swarm service by dokploy.app.id label, set Traefik labels: traefik.enable=true, traefik.http.routers.{name}.rule=Host(), .entrypoints=websecure, .tls=true, .tls.certresolver=letsencrypt, traefik.http.services.{name}.loadbalancer.server.port={port}. Update service atomically via Swarm API.
+        b: `DomainManager.ApplyDomain(): find Swarm service by hive.app.id label, set Traefik labels: traefik.enable=true, traefik.http.routers.{name}.rule=Host(), .entrypoints=websecure, .tls=true, .tls.certresolver=letsencrypt, traefik.http.services.{name}.loadbalancer.server.port={port}. Update service atomically via Swarm API.
 
 Remove domain: strip the corresponding traefik.http.routers.* and .services.* labels.
 
 Multi-domain: multiple routers on same service with different Host rules. Wildcard: HostRegexp rules + DNS challenge for wildcard TLS certs.` },
       { id: "5.3", t: "Implement overlay network management", time: "Weeks 18–19",
-        b: `Automatic per-project network creation: dokploy_project_{slug} as overlay, attachable=false, internal=false, labeled with dokploy.project.id.
+        b: `Automatic per-project network creation: hive_project_{slug} as overlay, attachable=false, internal=false, labeled with hive.project.id.
 
-Service network attachment: project network (for inter-service communication, service name as DNS alias) + dokploy_proxy (if domain configured, for external traffic via Traefik). Both set in ServiceSpec.TaskTemplate.Networks.
+Service network attachment: project network (for inter-service communication, service name as DNS alias) + hive_proxy (if domain configured, for external traffic via Traefik). Both set in ServiceSpec.TaskTemplate.Networks.
 
 Network CRUD via API: create/delete overlay networks with options (encrypted, attachable, internal, subnet/gateway). UI shows topology: which services connect to which networks.` }
     ]
@@ -365,7 +365,7 @@ Generate Go code via buf generate → agentv1connect package.` },
 
 ExecStream handler: receive ExecStart → engine.ExecCreate → engine.ExecAttach → bridge bidirectional: goroutine 1 reads Docker stdout/stderr → sends ExecOutput, goroutine 2 receives ExecInput stdin/resize → writes to Docker connection. Send exit code on completion.
 
-Dockerfile: multi-stage, CGO_ENABLED=0, scratch base, ~15MB image. Deploy as global Swarm service, Docker socket read-only, CA cert via Swarm config, bootstrap token via Swarm secret, on dokploy_internal network.` },
+Dockerfile: multi-stage, CGO_ENABLED=0, scratch base, ~15MB image. Deploy as global Swarm service, Docker socket read-only, CA cert via Swarm config, bootstrap token via Swarm secret, on hive_internal network.` },
       { id: "6.3", t: "Implement internal CA for agent mTLS", time: "Week 20",
         b: `Authority struct manages a private CA. On first boot: generate ECDSA P-256 key pair, self-sign CA cert (10yr), store encrypted in secrets_store DB, create Swarm config for CA cert distribution to agents.
 
@@ -383,7 +383,7 @@ Service log flow: browser → WS upgrade → Swarm service logs API (GET /servic
 
 Event subscription flow: browser → WS upgrade → fanout.Subscribe("deployment:{appID}") → forward NOTIFY events as JSON to WS.
 
-Sticky sessions: Traefik label on control plane service: traefik.http.services.control-plane.loadbalancer.sticky.cookie.name=dokploy_sticky. Keeps WS on same replica for session duration.` },
+Sticky sessions: Traefik label on control plane service: traefik.http.services.control-plane.loadbalancer.sticky.cookie.name=hive_sticky. Keeps WS on same replica for session duration.` },
       { id: "6.5", t: "Integrate metrics (cAdvisor + Prometheus)", time: "Weeks 22–23",
         b: `Tier A (built-in, no extra infra): control plane queries agents on-demand when user views metrics. Agent calls docker stats locally, returns results. Simple, no persistence.
 
@@ -417,7 +417,7 @@ Initialize all subsystems: secrets store, EngineClient, SwarmClient, CA authorit
 
 Adding nodes: docker swarm join on new node → agent global service auto-deploys → agent registers with control plane → node appears in UI via leader's event watcher.` },
       { id: "7.4", t: "Finalize the canonical Swarm stack file", time: "Weeks 24–25",
-        b: `Complete dokploy-stack.yml with all services:
+        b: `Complete hive-stack.yml with all services:
 
 control-plane: replicas 3, managers only, max 1 per node, start-first updates with rollback, 1G memory, Traefik labels (domain routing + sticky sessions), DATABASE_URL through PgBouncer, master-key secret, Docker socket + shared volume + tmpfs, health check.
 
@@ -430,11 +430,11 @@ pgbouncer: replicas 1, manager, transaction mode.
 buildkit: replicas 1, builder=true label, 4G/2G memory, cache volume.
 registry: replicas 1, registry=true label, persistent volume.
 
-Networks: dokploy_internal (overlay, encrypted) + dokploy_proxy (overlay, attachable).
+Networks: hive_internal (overlay, encrypted) + hive_proxy (overlay, attachable).
 Volumes: pgdata, shared, buildkit-cache, registry-data.
-Secrets: dokploy-master-key, postgres-password, agent-bootstrap-token (all external: true).` },
+Secrets: hive-master-key, postgres-password, agent-bootstrap-token (all external: true).` },
       { id: "7.5", t: "Write bootstrap script and upgrade process", time: "Weeks 25–26",
-        b: `init.sh: pre-check Swarm active, prompt for DOKPLOY_DOMAIN + ACME_EMAIL, generate secrets (openssl rand), label current node (db, builder, registry), export env vars, docker stack deploy, poll /api/health until ready, print URL + join command for workers.
+        b: `init.sh: pre-check Swarm active, prompt for HIVE_DOMAIN + ACME_EMAIL, generate secrets (openssl rand), label current node (db, builder, registry), export env vars, docker stack deploy, poll /api/health until ready, print URL + join command for workers.
 
 Upgrade process: pull new images → update tag in stack file → docker stack deploy (idempotent redeploy) → Swarm does rolling update with start-first + auto rollback on health failure → new replicas run pending migrations on startup (with advisory lock) → agent updates follow same pattern (global service rolling update, one node at a time).
 

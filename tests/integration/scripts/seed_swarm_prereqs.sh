@@ -12,7 +12,7 @@ create_secret() {
   printf '%s' "$value" | docker --host "$MANAGER_HOST" secret create "$name" - >/dev/null
 }
 
-create_secret "dokploy-master-key" "ci-master-key-01234567890123456789012345"
+create_secret "hive-master-key" "ci-master-key-01234567890123456789012345"
 create_secret "postgres-password" "postgres"
 create_secret "agent-bootstrap-token" "ci-bootstrap-token"
 
@@ -34,5 +34,5 @@ if [ -n "${MANAGER_NODE_ID}" ]; then
     "$MANAGER_NODE_ID" >/dev/null
 fi
 
-docker --host "$MANAGER_HOST" network create --driver overlay --attachable dokploy_internal >/dev/null 2>&1 || true
-docker --host "$MANAGER_HOST" network create --driver overlay --attachable dokploy_proxy >/dev/null 2>&1 || true
+docker --host "$MANAGER_HOST" network create --driver overlay --attachable hive_internal >/dev/null 2>&1 || true
+docker --host "$MANAGER_HOST" network create --driver overlay --attachable hive_proxy >/dev/null 2>&1 || true

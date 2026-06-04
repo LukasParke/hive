@@ -6,7 +6,7 @@ services:
     command: ["/control-plane"]
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/hive?sslmode=disable
-      - MASTER_KEY_FILE=/run/secrets/dokploy-master-key
+      - MASTER_KEY_FILE=/run/secrets/hive-master-key
       - DOCKER_HOST=unix:///var/run/docker.sock
     deploy:
       mode: replicated
@@ -25,7 +25,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-    networks: [dokploy_internal, dokploy_proxy]
+    networks: [hive_internal, hive_proxy]
     ports:
       - target: 3000
         published: ${HIVE_CONTROL_PLANE_PORT:-3000}
@@ -36,14 +36,14 @@ services:
     tmpfs:
       - /data/local:size=2g
     secrets:
-      - dokploy-master-key
+      - hive-master-key
     labels:
       - traefik.enable=true
-      - traefik.http.routers.hive.rule=Host(`${DOKPLOY_DOMAIN}`)
+      - traefik.http.routers.hive.rule=Host(`${HIVE_DOMAIN}`)
       - traefik.http.routers.hive.entrypoints=websecure
       - traefik.http.routers.hive.tls.certresolver=letsencrypt
       - traefik.http.services.hive.loadbalancer.server.port=3000
-      - traefik.http.services.hive.loadbalancer.sticky.cookie.name=dokploy_sticky
+      - traefik.http.services.hive.loadbalancer.sticky.cookie.name=hive_sticky
 
   agent:
     image: ghcr.io/hive/agent:${HIVE_IMAGE_TAG:-latest}
@@ -58,7 +58,7 @@ services:
       - target: 9091
         published: ${HIVE_AGENT_METRICS_PORT:-9091}
         protocol: tcp
-    networks: [dokploy_internal]
+    networks: [hive_internal]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/host:ro
@@ -81,7 +81,7 @@ services:
     command:
       - --providers.swarm=true
       - --providers.swarm.exposedByDefault=false
-      - --providers.swarm.network=dokploy_proxy
+      - --providers.swarm.network=hive_proxy
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
@@ -104,7 +104,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - shared:/data/shared
-    networks: [dokploy_proxy]
+    networks: [hive_proxy]
 
   postgres:
     image: postgres:16-alpine
@@ -124,7 +124,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     secrets:
       - postgres-password
-    networks: [dokploy_internal]
+    networks: [hive_internal]
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -142,7 +142,7 @@ services:
       - target: 5432
         published: ${HIVE_PGBOUNCER_PORT:-6432}
         protocol: tcp
-    networks: [dokploy_internal]
+    networks: [hive_internal]
 
   buildkit:
     image: moby/buildkit:latest
@@ -155,7 +155,7 @@ services:
       - target: 1234
         published: ${HIVE_BUILDKIT_PORT:-1234}
         protocol: tcp
-    networks: [dokploy_internal]
+    networks: [hive_internal]
     volumes:
       - buildkit-cache:/var/lib/buildkit
 
@@ -169,16 +169,16 @@ services:
       - target: 5000
         published: ${HIVE_REGISTRY_PORT:-5000}
         protocol: tcp
-    networks: [dokploy_internal]
+    networks: [hive_internal]
     volumes:
       - registry-data:/var/lib/registry
 
 networks:
-  dokploy_internal:
+  hive_internal:
     driver: overlay
     driver_opts:
       encrypted: "true"
-  dokploy_proxy:
+  hive_proxy:
     driver: overlay
     attachable: true
 
@@ -190,7 +190,7 @@ volumes:
   agent-certs: {}
 
 secrets:
-  dokploy-master-key:
+  hive-master-key:
     external: true
   postgres-password:
     external: true

@@ -40,7 +40,7 @@ func (w *Watcher) Run(ctx context.Context) {
 	}
 	manager := proxy.NewDomainManager(w.swarm)
 	for _, svc := range services {
-		appID := svc.Spec.Labels["dokploy.app.id"]
+		appID := svc.Spec.Labels["hive.app.id"]
 		if appID == "" {
 			continue
 		}

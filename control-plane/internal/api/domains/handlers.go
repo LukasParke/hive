@@ -196,9 +196,9 @@ func (h *Handler) applyDomainsForApp(ctx context.Context, appID string) error {
 	serviceID := ""
 	containerPort := 3000
 	for _, svc := range services {
-		if svc.Spec.Labels["dokploy.app.id"] == appID {
+		if svc.Spec.Labels["hive.app.id"] == appID {
 			serviceID = svc.ID
-			if p := svc.Spec.Labels["dokploy.app.port"]; p != "" {
+			if p := svc.Spec.Labels["hive.app.port"]; p != "" {
 				if parsed, parseErr := strconv.Atoi(p); parseErr == nil {
 					containerPort = parsed
 				}

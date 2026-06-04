@@ -119,7 +119,7 @@ func (h *Handler) CreateDatabaseService(w http.ResponseWriter, r *http.Request) 
 		},
 		UpdateConfig: &dockerswarm.UpdateConfig{Order: "start-first", FailureAction: "rollback"},
 		Networks: []dockerswarm.NetworkAttachmentConfig{
-			{Target: "dokploy_internal"},
+			{Target: "hive_internal"},
 		},
 		Mode: dockerswarm.ServiceMode{
 			Replicated: &dockerswarm.ReplicatedService{Replicas: ptrUint64(1)},

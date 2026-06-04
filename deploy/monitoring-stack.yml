@@ -7,15 +7,15 @@ services:
       placement:
         constraints:
           - node.role == manager
-    networks: [dokploy_internal]
+    networks: [hive_internal]
 
   grafana:
     image: grafana/grafana:latest
-    networks: [dokploy_internal, dokploy_proxy]
+    networks: [hive_internal, hive_proxy]
     deploy:
       labels:
         - traefik.enable=true
-        - traefik.http.routers.grafana.rule=Host(`grafana.${DOKPLOY_DOMAIN}`)
+        - traefik.http.routers.grafana.rule=Host(`grafana.${HIVE_DOMAIN}`)
         - traefik.http.routers.grafana.entrypoints=websecure
         - traefik.http.routers.grafana.tls.certresolver=letsencrypt
 
@@ -28,10 +28,10 @@ services:
       - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
-    networks: [dokploy_internal]
+    networks: [hive_internal]
 
 networks:
-  dokploy_internal:
+  hive_internal:
     external: true
-  dokploy_proxy:
+  hive_proxy:
     external: true

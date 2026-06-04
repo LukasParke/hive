@@ -22,7 +22,7 @@ func ApplySecurityRulesForApplication(ctx context.Context, pool *pgxpool.Pool, c
 	var targetVersion uint64
 	var spec swarm.ServiceSpec
 	for _, svc := range services {
-		if svc.Spec.Labels["dokploy.app.id"] == appID {
+		if svc.Spec.Labels["hive.app.id"] == appID {
 			targetServiceID = svc.ID
 			targetVersion = svc.Version.Index
 			spec = svc.Spec

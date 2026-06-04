@@ -102,7 +102,7 @@ func (w *PreviewDeployWorker) Work(ctx context.Context, job *river.Job[PreviewDe
 		services, _ := w.Swarm.ListServices(ctx)
 		var targetServiceID string
 		for _, svc := range services {
-			if svc.Spec.Labels["dokploy.app.id"] == job.Args.PreviewID {
+			if svc.Spec.Labels["hive.app.id"] == job.Args.PreviewID {
 				targetServiceID = svc.ID
 				break
 			}

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-STACK_FILE="${STACK_FILE:-deploy/dokploy-stack.yml}"
+STACK_FILE="${STACK_FILE:-deploy/hive-stack.yml}"
 
 echo "Checking swarm status..."
 if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q active; then
@@ -9,8 +9,8 @@ if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q active; then
   docker swarm init
 fi
 
-if [ -z "${DOKPLOY_DOMAIN:-}" ]; then
-  echo "DOKPLOY_DOMAIN is required"
+if [ -z "${HIVE_DOMAIN:-}" ]; then
+  echo "HIVE_DOMAIN is required"
   exit 1
 fi
 if [ -z "${ACME_EMAIL:-}" ]; then
@@ -26,7 +26,7 @@ create_secret() {
   fi
 }
 
-create_secret dokploy-master-key
+create_secret hive-master-key
 create_secret postgres-password
 create_secret agent-bootstrap-token
 
@@ -46,4 +46,4 @@ for i in $(seq 1 60); do
   sleep 2
 done
 
-echo "Done. URL: https://${DOKPLOY_DOMAIN}"
+echo "Done. URL: https://${HIVE_DOMAIN}"

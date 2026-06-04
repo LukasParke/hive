@@ -10,7 +10,7 @@ Date: 2026-03-11
 - Dind runtime validation:
   - `tests/integration/scripts/start_dind_swarm.sh`: **PASS**
   - `tests/integration/scripts/seed_swarm_prereqs.sh`: **PASS**
-  - `docker stack deploy ... dokploy-stack.yml + dokploy-stack.ci.yml`: **PASS**
+  - `docker stack deploy ... hive-stack.yml + hive-stack.ci.yml`: **PASS**
   - `tests/integration/scripts/wait_for_stack_ready.sh`: **PASS**
   - `go test -tags integration -v ./tests/integration`: **PASS**
 

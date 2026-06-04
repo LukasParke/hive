@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 30
     env:
       DIND_MANAGER_HOST: tcp://127.0.0.1:2375
-      DOKPLOY_DOMAIN: ci.local
+      HIVE_DOMAIN: ci.local
       ACME_EMAIL: ci@example.com
       STACK_NAME: hive
     steps:
@@ -38,8 +38,8 @@ jobs:
       - name: Deploy stack
         run: |
           docker --host "$DIND_MANAGER_HOST" stack deploy \
-            -c deploy/dokploy-stack.yml \
-            -c deploy/dokploy-stack.ci.yml \
+            -c deploy/hive-stack.yml \
+            -c deploy/hive-stack.ci.yml \
             "$STACK_NAME"
 
       - name: Wait for stack readiness

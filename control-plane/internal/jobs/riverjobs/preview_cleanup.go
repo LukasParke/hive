@@ -37,7 +37,7 @@ func (w *PreviewCleanupWorker) Work(ctx context.Context, job *river.Job[PreviewC
 				}
 				services, _ := w.Swarm.ListServices(ctx)
 				for _, svc := range services {
-					if svc.Spec.Labels["dokploy.app.id"] == previewID {
+					if svc.Spec.Labels["hive.app.id"] == previewID {
 						_ = w.Swarm.RemoveService(ctx, svc.ID)
 						break
 					}

@@ -124,7 +124,7 @@ func (w *BuildWorker) Work(ctx context.Context, job *river.Job[BuildJobArgs]) er
 		services, _ := w.Swarm.ListServices(ctx)
 		var targetServiceID string
 		for _, svc := range services {
-			if svc.Spec.Labels["dokploy.app.id"] == applicationID {
+			if svc.Spec.Labels["hive.app.id"] == applicationID {
 				targetServiceID = svc.ID
 				break
 			}
