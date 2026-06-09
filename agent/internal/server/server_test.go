@@ -9,9 +9,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/system"
-	dockertypes "github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/system"
+	dockerclient "github.com/moby/moby/client"
 
 	"github.com/luke/hive/agent/internal/docker"
 	"github.com/luke/hive/agent/internal/hostmetrics"
@@ -42,16 +42,16 @@ func (m *mockDocker) ExecCreate(ctx context.Context, id string, cmd []string, tt
 	return "exec-123", nil
 }
 
-func (m *mockDocker) ExecAttach(ctx context.Context, execID string, tty bool) (dockertypes.HijackedResponse, error) {
-	return dockertypes.HijackedResponse{}, nil
+func (m *mockDocker) ExecAttach(ctx context.Context, execID string, tty bool) (dockerclient.HijackedResponse, error) {
+	return dockerclient.HijackedResponse{}, nil
 }
 
 func (m *mockDocker) ExecResize(ctx context.Context, execID string, rows, cols uint) error {
 	return nil
 }
 
-func (m *mockDocker) ExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
-	return container.ExecInspect{ExitCode: 0}, nil
+func (m *mockDocker) ExecInspect(ctx context.Context, execID string) (dockerclient.ExecInspectResult, error) {
+	return dockerclient.ExecInspectResult{ExitCode: 0}, nil
 }
 
 func (m *mockDocker) ListContainers(ctx context.Context) ([]container.Summary, error) {

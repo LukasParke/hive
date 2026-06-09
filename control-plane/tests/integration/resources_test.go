@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	dockerclient "github.com/docker/docker/client"
 	"github.com/jackc/pgx/v5/pgxpool"
+	dockerclient "github.com/moby/moby/client"
 )
 
 func TestSecretConfigNetworkCRUD(t *testing.T) {
@@ -96,7 +96,7 @@ func TestSecretConfigNetworkCRUD(t *testing.T) {
 		t.Logf("docker secret list failed (may be expected): %v", err)
 	} else {
 		found := false
-		for _, s := range secrets {
+		for _, s := range secrets.Items {
 			if s.Spec.Name == secretName {
 				found = true
 				break
@@ -111,7 +111,7 @@ func TestSecretConfigNetworkCRUD(t *testing.T) {
 	if err != nil {
 		t.Logf("docker network list failed (may be expected): %v", err)
 	} else {
-		t.Logf("found %d Docker networks", len(networks))
+		t.Logf("found %d Docker networks", len(networks.Items))
 	}
 }
 
@@ -708,14 +708,10 @@ func TestApplicationStartStopRestart(t *testing.T) {
 }
 
 // Docker list option helpers (needed to avoid importing types package with breaking API changes)
-func dockerSecretListOptions() dockerSecretListOpts {
-	return dockerSecretListOpts{}
+func dockerSecretListOptions() dockerclient.SecretListOptions {
+	return dockerclient.SecretListOptions{}
 }
 
-type dockerSecretListOpts = struct{}
-
-func dockerNetworkListOptions() dockerNetworkListOpts {
-	return dockerNetworkListOpts{}
+func dockerNetworkListOptions() dockerclient.NetworkListOptions {
+	return dockerclient.NetworkListOptions{}
 }
-
-type dockerNetworkListOpts = struct{}

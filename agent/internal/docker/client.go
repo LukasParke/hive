@@ -8,10 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/system"
-	dockerclient "github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/system"
+	dockerclient "github.com/moby/moby/client"
 )
 
 var containerIDPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`)
@@ -29,9 +28,9 @@ type DockerOperations interface {
 	ContainerStats(ctx context.Context, ids []string) ([]*ContainerStat, error)
 	StreamLogs(ctx context.Context, id string, follow bool, tail int32, timestamps bool) (io.ReadCloser, error)
 	ExecCreate(ctx context.Context, id string, cmd []string, tty bool) (string, error)
-	ExecAttach(ctx context.Context, execID string, tty bool) (types.HijackedResponse, error)
+	ExecAttach(ctx context.Context, execID string, tty bool) (dockerclient.HijackedResponse, error)
 	ExecResize(ctx context.Context, execID string, rows, cols uint) error
-	ExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
+	ExecInspect(ctx context.Context, execID string) (dockerclient.ExecInspectResult, error)
 	ListContainers(ctx context.Context) ([]container.Summary, error)
 	Close() error
 }
@@ -98,11 +97,13 @@ func allowedShellsList() []string {
 }
 
 func (c *Client) Info(ctx context.Context) (system.Info, error) {
-	return c.raw.Info(ctx)
+	result, err := c.raw.Info(ctx, dockerclient.InfoOptions{})
+	return result.Info, err
 }
 
 func (c *Client) ListContainers(ctx context.Context) ([]container.Summary, error) {
-	return c.raw.ContainerList(ctx, container.ListOptions{})
+	result, err := c.raw.ContainerList(ctx, dockerclient.ContainerListOptions{})
+	return result.Items, err
 }
 
 // ContainerStats retrieves stats for the given container IDs.
@@ -133,7 +134,7 @@ func (c *Client) ContainerStats(ctx context.Context, ids []string) ([]*Container
 }
 
 func (c *Client) containerStatsOneShot(ctx context.Context, id string) (*ContainerStat, error) {
-	resp, err := c.raw.ContainerStatsOneShot(ctx, id)
+	resp, err := c.raw.ContainerStats(ctx, id, dockerclient.ContainerStatsOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +233,7 @@ func (c *Client) StreamLogs(ctx context.Context, id string, follow bool, tail in
 		}
 		tailStr = fmt.Sprintf("%d", tail)
 	}
-	return c.raw.ContainerLogs(ctx, id, container.LogsOptions{
+	return c.raw.ContainerLogs(ctx, id, dockerclient.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     follow,
@@ -245,9 +246,9 @@ func (c *Client) ExecCreate(ctx context.Context, id string, cmd []string, tty bo
 	if err := ValidateContainerID(id); err != nil {
 		return "", err
 	}
-	resp, err := c.raw.ContainerExecCreate(ctx, id, container.ExecOptions{
+	resp, err := c.raw.ExecCreate(ctx, id, dockerclient.ExecCreateOptions{
 		Cmd:          cmd,
-		Tty:          tty,
+		TTY:          tty,
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -258,23 +259,25 @@ func (c *Client) ExecCreate(ctx context.Context, id string, cmd []string, tty bo
 	return resp.ID, nil
 }
 
-func (c *Client) ExecAttach(ctx context.Context, execID string, tty bool) (types.HijackedResponse, error) {
-	return c.raw.ContainerExecAttach(ctx, execID, container.ExecAttachOptions{
-		Tty: tty,
+func (c *Client) ExecAttach(ctx context.Context, execID string, tty bool) (dockerclient.HijackedResponse, error) {
+	resp, err := c.raw.ExecAttach(ctx, execID, dockerclient.ExecAttachOptions{
+		TTY: tty,
 	})
+	return resp.HijackedResponse, err
 }
 
 func (c *Client) ExecResize(ctx context.Context, execID string, rows, cols uint) error {
-	return c.raw.ContainerExecResize(ctx, execID, container.ResizeOptions{
+	_, err := c.raw.ExecResize(ctx, execID, dockerclient.ExecResizeOptions{
 		Height: rows,
 		Width:  cols,
 	})
+	return err
 }
 
-func (c *Client) ExecInspect(ctx context.Context, execID string) (container.ExecInspect, error) {
-	resp, err := c.raw.ContainerExecInspect(ctx, execID)
+func (c *Client) ExecInspect(ctx context.Context, execID string) (dockerclient.ExecInspectResult, error) {
+	resp, err := c.raw.ExecInspect(ctx, execID, dockerclient.ExecInspectOptions{})
 	if err != nil {
-		return container.ExecInspect{}, fmt.Errorf("exec inspect: %w", err)
+		return dockerclient.ExecInspectResult{}, fmt.Errorf("exec inspect: %w", err)
 	}
 	return resp, nil
 }

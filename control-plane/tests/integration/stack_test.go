@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	dockerclient "github.com/docker/docker/client"
+	dockerclient "github.com/moby/moby/client"
 )
 
 func TestStackLifecycle(t *testing.T) {
@@ -166,7 +166,7 @@ func TestMultiServiceStack(t *testing.T) {
 	if err != nil {
 		t.Logf("service list failed (may be expected): %v", err)
 	} else {
-		t.Logf("found %d services in swarm", len(services))
+		t.Logf("found %d services in swarm", len(services.Items))
 	}
 
 	// Cleanup

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/swarm"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 	"gopkg.in/yaml.v3"
 )

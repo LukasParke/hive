@@ -17,9 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	dockerclient "github.com/docker/docker/client"
 	"github.com/jackc/pgx/v5/pgxpool"
+	dockerclient "github.com/moby/moby/client"
 )
 
 func TestClusterBootstrap(t *testing.T) {
@@ -338,14 +337,14 @@ func TestControlPlaneHA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("docker client init failed: %v", err)
 	}
-	services, err := cli.ServiceList(context.Background(), types.ServiceListOptions{})
+	services, err := cli.ServiceList(context.Background(), dockerclient.ServiceListOptions{})
 	if err != nil {
 		t.Fatalf("service list failed: %v", err)
 	}
 
 	controlPlaneName := stackName + "_control-plane"
 	found := false
-	for _, svc := range services {
+	for _, svc := range services.Items {
 		if svc.Spec.Name == controlPlaneName {
 			found = true
 			if svc.Spec.UpdateConfig == nil || svc.Spec.UpdateConfig.FailureAction != "rollback" {
@@ -586,8 +585,8 @@ func authedDeleteWithHeaders(url, accessToken string, headers map[string]string)
 	return http.DefaultClient.Do(req)
 }
 
-func dockerServiceListOptions() types.ServiceListOptions {
-	return types.ServiceListOptions{}
+func dockerServiceListOptions() dockerclient.ServiceListOptions {
+	return dockerclient.ServiceListOptions{}
 }
 
 func asString(v any) string {

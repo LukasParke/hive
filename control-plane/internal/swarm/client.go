@@ -3,13 +3,9 @@ package swarm
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/swarm"
-	dockerclient "github.com/docker/docker/client"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/swarm"
+	dockerclient "github.com/moby/moby/client"
 )
 
 type Client struct {
@@ -33,11 +29,12 @@ func (c *Client) Ping(ctx context.Context) error {
 }
 
 func (c *Client) ListServices(ctx context.Context) ([]swarm.Service, error) {
-	return c.raw.ServiceList(ctx, types.ServiceListOptions{})
+	result, err := c.raw.ServiceList(ctx, dockerclient.ServiceListOptions{})
+	return result.Items, err
 }
 
 func (c *Client) CreateService(ctx context.Context, spec swarm.ServiceSpec) (string, error) {
-	resp, err := c.raw.ServiceCreate(ctx, spec, types.ServiceCreateOptions{})
+	resp, err := c.raw.ServiceCreate(ctx, dockerclient.ServiceCreateOptions{Spec: spec})
 	if err != nil {
 		return "", err
 	}
@@ -45,7 +42,10 @@ func (c *Client) CreateService(ctx context.Context, spec swarm.ServiceSpec) (str
 }
 
 func (c *Client) UpdateService(ctx context.Context, id string, version uint64, spec swarm.ServiceSpec) error {
-	_, err := c.raw.ServiceUpdate(ctx, id, swarm.Version{Index: version}, spec, types.ServiceUpdateOptions{})
+	_, err := c.raw.ServiceUpdate(ctx, id, dockerclient.ServiceUpdateOptions{
+		Version: swarm.Version{Index: version},
+		Spec:    spec,
+	})
 	return err
 }
 
@@ -54,11 +54,12 @@ func (c *Client) RemoveService(ctx context.Context, id string) error {
 }
 
 func (c *Client) ListNodes(ctx context.Context) ([]swarm.Node, error) {
-	return c.raw.NodeList(ctx, types.NodeListOptions{})
+	result, err := c.raw.NodeList(ctx, dockerclient.NodeListOptions{})
+	return result.Items, err
 }
 
 func (c *Client) CreateNetwork(ctx context.Context, name string) (string, error) {
-	resp, err := c.raw.NetworkCreate(ctx, name, network.CreateOptions{Driver: "overlay"})
+	resp, err := c.raw.NetworkCreate(ctx, name, dockerclient.NetworkCreateOptions{Driver: "overlay"})
 	if err != nil {
 		return "", err
 	}
@@ -66,7 +67,8 @@ func (c *Client) CreateNetwork(ctx context.Context, name string) (string, error)
 }
 
 func (c *Client) ListNetworks(ctx context.Context) ([]network.Summary, error) {
-	return c.raw.NetworkList(ctx, network.ListOptions{})
+	result, err := c.raw.NetworkList(ctx, dockerclient.NetworkListOptions{})
+	return result.Items, err
 }
 
 func (c *Client) RemoveNetwork(ctx context.Context, id string) error {
@@ -74,7 +76,7 @@ func (c *Client) RemoveNetwork(ctx context.Context, id string) error {
 }
 
 func (c *Client) CreateSecret(ctx context.Context, spec swarm.SecretSpec) (string, error) {
-	resp, err := c.raw.SecretCreate(ctx, spec)
+	resp, err := c.raw.SecretCreate(ctx, dockerclient.SecretCreateOptions{Spec: spec})
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +84,8 @@ func (c *Client) CreateSecret(ctx context.Context, spec swarm.SecretSpec) (strin
 }
 
 func (c *Client) ListSecrets(ctx context.Context) ([]swarm.Secret, error) {
-	return c.raw.SecretList(ctx, types.SecretListOptions{})
+	result, err := c.raw.SecretList(ctx, dockerclient.SecretListOptions{})
+	return result.Items, err
 }
 
 func (c *Client) RemoveSecret(ctx context.Context, id string) error {
@@ -90,7 +93,7 @@ func (c *Client) RemoveSecret(ctx context.Context, id string) error {
 }
 
 func (c *Client) CreateConfig(ctx context.Context, spec swarm.ConfigSpec) (string, error) {
-	resp, err := c.raw.ConfigCreate(ctx, spec)
+	resp, err := c.raw.ConfigCreate(ctx, dockerclient.ConfigCreateOptions{Spec: spec})
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +101,8 @@ func (c *Client) CreateConfig(ctx context.Context, spec swarm.ConfigSpec) (strin
 }
 
 func (c *Client) ListConfigs(ctx context.Context) ([]swarm.Config, error) {
-	return c.raw.ConfigList(ctx, types.ConfigListOptions{})
+	result, err := c.raw.ConfigList(ctx, dockerclient.ConfigListOptions{})
+	return result.Items, err
 }
 
 func (c *Client) RemoveConfig(ctx context.Context, id string) error {
@@ -106,7 +110,7 @@ func (c *Client) RemoveConfig(ctx context.Context, id string) error {
 }
 
 func (c *Client) PullImage(ctx context.Context, ref string) error {
-	r, err := c.raw.ImagePull(ctx, ref, image.PullOptions{})
+	r, err := c.raw.ImagePull(ctx, ref, dockerclient.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
@@ -114,7 +118,7 @@ func (c *Client) PullImage(ctx context.Context, ref string) error {
 }
 
 func (c *Client) ContainerLogs(ctx context.Context, id string) error {
-	r, err := c.raw.ContainerLogs(ctx, id, container.LogsOptions{ShowStdout: true, ShowStderr: true, Tail: "200"})
+	r, err := c.raw.ContainerLogs(ctx, id, dockerclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Tail: "200"})
 	if err != nil {
 		return err
 	}
@@ -122,18 +126,19 @@ func (c *Client) ContainerLogs(ctx context.Context, id string) error {
 }
 
 func (c *Client) ListTasks(ctx context.Context, serviceID string) ([]swarm.Task, error) {
-	f := filters.NewArgs()
-	f.Add("service", serviceID)
-	return c.raw.TaskList(ctx, types.TaskListOptions{Filters: f})
+	f := make(dockerclient.Filters).Add("service", serviceID)
+	result, err := c.raw.TaskList(ctx, dockerclient.TaskListOptions{Filters: f})
+	return result.Items, err
 }
 
 // ListAllTasks returns all tasks in the swarm (not filtered by service).
 func (c *Client) ListAllTasks(ctx context.Context) ([]swarm.Task, error) {
-	return c.raw.TaskList(ctx, types.TaskListOptions{})
+	result, err := c.raw.TaskList(ctx, dockerclient.TaskListOptions{})
+	return result.Items, err
 }
 
 // GetNode returns a single node by ID.
 func (c *Client) GetNode(ctx context.Context, nodeID string) (swarm.Node, error) {
-	node, _, err := c.raw.NodeInspectWithRaw(ctx, nodeID)
-	return node, err
+	result, err := c.raw.NodeInspect(ctx, nodeID, dockerclient.NodeInspectOptions{})
+	return result.Node, err
 }

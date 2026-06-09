@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	dockerswarm "github.com/docker/docker/api/types/swarm"
+	dockerswarm "github.com/moby/moby/api/types/swarm"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"

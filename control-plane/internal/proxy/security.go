@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types/swarm"
+	"github.com/moby/moby/api/types/swarm"
 	"github.com/jackc/pgx/v5/pgxpool"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 )
