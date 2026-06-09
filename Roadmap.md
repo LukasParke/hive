@@ -227,7 +227,7 @@ SHARED-DURABLE-LARGE (shared volume at /data/shared/): Traefik ACME state (acme.
 
 NODE-LOCAL-FIXED: /var/run/docker.sock — no change needed.` },
       { id: "2.2", t: "Implement the encrypted secrets store", time: "Weeks 7–8",
-        b: `AES-256-GCM encryption with per-record random nonce. Master key from Swarm secret (DOKPLOY_MASTER_KEY → /run/secrets/hive-master-key). Key derivation via HKDF with unique context per secret type.
+        b: `AES-256-GCM encryption with per-record random nonce. Master key from Swarm secret (HIVE_MASTER_KEY → /run/secrets/hive-master-key). Key derivation via HKDF with unique context per secret type.
 
 Store.Put(): generate nonce, encrypt, prepend nonce to ciphertext, upsert to DB.
 Store.Get(): read from DB, split nonce/ciphertext, decrypt.

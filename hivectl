@@ -12,14 +12,14 @@ set -euo pipefail
 #   logs         Tail control-plane logs
 #
 # Environment:
-#   DOKPLOY_DOMAIN          Domain for the platform (e.g. hive.example.com)
+#   HIVE_DOMAIN             Domain for the platform (e.g. hive.example.com)
 #   ACME_EMAIL              Email for Let's Encrypt certificates
 #   HIVE_IMAGE_TAG          Image tag to deploy (default: latest)
-#   HIVE_STACK_FILE         Path to stack file (default: deploy/dokploy-stack.yml)
+#   HIVE_STACK_FILE         Path to stack file (default: deploy/hive-stack.yml)
 #   HIVE_STACK_NAME         Docker stack name (default: hive)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-STACK_FILE="${HIVE_STACK_FILE:-${SCRIPT_DIR}/deploy/dokploy-stack.yml}"
+STACK_FILE="${HIVE_STACK_FILE:-${SCRIPT_DIR}/deploy/hive-stack.yml}"
 STACK_NAME="${HIVE_STACK_NAME:-hive}"
 
 # Colors
@@ -118,7 +118,7 @@ cmd_install() {
   require_docker
   ensure_swarm
 
-  prompt_required "DOKPLOY_DOMAIN" "Platform domain (e.g. hive.example.com)"
+  prompt_required "HIVE_DOMAIN" "Platform domain (e.g. hive.example.com)"
   prompt_required "ACME_EMAIL" "Email for Let's Encrypt certificates"
 
   # Create secrets
@@ -135,7 +135,7 @@ cmd_install() {
     fi
   }
 
-  create_secret "dokploy-master-key"
+  create_secret "hive-master-key"
   create_secret "postgres-password"
   create_secret "agent-bootstrap-token"
 
@@ -158,8 +158,8 @@ cmd_install() {
 
   info ""
   ok "Hive is installed!"
-  info "  URL: https://${DOKPLOY_DOMAIN}"
-  info "  Admin signup: https://${DOKPLOY_DOMAIN}/register"
+  info "  URL: https://${HIVE_DOMAIN}"
+  info "  Admin signup: https://${HIVE_DOMAIN}/register"
 }
 
 # ---------------------------------------------------------------------------
@@ -283,7 +283,7 @@ cmd_uninstall() {
     for vol in pgdata shared buildkit-cache registry-data agent-certs; do
       docker volume rm "${STACK_NAME}_${vol}" 2>/dev/null || true
     done
-    for secret in dokploy-master-key postgres-password agent-bootstrap-token; do
+    for secret in hive-master-key postgres-password agent-bootstrap-token; do
       docker secret rm "$secret" 2>/dev/null || true
     done
     # Networks are auto-removed by stack rm when not in use
@@ -361,14 +361,14 @@ Commands:
   logs [service]       Tail service logs (default: control-plane)
 
 Environment:
-  DOKPLOY_DOMAIN       Platform domain (required for install)
+  HIVE_DOMAIN          Platform domain (required for install)
   ACME_EMAIL           Let's Encrypt email (required for install)
   HIVE_IMAGE_TAG       Image tag to deploy (default: latest)
-  HIVE_STACK_FILE      Stack file path (default: deploy/dokploy-stack.yml)
+  HIVE_STACK_FILE      Stack file path (default: deploy/hive-stack.yml)
   HIVE_STACK_NAME      Stack name (default: hive)
 
 Examples:
-  DOKPLOY_DOMAIN=hive.example.com ACME_EMAIL=admin@example.com ./hivectl install
+  HIVE_DOMAIN=hive.example.com ACME_EMAIL=admin@example.com ./hivectl install
   ./hivectl update nightly
   ./hivectl update nightly-20250603-abc123
   ./hivectl uninstall --purge
