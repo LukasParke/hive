@@ -45,15 +45,53 @@ func ToUUID(s string) (pgtype.UUID, error) {
 	return u, nil
 }
 
+func ResolveOrgID(w http.ResponseWriter, r *http.Request, pool *pgxpool.Pool, userID string) (string, bool) {
+	orgID := strings.TrimSpace(r.Header.Get("X-Organization-Id"))
+	if orgID != "" {
+		return orgID, true
+	}
+
+	rows, err := pool.Query(r.Context(), `
+		select organization_id::text
+		from organization_members
+		where user_id = $1::uuid
+		order by created_at desc
+		limit 2
+	`, userID)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "internal_error", "failed to resolve organization")
+		return "", false
+	}
+	defer rows.Close()
+
+	var orgIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			WriteError(w, http.StatusInternalServerError, "internal_error", "failed to resolve organization")
+			return "", false
+		}
+		orgIDs = append(orgIDs, id)
+	}
+	if len(orgIDs) == 1 {
+		return orgIDs[0], true
+	}
+	if len(orgIDs) == 0 {
+		WriteError(w, http.StatusBadRequest, "bad_request", "missing X-Organization-Id header and user has no organizations")
+		return "", false
+	}
+	WriteError(w, http.StatusBadRequest, "bad_request", "missing X-Organization-Id header")
+	return "", false
+}
+
 func RequireOrgAccess(w http.ResponseWriter, r *http.Request, pool *pgxpool.Pool, roles ...rbac.Role) (string, bool) {
 	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		WriteError(w, http.StatusUnauthorized, "unauthorized", "missing or invalid authentication")
 		return "", false
 	}
-	orgID := strings.TrimSpace(r.Header.Get("X-Organization-Id"))
-	if orgID == "" {
-		WriteError(w, http.StatusBadRequest, "bad_request", "missing X-Organization-Id header")
+	orgID, ok := ResolveOrgID(w, r, pool, claims.UserID)
+	if !ok {
 		return "", false
 	}
 	if err := rbac.Require(pool, orgID, claims.UserID, roles...); err != nil {

@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
 	"time"
 
-	dockerswarm "github.com/moby/moby/api/types/swarm"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
 	apimiddleware "github.com/luke/hive/control-plane/internal/api/middleware"
 	"github.com/luke/hive/control-plane/internal/rbac"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
+	dockerswarm "github.com/moby/moby/api/types/swarm"
 )
 
 type Handler struct {
@@ -33,9 +32,8 @@ func (h *Handler) ListApplications(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
-	orgID := strings.TrimSpace(r.Header.Get("X-Organization-Id"))
-	if orgID == "" {
-		http.Error(w, `{"message":"missing X-Organization-Id"}`, http.StatusBadRequest)
+	orgID, ok := common.ResolveOrgID(w, r, h.Pool, claims.UserID)
+	if !ok {
 		return
 	}
 	if err := rbac.Require(h.Pool, orgID, claims.UserID, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); err != nil {
@@ -94,9 +92,8 @@ func (h *Handler) CreateApplication(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
-	orgID := strings.TrimSpace(r.Header.Get("X-Organization-Id"))
-	if orgID == "" {
-		http.Error(w, `{"message":"missing X-Organization-Id"}`, http.StatusBadRequest)
+	orgID, ok := common.ResolveOrgID(w, r, h.Pool, claims.UserID)
+	if !ok {
 		return
 	}
 	if err := rbac.Require(h.Pool, orgID, claims.UserID, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); err != nil {
