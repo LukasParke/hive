@@ -86,7 +86,7 @@ services:
       retries: 3
 
   traefik:
-    image: traefik:v3.2
+    image: traefik:v3.6
     command:
       - --providers.swarm=true
       - --providers.swarm.exposedByDefault=false
@@ -101,6 +101,9 @@ services:
       placement:
         constraints:
           - node.role == manager
+      update_config:
+        order: stop-first
+        failure_action: rollback
     ports:
       - target: 80
         published: 80
