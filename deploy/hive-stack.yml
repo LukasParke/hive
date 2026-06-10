@@ -22,7 +22,9 @@ services:
         failure_action: rollback
       labels:
         - hive.service=control-plane
-        - traefik.enable=true
+        # Disabled by default for no-domain installs; hivectl/init.sh enable it
+        # when HIVE_DOMAIN is configured to avoid ACME attempts for localhost.
+        - traefik.enable=${HIVE_TRAEFIK_ENABLE:-false}
         - traefik.http.routers.hive.rule=Host(`${HIVE_DOMAIN:-localhost}`)
         - traefik.http.routers.hive.entrypoints=websecure
         - traefik.http.routers.hive.tls.certresolver=letsencrypt

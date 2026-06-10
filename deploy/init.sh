@@ -102,10 +102,14 @@ fi
 if [ -z "${HIVE_DOMAIN:-}" ]; then
   echo "HIVE_DOMAIN is not set; Hive will be available on the direct HTTP port only."
   ACME_EMAIL="${ACME_EMAIL:-admin@example.invalid}"
-  export ACME_EMAIL
+  HIVE_TRAEFIK_ENABLE="${HIVE_TRAEFIK_ENABLE:-false}"
+  export ACME_EMAIL HIVE_TRAEFIK_ENABLE
 elif [ -z "${ACME_EMAIL:-}" ]; then
   echo "ACME_EMAIL is required when HIVE_DOMAIN is set"
   exit 1
+else
+  HIVE_TRAEFIK_ENABLE="${HIVE_TRAEFIK_ENABLE:-true}"
+  export HIVE_TRAEFIK_ENABLE
 fi
 
 create_secret() {

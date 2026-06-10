@@ -20,6 +20,7 @@ set -euo pipefail
 #   HIVE_DIRECT_PORT        Direct HTTP UI port for LAN/Cloudflare Tunnel (default: 8080)
 #   HIVE_CONTROL_PLANE_PORT Direct control-plane port (default: 3000)
 #   HIVE_HEALTH_HOST        Host used for install/status API probes (default: detected swarm node IP)
+#   HIVE_TRAEFIK_ENABLE     Enable Traefik domain routing (default: true when HIVE_DOMAIN is set)
 #   HIVE_STACK_FILE         Path to stack file (default: deploy/hive-stack.yml)
 #   HIVE_STACK_URL          URL to stack file when running via curl pipe
 #   HIVE_STACK_NAME         Docker stack name (default: hive)
@@ -380,11 +381,14 @@ cmd_install() {
   prompt_optional "HIVE_DOMAIN" "Platform domain (optional; press Enter for direct-port only)"
   if [ -n "${HIVE_DOMAIN:-}" ]; then
     prompt_required "ACME_EMAIL" "Email for Let's Encrypt certificates"
+    HIVE_TRAEFIK_ENABLE="${HIVE_TRAEFIK_ENABLE:-true}"
   else
     ACME_EMAIL="${ACME_EMAIL:-admin@example.invalid}"
+    HIVE_TRAEFIK_ENABLE="${HIVE_TRAEFIK_ENABLE:-false}"
     export ACME_EMAIL
     warn "No HIVE_DOMAIN set; Hive will be available on the direct HTTP port only."
   fi
+  export HIVE_TRAEFIK_ENABLE
 
   # Create secrets
   info "Ensuring secrets exist..."
@@ -700,6 +704,7 @@ Environment:
                       Direct control-plane port (default: 3000)
   HIVE_HEALTH_HOST     Host used for install/status health probes (default: detected swarm node IP)
   HIVE_STATUS_HOST     Optional override for status health probes
+  HIVE_TRAEFIK_ENABLE  Enable Traefik domain routing (default: true when HIVE_DOMAIN is set)
   HIVE_STACK_FILE      Stack file path (default: deploy/hive-stack.yml)
   HIVE_STACK_URL       Stack file URL when running via curl pipe
   HIVE_STACK_NAME      Stack name (default: hive)
