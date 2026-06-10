@@ -1,8 +1,11 @@
 FROM golang:1.25-alpine AS builder
 WORKDIR /src
 
-# Copy workspace and module files
-COPY go.work go.work.sum ./
+# Build outside the Go workspace: only the agent and proto modules are copied
+# into this image, and agent/go.mod has a local replace for proto.
+ENV GOWORK=off
+
+# Copy module files
 COPY proto/go.mod proto/go.sum ./proto/
 COPY agent/go.mod agent/go.sum ./agent/
 

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 	"gopkg.in/yaml.v3"
@@ -83,7 +84,7 @@ func DeployStack(ctx context.Context, cli *swarmclient.Client, stackName, compos
 			},
 		}
 		spec.EndpointSpec = endpointSpecFromPorts(svc.Ports)
-		spec.Networks = networkAttachments(svc.Networks)
+		spec.TaskTemplate.Networks = networkAttachments(svc.Networks)
 		if svc.Deploy.Replicas != nil {
 			spec.Mode.Replicated.Replicas = svc.Deploy.Replicas
 		}
@@ -148,7 +149,7 @@ func endpointSpecFromPorts(ports []string) *swarm.EndpointSpec {
 			continue
 		}
 		out = append(out, swarm.PortConfig{
-			Protocol:      swarm.PortConfigProtocolTCP,
+			Protocol:      network.TCP,
 			PublishMode:   swarm.PortConfigPublishModeIngress,
 			PublishedPort: uint32(published),
 			TargetPort:    uint32(target),

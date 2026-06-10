@@ -28,7 +28,8 @@ export ACME_EMAIL=ops@example.com
 
 This script will:
 - Verify Swarm is active
-- Generate required secrets (`hive-master-key`, `postgres-password`, `agent-bootstrap-token`)
+- Generate required secrets (`hive-master-key`, `postgres-password`, `hive-jwt-secret`, `agent-bootstrap-token`)
+- Create the `hive_internal` and `hive_proxy` overlay networks
 - Label the current node with `db=true`, `builder=true`, `registry=true`
 - Deploy the Hive stack
 - Poll the health endpoint until the control plane is ready
@@ -83,8 +84,8 @@ To upgrade to a new version:
 
 ```sh
 export HIVE_IMAGE_TAG=v0.1.0
-docker pull ghcr.io/hive/control-plane:${HIVE_IMAGE_TAG}
-docker pull ghcr.io/hive/agent:${HIVE_IMAGE_TAG}
+docker pull ghcr.io/lukasparke/hive/control-plane:${HIVE_IMAGE_TAG}
+docker pull ghcr.io/lukasparke/hive/agent:${HIVE_IMAGE_TAG}
 docker stack deploy -c deploy/hive-stack.yml hive
 ```
 

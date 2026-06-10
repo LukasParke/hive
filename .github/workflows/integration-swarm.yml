@@ -29,8 +29,8 @@ jobs:
 
       - name: Build CI images in dind manager
         run: |
-          docker --host "$DIND_MANAGER_HOST" build -t hive/control-plane:ci ./control-plane
-          docker --host "$DIND_MANAGER_HOST" build -t hive/agent:ci ./agent
+          docker --host "$DIND_MANAGER_HOST" build -f control-plane/Dockerfile -t hive/control-plane:ci .
+          docker --host "$DIND_MANAGER_HOST" build -f agent/Dockerfile -t hive/agent:ci .
 
       - name: Seed swarm prerequisites
         run: ./tests/integration/scripts/seed_swarm_prereqs.sh

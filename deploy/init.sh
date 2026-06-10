@@ -30,7 +30,18 @@ create_secret() {
 
 create_secret hive-master-key
 create_secret postgres-password
+create_secret hive-jwt-secret
 create_secret agent-bootstrap-token
+
+# The stack references these overlay networks as external so their names stay
+# stable regardless of the stack name (Traefik and database provisioning
+# reference them by exact name).
+if ! docker network ls --format '{{.Name}}' | grep -q '^hive_internal$'; then
+  docker network create --driver overlay --attachable --opt encrypted=true hive_internal
+fi
+if ! docker network ls --format '{{.Name}}' | grep -q '^hive_proxy$'; then
+  docker network create --driver overlay --attachable hive_proxy
+fi
 
 docker node update --label-add db=true "$(docker node ls --format '{{.ID}}' | head -n 1)"
 docker node update --label-add builder=true "$(docker node ls --format '{{.ID}}' | head -n 1)"

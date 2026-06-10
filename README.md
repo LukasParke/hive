@@ -220,9 +220,14 @@ cd tests/e2e && npx playwright test # E2E tests
 
 Every push to `main` triggers a nightly release:
 
-- Images: `ghcr.io/luke/hive/control-plane:nightly` and `ghcr.io/luke/hive/agent:nightly`
+- Images: `ghcr.io/lukasparke/hive/control-plane:nightly` and `ghcr.io/lukasparke/hive/agent:nightly`
 - Release: [github.com/LukasParke/hive/releases/tag/nightly](https://github.com/LukasParke/hive/releases/tag/nightly)
 - Changelog: Auto-generated from last 20 commits
+
+> **Note:** GHCR packages are created **private** on first publish. For Swarm
+> nodes to pull anonymously, set both packages to public once under
+> *GitHub → Packages → package settings → Change visibility*, or run
+> `docker login ghcr.io` on every node before installing.
 
 ---
 

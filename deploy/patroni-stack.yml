@@ -13,7 +13,7 @@ services:
     networks: [hive_internal]
 
   patroni:
-    image: ghcr.io/hive/postgres-patroni:latest
+    image: ghcr.io/lukasparke/hive/postgres-patroni:latest
     deploy:
       mode: replicated
       replicas: 3

@@ -14,6 +14,7 @@ create_secret() {
 
 create_secret "hive-master-key" "ci-master-key-01234567890123456789012345"
 create_secret "postgres-password" "postgres"
+create_secret "hive-jwt-secret" "ci-jwt-secret-must-be-at-least-32-characters-long"
 create_secret "agent-bootstrap-token" "ci-bootstrap-token"
 
 MANAGER_NODE_ID="$(docker --host "$MANAGER_HOST" info --format '{{.Swarm.NodeID}}')"

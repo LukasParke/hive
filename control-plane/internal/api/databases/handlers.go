@@ -116,11 +116,11 @@ func (h *Handler) CreateDatabaseService(w http.ResponseWriter, r *http.Request) 
 				Secrets: secretRefs,
 			},
 			RestartPolicy: &dockerswarm.RestartPolicy{Condition: dockerswarm.RestartPolicyConditionAny},
+			Networks: []dockerswarm.NetworkAttachmentConfig{
+				{Target: "hive_internal"},
+			},
 		},
 		UpdateConfig: &dockerswarm.UpdateConfig{Order: "start-first", FailureAction: "rollback"},
-		Networks: []dockerswarm.NetworkAttachmentConfig{
-			{Target: "hive_internal"},
-		},
 		Mode: dockerswarm.ServiceMode{
 			Replicated: &dockerswarm.ReplicatedService{Replicas: ptrUint64(1)},
 		},

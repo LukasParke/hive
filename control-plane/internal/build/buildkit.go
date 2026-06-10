@@ -71,7 +71,7 @@ func (c *Client) BuildAndPush(ctx context.Context, req BuildRequest, logWriter i
 			},
 		},
 		Session: []session.Attachable{
-			authprovider.NewDockerAuthProvider(nil, nil),
+			authprovider.NewDockerAuthProvider(authprovider.DockerAuthProviderConfig{}),
 		},
 	}
 

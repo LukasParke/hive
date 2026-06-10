@@ -2,11 +2,14 @@ version: "3.9"
 
 services:
   control-plane:
-    image: ${HIVE_CONTROL_PLANE_IMAGE:-ghcr.io/luke/hive/control-plane}:${HIVE_IMAGE_TAG:-latest}
+    image: ${HIVE_CONTROL_PLANE_IMAGE:-ghcr.io/lukasparke/hive/control-plane}:${HIVE_IMAGE_TAG:-latest}
     command: ["/control-plane"]
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/hive?sslmode=disable
+      - DATABASE_URL=postgres://postgres@postgres:5432/hive?sslmode=disable
+      - DATABASE_PASSWORD_FILE=/run/secrets/postgres-password
       - MASTER_KEY_FILE=/run/secrets/hive-master-key
+      - JWT_SECRET_FILE=/run/secrets/hive-jwt-secret
+      - AGENT_BOOTSTRAP_TOKEN_FILE=/run/secrets/agent-bootstrap-token
       - DOCKER_HOST=unix:///var/run/docker.sock
     deploy:
       mode: replicated
@@ -49,9 +52,12 @@ services:
       - /data/local:size=2g
     secrets:
       - hive-master-key
+      - postgres-password
+      - hive-jwt-secret
+      - agent-bootstrap-token
 
   agent:
-    image: ${HIVE_AGENT_IMAGE:-ghcr.io/luke/hive/agent}:${HIVE_IMAGE_TAG:-latest}
+    image: ${HIVE_AGENT_IMAGE:-ghcr.io/lukasparke/hive/agent}:${HIVE_IMAGE_TAG:-latest}
     deploy:
       mode: global
       labels:
@@ -183,14 +189,14 @@ services:
     volumes:
       - registry-data:/var/lib/registry
 
+# Networks are created by hivectl (or CI) ahead of deploy so their names are
+# stable regardless of the stack name. Traefik's swarm provider and the
+# control-plane's database provisioning both reference them by exact name.
 networks:
   hive_internal:
-    driver: overlay
-    driver_opts:
-      encrypted: "true"
+    external: true
   hive_proxy:
-    driver: overlay
-    attachable: true
+    external: true
 
 volumes:
   pgdata: {}
@@ -203,6 +209,8 @@ secrets:
   hive-master-key:
     external: true
   postgres-password:
+    external: true
+  hive-jwt-secret:
     external: true
   agent-bootstrap-token:
     external: true

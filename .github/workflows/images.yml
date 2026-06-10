@@ -15,8 +15,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  CP_IMAGE: ghcr.io/luke/hive/control-plane
-  AGENT_IMAGE: ghcr.io/luke/hive/agent
+  CP_IMAGE: ghcr.io/lukasparke/hive/control-plane
+  AGENT_IMAGE: ghcr.io/lukasparke/hive/agent
 
 permissions:
   contents: read

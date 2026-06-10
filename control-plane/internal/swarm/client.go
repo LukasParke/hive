@@ -24,7 +24,7 @@ func New(host string) (*Client, error) {
 }
 
 func (c *Client) Ping(ctx context.Context) error {
-	_, err := c.raw.Ping(ctx)
+	_, err := c.raw.Ping(ctx, dockerclient.PingOptions{})
 	return err
 }
 
@@ -50,7 +50,8 @@ func (c *Client) UpdateService(ctx context.Context, id string, version uint64, s
 }
 
 func (c *Client) RemoveService(ctx context.Context, id string) error {
-	return c.raw.ServiceRemove(ctx, id)
+	_, err := c.raw.ServiceRemove(ctx, id, dockerclient.ServiceRemoveOptions{})
+	return err
 }
 
 func (c *Client) ListNodes(ctx context.Context) ([]swarm.Node, error) {
@@ -72,7 +73,8 @@ func (c *Client) ListNetworks(ctx context.Context) ([]network.Summary, error) {
 }
 
 func (c *Client) RemoveNetwork(ctx context.Context, id string) error {
-	return c.raw.NetworkRemove(ctx, id)
+	_, err := c.raw.NetworkRemove(ctx, id, dockerclient.NetworkRemoveOptions{})
+	return err
 }
 
 func (c *Client) CreateSecret(ctx context.Context, spec swarm.SecretSpec) (string, error) {
@@ -89,7 +91,8 @@ func (c *Client) ListSecrets(ctx context.Context) ([]swarm.Secret, error) {
 }
 
 func (c *Client) RemoveSecret(ctx context.Context, id string) error {
-	return c.raw.SecretRemove(ctx, id)
+	_, err := c.raw.SecretRemove(ctx, id, dockerclient.SecretRemoveOptions{})
+	return err
 }
 
 func (c *Client) CreateConfig(ctx context.Context, spec swarm.ConfigSpec) (string, error) {
@@ -106,7 +109,8 @@ func (c *Client) ListConfigs(ctx context.Context) ([]swarm.Config, error) {
 }
 
 func (c *Client) RemoveConfig(ctx context.Context, id string) error {
-	return c.raw.ConfigRemove(ctx, id)
+	_, err := c.raw.ConfigRemove(ctx, id, dockerclient.ConfigRemoveOptions{})
+	return err
 }
 
 func (c *Client) PullImage(ctx context.Context, ref string) error {
