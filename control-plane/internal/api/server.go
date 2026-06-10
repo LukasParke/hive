@@ -5,15 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
 	"github.com/luke/hive/control-plane/internal/agentclient"
 	"github.com/luke/hive/control-plane/internal/api/agents"
 	"github.com/luke/hive/control-plane/internal/api/apikeys"
@@ -50,8 +49,10 @@ import (
 	"github.com/luke/hive/control-plane/internal/auth"
 	"github.com/luke/hive/control-plane/internal/ca"
 	"github.com/luke/hive/control-plane/internal/realtime"
-	"github.com/luke/hive/control-plane/internal/updater"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
+	"github.com/luke/hive/control-plane/internal/updater"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/riverqueue/river"
 )
 
 type Server struct {
@@ -289,17 +290,31 @@ func (s *Server) Router() http.Handler {
 		pr.Post("/api/v1/system/update", updateHandler.TriggerUpdate)
 	})
 
-	// Serve UI static files if they exist.
+	// Serve UI static files if they exist. BrowserRouter-based SPA routes (for
+	// example /register and /dashboard/overview) must fall back to index.html;
+	// real static assets are still served directly from /ui/dist.
 	if stat, err := os.Stat("/ui/dist"); err == nil && stat.IsDir() {
-		fsys := http.FileServer(http.Dir("/ui/dist"))
-		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-			// If the path starts with /api, let Chi handle it (shouldn't reach here).
+		const uiDist = "/ui/dist"
+		indexPath := filepath.Join(uiDist, "index.html")
+		fsys := http.FileServer(http.Dir(uiDist))
+		spaHandler := func(w http.ResponseWriter, r *http.Request) {
+			// If the path starts with /api or /internal, let Chi report a real 404
+			// instead of returning the SPA shell for a missing backend endpoint.
 			if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/internal/") {
 				http.NotFound(w, r)
 				return
 			}
-			fsys.ServeHTTP(w, r)
-		})
+
+			filePath := filepath.Join(uiDist, filepath.Clean(r.URL.Path))
+			if fileInfo, err := os.Stat(filePath); err == nil && !fileInfo.IsDir() {
+				fsys.ServeHTTP(w, r)
+				return
+			}
+
+			http.ServeFile(w, r, indexPath)
+		}
+		r.Get("/*", spaHandler)
+		r.Head("/*", spaHandler)
 	}
 
 	return r
