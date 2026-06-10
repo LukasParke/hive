@@ -35,7 +35,7 @@ No vendor lock-in. All configurations live on your servers. If you stop using Hi
 ### One-line Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LukasParke/hive/main/hivectl | bash -s install
+curl -fsSL https://raw.githubusercontent.com/LukasParke/hive/refs/heads/main/hivectl | bash -s install
 ```
 
 Or clone the repo and run locally:

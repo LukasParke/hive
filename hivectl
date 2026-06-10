@@ -34,7 +34,7 @@ fi
 
 DEFAULT_STACK_FILE="${SCRIPT_DIR}/deploy/hive-stack.yml"
 STACK_FILE="${HIVE_STACK_FILE:-$DEFAULT_STACK_FILE}"
-HIVE_RAW_BASE="${HIVE_RAW_BASE:-https://raw.githubusercontent.com/LukasParke/hive/main}"
+HIVE_RAW_BASE="${HIVE_RAW_BASE:-https://raw.githubusercontent.com/LukasParke/hive/refs/heads/main}"
 HIVE_STACK_URL="${HIVE_STACK_URL:-${HIVE_RAW_BASE}/deploy/hive-stack.yml}"
 STACK_NAME="${HIVE_STACK_NAME:-hive}"
 DIRECT_PORT="${HIVE_DIRECT_PORT:-8080}"
