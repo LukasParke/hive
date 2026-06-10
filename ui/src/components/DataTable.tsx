@@ -11,9 +11,18 @@ interface DataTableProps {
   rows: ItemMap[];
   onRowClick?: (row: ItemMap) => void;
   emptyMessage?: string;
+  loading?: boolean;
 }
 
-export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items yet." }: DataTableProps) {
+export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items yet.", loading = false }: DataTableProps) {
+  if (loading) {
+    return (
+      <div className="card" style={{ padding: 28 }}>
+        <div className="empty-state">Loading…</div>
+      </div>
+    );
+  }
+
   if (rows.length === 0) {
     return (
       <div className="card" style={{ padding: 40 }}>
@@ -37,6 +46,15 @@ export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items 
             <tr
               key={String(row.id ?? i)}
               onClick={() => onRowClick?.(row)}
+              onKeyDown={(event) => {
+                if (!onRowClick) return;
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onRowClick(row);
+                }
+              }}
+              tabIndex={onRowClick ? 0 : undefined}
+              role={onRowClick ? "button" : undefined}
               style={{ cursor: onRowClick ? "pointer" : "default" }}
             >
               {columns.map((col) => (

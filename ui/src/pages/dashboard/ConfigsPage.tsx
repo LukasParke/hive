@@ -46,7 +46,7 @@ export function ConfigsPage() {
           Create Config
         </button>
       </div>
-      <DataTable columns={columns} rows={dashboard.configs} emptyMessage="No configs yet." />
+      <DataTable columns={columns} rows={dashboard.configs} loading={dashboard.loading} emptyMessage="No configs yet." />
 
       <FormDialog open={showCreate} title="Create Config" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-config" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>

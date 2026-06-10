@@ -67,7 +67,7 @@ export function DomainsPage() {
           Create Domain
         </button>
       </div>
-      <DataTable columns={columns} rows={dashboard.domains} emptyMessage="No domains yet." />
+      <DataTable columns={columns} rows={dashboard.domains} loading={dashboard.loading} emptyMessage="No domains yet." />
 
       <FormDialog open={showCreate} title="Create Domain" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>

@@ -89,7 +89,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
-  font-size: 14px;
+  font-size: 15px;
+  overflow-x: auto;
 }
 
 /* Typography */
@@ -197,6 +198,106 @@ label {
   color: var(--text-heading);
 }
 
+/* ── Layout ── */
+.dashboard-shell {
+  min-height: 100vh;
+  background: var(--bg-root);
+}
+.dashboard-sidebar {
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0 16px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 50;
+}
+.dashboard-main {
+  margin-left: 240px;
+  min-width: 0;
+  padding: 24px 28px 40px;
+}
+.dashboard-menu-button,
+.dashboard-scrim {
+  display: none;
+}
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.inline-action-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .dashboard-sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+    box-shadow: var(--shadow-lg);
+  }
+  .dashboard-sidebar.is-open {
+    transform: translateX(0);
+  }
+  .dashboard-main {
+    margin-left: 0;
+    padding: 64px 16px 32px;
+  }
+  .dashboard-menu-button {
+    display: inline-flex;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 70;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+  }
+  .dashboard-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    border: 0;
+    padding: 0;
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .responsive-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .inline-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-main {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .card {
+    padding: 16px;
+  }
+  button {
+    min-height: 38px;
+  }
+}
+
 /* ── Utility Classes ── */
 
 /* Button variants */
@@ -268,10 +369,13 @@ label {
 .table-wrap {
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--bg-secondary);
 }
 .table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -299,8 +403,13 @@ label {
 .table tbody tr {
   transition: background var(--transition-fast);
 }
-.table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+.table tbody tr:hover,
+.table tbody tr:focus-visible {
+  background: rgba(255, 255, 255, 0.045);
+}
+.table tbody tr:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
 }
 .table .cell-faint {
   color: var(--text-faint);

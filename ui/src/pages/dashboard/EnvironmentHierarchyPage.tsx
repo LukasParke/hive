@@ -21,7 +21,7 @@ export function EnvironmentHierarchyPage() {
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <h2 style={{ margin: 0 }}>Environments</h2>
-      <DataTable columns={columns} rows={dashboard.environments} emptyMessage="No environments yet." />
+      <DataTable columns={columns} rows={dashboard.environments} loading={dashboard.loading} emptyMessage="No environments yet." />
     </div>
   );
 }

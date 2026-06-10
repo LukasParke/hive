@@ -86,7 +86,7 @@ export function RegistriesPage() {
         <h2 style={{ margin: 0 }}>Registries</h2>
         <button onClick={() => setShowCreate(true)} style={{ padding: "6px 16px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600, cursor: "pointer" }}>Create Registry</button>
       </div>
-      <DataTable columns={columns} rows={dashboard.registries} emptyMessage="No registries configured." />
+      <DataTable columns={columns} rows={dashboard.registries} loading={dashboard.loading} emptyMessage="No registries configured." />
 
       <FormDialog open={showCreate} title="Create Registry" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-registry" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>

@@ -72,7 +72,7 @@ export function RuntimePage() {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="page-header">
         <h2 style={{ margin: 0 }}>Runtime</h2>
         <button onClick={() => { refreshBuildQueue(); refreshNodes(); }} style={{ padding: "6px 14px" }}>Refresh</button>
       </div>
@@ -90,17 +90,17 @@ export function RuntimePage() {
 
       <section style={{ border: "1px solid var(--border-primary)", borderRadius: 8, padding: 16, background: "var(--bg-secondary)" }}>
         <h3 style={{ margin: "0 0 12px" }}>Nodes ({dashboard.nodes.length})</h3>
-        <DataTable columns={nodeColumns} rows={dashboard.nodes} onRowClick={(row) => navigate(`/dashboard/nodes/${row.id}`)} emptyMessage="No nodes." />
+        <DataTable columns={nodeColumns} rows={dashboard.nodes} loading={dashboard.loading} onRowClick={(row) => navigate(`/dashboard/nodes/${row.id}`)} emptyMessage="No nodes." />
       </section>
 
       <section style={{ border: "1px solid var(--border-primary)", borderRadius: 8, padding: 16, background: "var(--bg-secondary)" }}>
         <h3 style={{ margin: "0 0 12px" }}>Services ({dashboard.services.length})</h3>
-        <DataTable columns={serviceColumns} rows={dashboard.services} emptyMessage="No services." />
+        <DataTable columns={serviceColumns} rows={dashboard.services} loading={dashboard.loading} emptyMessage="No services." />
       </section>
 
       <section style={{ border: "1px solid var(--border-primary)", borderRadius: 8, padding: 16, background: "var(--bg-secondary)" }}>
         <h3 style={{ margin: "0 0 12px" }}>Build Queue ({dashboard.buildQueue.length})</h3>
-        <DataTable columns={buildQueueColumns} rows={dashboard.buildQueue} emptyMessage="No builds in queue." />
+        <DataTable columns={buildQueueColumns} rows={dashboard.buildQueue} loading={dashboard.loading} emptyMessage="No builds in queue." />
       </section>
     </div>
   );

@@ -47,7 +47,7 @@ export function SecretsPage() {
         </button>
       </div>
       <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Swarm secrets are immutable. Once created, they cannot be edited or deleted.</p>
-      <DataTable columns={columns} rows={dashboard.secrets} emptyMessage="No secrets yet." />
+      <DataTable columns={columns} rows={dashboard.secrets} loading={dashboard.loading} emptyMessage="No secrets yet." />
 
       <FormDialog open={showCreate} title="Create Secret" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-secret" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>

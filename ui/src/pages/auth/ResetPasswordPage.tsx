@@ -8,7 +8,7 @@ export function ResetPasswordPage() {
   const [message, setMessage] = useState<string>("");
 
   return (
-    <section style={{ width: 520, border: "1px solid var(--border-primary)", borderRadius: "var(--radius-lg)", padding: 24, background: "var(--bg-secondary)", boxShadow: "var(--shadow-lg)" }}>
+    <section style={{ width: "min(100%, 520px)", border: "1px solid var(--border-primary)", borderRadius: "var(--radius-lg)", padding: 24, background: "var(--bg-secondary)", boxShadow: "var(--shadow-lg)" }}>
       <h1 style={{ marginTop: 0 }}>Reset Password</h1>
       <p style={{ color: "var(--text-secondary)" }}>Request a reset token, then set a new password.</p>
       <div style={{ display: "grid", gap: 8 }}>

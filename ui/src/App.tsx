@@ -108,7 +108,15 @@ function DashboardRoutes() {
 }
 
 function AppInner() {
-  const { isAuthed } = useAuth();
+  const { isAuthed, authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <main style={{ minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="card">Loading Hive…</div>
+      </main>
+    );
+  }
 
   if (!isAuthed) {
     return (

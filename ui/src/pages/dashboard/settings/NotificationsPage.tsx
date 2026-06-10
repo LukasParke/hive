@@ -83,7 +83,7 @@ export function NotificationsPage() {
         <h2 style={{ margin: 0 }}>Notifications</h2>
         <button onClick={() => setShowCreate(true)} style={{ padding: "6px 16px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600, cursor: "pointer" }}>Create Notification</button>
       </div>
-      <DataTable columns={columns} rows={dashboard.notifications} emptyMessage="No notification channels configured." />
+      <DataTable columns={columns} rows={dashboard.notifications} loading={dashboard.loading} emptyMessage="No notification channels configured." />
 
       <FormDialog open={showCreate} title="Create Notification" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Channel<select value={channel} onChange={(e) => setChannel(e.target.value)} style={{ width: "100%", padding: "6px 10px", marginTop: 4 }}><option value="webhook">Webhook</option><option value="slack">Slack</option><option value="email">Email</option></select></label>

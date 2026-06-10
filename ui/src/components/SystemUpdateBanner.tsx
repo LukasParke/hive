@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type UpdateStatus } from "../api/client";
+import { api, isAuthError, type UpdateStatus } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 
@@ -13,20 +13,23 @@ export function SystemUpdateBanner() {
     if (!session) return;
     let cancelled = false;
 
+    let id: number | undefined;
     const check = async () => {
       try {
         const s = await api.getUpdateStatus(session);
         if (!cancelled) setStatus(s);
-      } catch {
-        // ignore
+      } catch (err) {
+        if (isAuthError(err) && id !== undefined) {
+          clearInterval(id);
+        }
       }
     };
 
     check();
-    const id = setInterval(check, 60000); // check every minute
+    id = window.setInterval(check, 60000); // check every minute
     return () => {
       cancelled = true;
-      clearInterval(id);
+      if (id !== undefined) clearInterval(id);
     };
   }, [session]);
 
@@ -56,6 +59,7 @@ export function SystemUpdateBanner() {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
+        flexWrap: "wrap",
         gap: 12,
         marginBottom: 12,
       }}

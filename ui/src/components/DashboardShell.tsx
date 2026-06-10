@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { SystemUpdateBanner } from "./SystemUpdateBanner";
@@ -47,36 +48,24 @@ const navGroups: NavGroup[] = [
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { session, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isActive = (to: string) =>
     location.pathname === to || location.pathname.startsWith(to + "/");
 
   return (
-    <section
-      style={{
-        display: "grid",
-        gridTemplateColumns: "240px 1fr",
-        gap: 0,
-        minHeight: "100vh",
-        background: "var(--bg-root)",
-      }}
-    >
-      <aside
-        style={{
-          background: "var(--bg-primary)",
-          borderRight: "1px solid var(--border-primary)",
-          display: "flex",
-          flexDirection: "column",
-          padding: "20px 0 16px",
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: 240,
-          height: "100vh",
-          overflowY: "auto",
-          zIndex: 50,
-        }}
+    <section className="dashboard-shell">
+      <button
+        type="button"
+        className="dashboard-menu-button"
+        onClick={() => setSidebarOpen(true)}
+        aria-label="Open navigation"
       >
+        ☰
+      </button>
+      {sidebarOpen && <button type="button" className="dashboard-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`dashboard-sidebar${sidebarOpen ? " is-open" : ""}`}>
+
         {/* Logo */}
         <div style={{ padding: "0 20px 20px", display: "flex", alignItems: "center", gap: 10 }}>
           <Logo size={28} />
@@ -110,6 +99,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     <Link
                       key={item.to}
                       to={item.to}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => setSidebarOpen(false)}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -170,7 +161,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main style={{ marginLeft: 240, minWidth: 0, padding: "24px 28px 40px" }}>
+      <main className="dashboard-main">
         <SystemUpdateBanner />
         {children}
       </main>

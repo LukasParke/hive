@@ -8,6 +8,7 @@ interface AuthContextValue {
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => void;
   isAuthed: boolean;
+  authLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -34,6 +35,7 @@ function saveSession(session: Session | null) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionRaw] = useState<Session | null>(loadSession);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const setSession = useCallback((s: Session | null) => {
     setSessionRaw(s);
@@ -58,13 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Try to validate session on mount
   useEffect(() => {
-    if (!session?.accessToken) return;
-    api.me(session).catch(() => {
-      setSession(null);
-    });
+    if (!session?.accessToken) {
+      setAuthLoading(false);
+      return;
+    }
+    api.me(session)
+      .catch(() => {
+        setSession(null);
+      })
+      .finally(() => setAuthLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const value = useMemo(() => ({ session, setSession, login, register, logout, isAuthed }), [session, setSession, login, register, logout, isAuthed]);
+  const value = useMemo(() => ({ session, setSession, login, register, logout, isAuthed, authLoading }), [session, setSession, login, register, logout, isAuthed, authLoading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

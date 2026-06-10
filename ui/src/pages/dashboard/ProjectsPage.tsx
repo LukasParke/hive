@@ -142,6 +142,7 @@ export function ProjectsPage() {
             <DataTable
               columns={appColumns}
               rows={apps}
+              loading={dashboard.loading}
               onRowClick={(row) => navigate(`/dashboard/services/application/${row.id}`)}
               emptyMessage="No applications in this project."
             />
@@ -150,7 +151,7 @@ export function ProjectsPage() {
       })}
 
       {dashboard.projects.length === 0 && (
-        <DataTable columns={projectColumns} rows={[]} emptyMessage="No projects yet. Create one to get started." />
+        <DataTable columns={projectColumns} rows={[]} loading={dashboard.loading} emptyMessage="No projects yet. Create one to get started." />
       )}
 
       <FormDialog open={showCreateProject} title="Create Project" onClose={() => setShowCreateProject(false)} onSubmit={handleCreateProject} loading={creating}>

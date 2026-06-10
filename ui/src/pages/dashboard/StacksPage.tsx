@@ -70,7 +70,7 @@ export function StacksPage() {
         </button>
       </div>
 
-      <DataTable columns={columns} rows={dashboard.stacks} onRowClick={(row) => navigate(`/dashboard/services/stack/${row.id}`)} emptyMessage="No stacks yet." />
+      <DataTable columns={columns} rows={dashboard.stacks} loading={dashboard.loading} onRowClick={(row) => navigate(`/dashboard/services/stack/${row.id}`)} emptyMessage="No stacks yet." />
 
       <FormDialog open={showCreate} title="Create Stack" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>

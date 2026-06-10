@@ -32,7 +32,7 @@ export function InvitationPage() {
   }, [token]);
 
   return (
-    <section style={{ width: 520, border: "1px solid var(--border-primary)", borderRadius: "var(--radius-lg)", padding: 24, background: "var(--bg-secondary)", boxShadow: "var(--shadow-lg)" }}>
+    <section style={{ width: "min(100%, 520px)", border: "1px solid var(--border-primary)", borderRadius: "var(--radius-lg)", padding: 24, background: "var(--bg-secondary)", boxShadow: "var(--shadow-lg)" }}>
       <h1 style={{ marginTop: 0 }}>Invitation</h1>
       {!token ? <p style={{ color: "var(--error-fg)" }}>Missing invitation token.</p> : <p style={{ color: "var(--text-secondary)" }}>Review invitation and accept.</p>}
       {invitation && <pre style={{ background: "var(--code-bg)", borderRadius: 6, padding: 10, color: "var(--text-primary)", border: "1px solid var(--border-primary)" }}>{JSON.stringify(invitation, null, 2)}</pre>}

@@ -88,7 +88,7 @@ export function SchedulesPage() {
         <h2 style={{ margin: 0 }}>Schedules</h2>
         <button onClick={() => setShowCreate(true)} style={{ padding: "6px 16px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600, cursor: "pointer" }}>Create Schedule</button>
       </div>
-      <DataTable columns={columns} rows={dashboard.schedules} emptyMessage="No schedules configured." />
+      <DataTable columns={columns} rows={dashboard.schedules} loading={dashboard.loading} emptyMessage="No schedules configured." />
 
       <FormDialog open={showCreate} title="Create Schedule" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="nightly-backup" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>

@@ -19,6 +19,7 @@ export function OverviewPage() {
   const totalProjects = dashboard.projects.length;
   const totalNodes = dashboard.nodes.length;
   const totalStacks = dashboard.stacks.length;
+  const isLoading = dashboard.loading;
 
   async function handleCreateOrg() {
     if (!session || !orgName) return;
@@ -59,6 +60,12 @@ export function OverviewPage() {
         <h2>Overview</h2>
       </div>
 
+      {dashboard.error && (
+        <div className="card" style={{ borderColor: "var(--error-fg)", color: "var(--error-fg)" }}>
+          {dashboard.error}
+        </div>
+      )}
+
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
         {statCards.map((card) => (
@@ -73,7 +80,7 @@ export function OverviewPage() {
             <div className="card" style={{ padding: "18px 20px" }}>
               <div style={{ fontSize: 20, marginBottom: 8, opacity: 0.5 }}>{card.icon}</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-heading)", letterSpacing: "-0.02em" }}>
-                {card.count}
+                {isLoading ? "…" : card.count}
               </div>
               <div style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 2 }}>{card.label}</div>
             </div>
@@ -81,7 +88,7 @@ export function OverviewPage() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="responsive-grid-2">
         {/* Recent Builds */}
         <div className="card">
           <div className="card-header">
@@ -89,7 +96,9 @@ export function OverviewPage() {
               <div className="card-title">Recent Builds</div>
             </div>
           </div>
-          {dashboard.builds.length === 0 ? (
+          {dashboard.loading ? (
+            <div className="empty-state" style={{ padding: 24 }}>Loading builds…</div>
+          ) : dashboard.builds.length === 0 ? (
             <div className="empty-state" style={{ padding: 24 }}>No builds yet.</div>
           ) : (
             <div style={{ display: "grid", gap: 8 }}>
@@ -126,7 +135,7 @@ export function OverviewPage() {
           <div className="form-stack">
             <div className="form-group">
               <label>New Organization</label>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="inline-action-row">
                 <input
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
@@ -140,7 +149,7 @@ export function OverviewPage() {
             </div>
             <div className="form-group">
               <label>New Project</label>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="inline-action-row">
                 <input
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}

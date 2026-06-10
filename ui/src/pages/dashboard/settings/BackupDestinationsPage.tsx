@@ -82,7 +82,7 @@ export function BackupDestinationsPage() {
         <h2 style={{ margin: 0 }}>Backup Destinations</h2>
         <button onClick={() => setShowCreate(true)} style={{ padding: "6px 16px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600, cursor: "pointer" }}>Create Destination</button>
       </div>
-      <DataTable columns={columns} rows={dashboard.backupDestinations} emptyMessage="No backup destinations configured." />
+      <DataTable columns={columns} rows={dashboard.backupDestinations} loading={dashboard.loading} emptyMessage="No backup destinations configured." />
 
       <FormDialog open={showCreate} title="Create Backup Destination" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-backup-dest" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>

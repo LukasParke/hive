@@ -69,6 +69,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { session: scopedSession, organizations };
       } catch (err) {
         console.warn("Failed to resolve organization", err);
+        setDashboard((prev) => ({ ...prev, error: (err as Error).message || "Failed to resolve organization" }));
         return { session, organizations: [] };
       } finally {
         orgSessionPromiseRef.current = null;
@@ -85,8 +86,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const res = await fetcher(resolved.session);
         patch(key, res.items ?? []);
-      } catch {
-        // silently ignore refresh errors
+      } catch (err) {
+        console.warn(`Dashboard refresh failed for ${String(key)}`, err);
+        setDashboard((prev) => ({ ...prev, error: (err as Error).message || `Failed to refresh ${String(key)}` }));
       }
     },
     [ensureOrgSession, patch],
@@ -105,7 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshBackupDestinations = useCallback(() => refreshList("backupDestinations", (s) => api.listBackupDestinations(s)), [refreshList]);
   const refreshGitProviders = useCallback(() => refreshList("gitProviders", (s) => api.listGitProviders(s)), [refreshList]);
   const refreshDatabaseServices = useCallback(() => refreshList("databaseServices", (s) => api.listDatabaseServices(s)), [refreshList]);
-  const refreshDeployments = useCallback(() => refreshList("builds", (s) => api.listDeployments(s)), [refreshList]);
+  const refreshDeployments = useCallback(() => refreshList("deployments", (s) => api.listDeployments(s)), [refreshList]);
   const refreshSecrets = useCallback(() => refreshList("secrets", (s) => api.listSecrets(s)), [refreshList]);
   const refreshConfigs = useCallback(() => refreshList("configs", (s) => api.listConfigs(s)), [refreshList]);
   const refreshNetworks = useCallback(() => refreshList("networks", (s) => api.listNetworks(s)), [refreshList]);
@@ -115,6 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshAll = useCallback(async () => {
     if (!session) return;
+    setDashboard((prev) => ({ ...prev, loading: true, error: null }));
 
     const fetchItems = async (fetcher: () => Promise<{ items: ItemMap[] }>) => {
       try {
@@ -128,10 +131,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       const [me, resolved] = await Promise.all([api.me(session), ensureOrgSession()]);
-      if (!resolved) return;
+      if (!resolved) {
+        setDashboard((prev) => ({ ...prev, loading: false, error: "Could not resolve organization" }));
+        return;
+      }
       const { session: scopedSession, organizations } = resolved;
 
-      const [projects, environments, applications, services, nodes, builds, buildQueue, domains, registries, stacks, backups, backupDestinations, schedules, gitProviders, notifications, databaseServices, secrets, configs, networks, securityRules] =
+      const [projects, environments, applications, services, nodes, builds, buildQueue, deployments, domains, registries, stacks, backups, backupDestinations, schedules, gitProviders, notifications, databaseServices, secrets, configs, networks, securityRules] =
         await Promise.all([
           fetchItems(() => api.listProjects(scopedSession)),
           fetchItems(() => api.listEnvironments(scopedSession)),
@@ -140,6 +146,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           fetchItems(() => api.listNodes(scopedSession)),
           fetchItems(() => api.listBuilds(scopedSession)),
           fetchItems(() => api.listBuildQueue(scopedSession)),
+          fetchItems(() => api.listDeployments(scopedSession)),
           fetchItems(() => api.listDomains(scopedSession)),
           fetchItems(() => api.listRegistries(scopedSession)),
           fetchItems(() => api.listStacks(scopedSession)),
@@ -156,6 +163,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ]);
 
       setDashboard({
+        loading: false,
+        error: null,
         me: me as ItemMap,
         organizations,
         projects,
@@ -165,6 +174,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nodes,
         builds,
         buildQueue,
+        deployments,
         domains,
         registries,
         stacks,
@@ -181,6 +191,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     } catch (err) {
       console.warn("Dashboard refresh failed", err);
+      setDashboard((prev) => ({ ...prev, loading: false, error: (err as Error).message || "Dashboard refresh failed" }));
     }
   }, [session, ensureOrgSession]);
 
@@ -189,7 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (session?.accessToken) {
       refreshAll();
     } else {
-      setDashboard(initialDashboard);
+      setDashboard({ ...initialDashboard, loading: false });
     }
   }, [session?.accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -251,7 +262,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshEnvironments,
       refreshSecurityRules,
     }),
-    [dashboard, events, refreshAll, refreshProjects, refreshApplications, refreshStacks, refreshBuilds, refreshBuildQueue, refreshDomains, refreshRegistries, refreshSchedules, refreshNotifications, refreshBackups, refreshBackupDestinations, refreshGitProviders, refreshDatabaseServices, refreshDeployments, refreshSecrets, refreshConfigs, refreshNetworks, refreshNodes, refreshEnvironments],
+    [dashboard, events, refreshAll, refreshProjects, refreshApplications, refreshStacks, refreshBuilds, refreshBuildQueue, refreshDomains, refreshRegistries, refreshSchedules, refreshNotifications, refreshBackups, refreshBackupDestinations, refreshGitProviders, refreshDatabaseServices, refreshDeployments, refreshSecrets, refreshConfigs, refreshNetworks, refreshNodes, refreshEnvironments, refreshSecurityRules],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

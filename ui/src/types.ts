@@ -190,6 +190,8 @@ export interface Settings {
 // ── Dashboard state (backward compat with ItemMap) ──
 
 export type DashboardState = {
+  loading: boolean;
+  error: string | null;
   me?: ItemMap;
   organizations: ItemMap[];
   projects: ItemMap[];
@@ -199,6 +201,7 @@ export type DashboardState = {
   nodes: ItemMap[];
   builds: ItemMap[];
   buildQueue: ItemMap[];
+  deployments: ItemMap[];
   domains: ItemMap[];
   registries: ItemMap[];
   stacks: ItemMap[];
@@ -215,6 +218,8 @@ export type DashboardState = {
 };
 
 export const initialDashboard: DashboardState = {
+  loading: true,
+  error: null,
   organizations: [],
   projects: [],
   environments: [],
@@ -223,6 +228,7 @@ export const initialDashboard: DashboardState = {
   nodes: [],
   builds: [],
   buildQueue: [],
+  deployments: [],
   domains: [],
   registries: [],
   stacks: [],

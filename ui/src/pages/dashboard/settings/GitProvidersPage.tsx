@@ -49,7 +49,7 @@ export function GitProvidersPage() {
         <h2 style={{ margin: 0 }}>Git Providers</h2>
         <button onClick={() => setShowCreate(true)} style={{ padding: "6px 16px", background: "var(--gold-500)", color: "var(--text-on-gold)", border: "none", borderRadius: 4, fontWeight: 600, cursor: "pointer" }}>Create Provider</button>
       </div>
-      <DataTable columns={columns} rows={dashboard.gitProviders} emptyMessage="No git providers configured." />
+      <DataTable columns={columns} rows={dashboard.gitProviders} loading={dashboard.loading} emptyMessage="No git providers configured." />
 
       <FormDialog open={showCreate} title="Create Git Provider" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Type<select value={type} onChange={(e) => setType(e.target.value)} style={{ width: "100%", padding: "6px 10px", marginTop: 4 }}><option value="github">GitHub</option><option value="gitlab">GitLab</option><option value="gitea">Gitea</option><option value="bitbucket">Bitbucket</option></select></label>

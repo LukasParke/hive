@@ -44,6 +44,20 @@ export type StatusResponse = components["schemas"]["StatusResponse"];
 // Backward-compatible generic map type for gradual migration
 export type ItemMap = Record<string, unknown>;
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(path: string, status: number, message: string) {
+    super(`${path} failed with status ${status}${message ? `: ${message}` : ""}`);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isAuthError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
+}
+
 async function readErrorMessage(res: Response): Promise<string> {
   const contentType = res.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
@@ -68,7 +82,7 @@ async function request<T>(path: string, init?: RequestInit, session?: Session): 
   const res = await fetch(path, { ...init, headers });
   if (!res.ok) {
     const message = await readErrorMessage(res);
-    throw new Error(`${path} failed with status ${res.status}${message ? `: ${message}` : ""}`);
+    throw new ApiError(path, res.status, message);
   }
   return (await res.json()) as T;
 }

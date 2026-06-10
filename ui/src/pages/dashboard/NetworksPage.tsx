@@ -45,7 +45,7 @@ export function NetworksPage() {
           Create Network
         </button>
       </div>
-      <DataTable columns={columns} rows={dashboard.networks} emptyMessage="No networks yet." />
+      <DataTable columns={columns} rows={dashboard.networks} loading={dashboard.loading} emptyMessage="No networks yet." />
 
       <FormDialog open={showCreate} title="Create Network" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-network" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>
