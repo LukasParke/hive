@@ -15,6 +15,8 @@ set -euo pipefail
 #   HIVE_DOMAIN             Optional domain for the platform (e.g. hive.example.com)
 #   ACME_EMAIL              Email for Let's Encrypt certificates when HIVE_DOMAIN is set
 #   HIVE_IMAGE_TAG          Image tag to deploy (default: latest)
+#   HIVE_CONTROL_PLANE_IMAGE Control-plane image (default: ghcr.io/luke/hive/control-plane)
+#   HIVE_AGENT_IMAGE        Agent image (default: ghcr.io/luke/hive/agent)
 #   HIVE_DIRECT_PORT        Direct HTTP UI port for LAN/Cloudflare Tunnel (default: 8080)
 #   HIVE_CONTROL_PLANE_PORT Direct control-plane port (default: 3000)
 #   HIVE_STACK_FILE         Path to stack file (default: deploy/hive-stack.yml)
@@ -171,14 +173,57 @@ prompt_optional() {
 
 detect_host_ip() {
   local ip
-  ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
-  if [ -z "$ip" ]; then
-    ip="$(hostname -i 2>/dev/null | awk '{print $1}' || true)"
+  ip="$(docker info --format '{{.Swarm.NodeAddr}}' 2>/dev/null || true)"
+  if [ -n "$ip" ] && [ "$ip" != "0.0.0.0" ] && [ "$ip" != "<no value>" ]; then
+    echo "$ip"
+    return 0
   fi
+
+  ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
+  if [ -n "$ip" ]; then
+    echo "$ip"
+    return 0
+  fi
+
+  for ip in $(hostname -I 2>/dev/null || true); do
+    case "$ip" in
+      127.*|169.254.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*) continue ;;
+    esac
+    echo "$ip"
+    return 0
+  done
+
+  ip="$(hostname -i 2>/dev/null | awk '{print $1}' || true)"
   if [ -z "$ip" ] || [ "$ip" = "127.0.0.1" ]; then
     ip="localhost"
   fi
   echo "$ip"
+}
+
+print_stack_diagnostics() {
+  warn "Hive did not become healthy. Docker service diagnostics:"
+  docker service ls --filter "label=com.docker.stack.namespace=${STACK_NAME}" || true
+  echo ""
+  for svc in control-plane agent traefik postgres; do
+    if docker service inspect "${STACK_NAME}_${svc}" >/dev/null 2>&1; then
+      echo "=== ${STACK_NAME}_${svc} tasks ==="
+      docker service ps --no-trunc "${STACK_NAME}_${svc}" || true
+      echo ""
+    fi
+  done
+  warn "Common causes: image pull failures, unhealthy database startup, occupied ports, or missing Swarm labels."
+  warn "Try: docker service logs ${STACK_NAME}_control-plane --tail 100"
+}
+
+wait_for_hive_health() {
+  if wait_for_health "http://localhost:${DIRECT_PORT}/api/v1/health" 120; then
+    return 0
+  fi
+  if wait_for_health "http://localhost:${CONTROL_PLANE_PORT}/api/v1/health" 30; then
+    return 0
+  fi
+  print_stack_diagnostics
+  return 1
 }
 
 wait_for_health() {
@@ -246,7 +291,7 @@ cmd_install() {
   ok "Stack deployed"
 
   # Wait for health
-  wait_for_health "http://localhost:${DIRECT_PORT}/api/v1/health" 120 || wait_for_health "http://localhost:${CONTROL_PLANE_PORT}/api/v1/health" 30 || true
+  wait_for_hive_health
 
   info ""
   ok "Hive is installed!"
@@ -472,6 +517,9 @@ Environment:
   HIVE_DOMAIN          Optional platform domain for HTTPS routing
   ACME_EMAIL           Let's Encrypt email when HIVE_DOMAIN is set
   HIVE_IMAGE_TAG       Image tag to deploy (default: latest)
+  HIVE_CONTROL_PLANE_IMAGE
+                      Control-plane image (default: ghcr.io/luke/hive/control-plane)
+  HIVE_AGENT_IMAGE     Agent image (default: ghcr.io/luke/hive/agent)
   HIVE_DIRECT_PORT     Direct HTTP UI port for LAN/Cloudflare Tunnel (default: 8080)
   HIVE_CONTROL_PLANE_PORT
                       Direct control-plane port (default: 3000)

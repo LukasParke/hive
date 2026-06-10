@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   control-plane:
-    image: ghcr.io/hive/control-plane:${HIVE_IMAGE_TAG:-latest}
+    image: ${HIVE_CONTROL_PLANE_IMAGE:-ghcr.io/luke/hive/control-plane}:${HIVE_IMAGE_TAG:-latest}
     command: ["/control-plane"]
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/hive?sslmode=disable
@@ -51,7 +51,7 @@ services:
       - hive-master-key
 
   agent:
-    image: ghcr.io/hive/agent:${HIVE_IMAGE_TAG:-latest}
+    image: ${HIVE_AGENT_IMAGE:-ghcr.io/luke/hive/agent}:${HIVE_IMAGE_TAG:-latest}
     deploy:
       mode: global
       labels:
