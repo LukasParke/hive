@@ -12,9 +12,11 @@ set -euo pipefail
 #   logs         Tail control-plane logs
 #
 # Environment:
-#   HIVE_DOMAIN             Domain for the platform (e.g. hive.example.com)
-#   ACME_EMAIL              Email for Let's Encrypt certificates
+#   HIVE_DOMAIN             Optional domain for the platform (e.g. hive.example.com)
+#   ACME_EMAIL              Email for Let's Encrypt certificates when HIVE_DOMAIN is set
 #   HIVE_IMAGE_TAG          Image tag to deploy (default: latest)
+#   HIVE_DIRECT_PORT        Direct HTTP UI port for LAN/Cloudflare Tunnel (default: 8080)
+#   HIVE_CONTROL_PLANE_PORT Direct control-plane port (default: 3000)
 #   HIVE_STACK_FILE         Path to stack file (default: deploy/hive-stack.yml)
 #   HIVE_STACK_URL          URL to stack file when running via curl pipe
 #   HIVE_STACK_NAME         Docker stack name (default: hive)
@@ -31,6 +33,8 @@ STACK_FILE="${HIVE_STACK_FILE:-$DEFAULT_STACK_FILE}"
 HIVE_RAW_BASE="${HIVE_RAW_BASE:-https://raw.githubusercontent.com/LukasParke/hive/main}"
 HIVE_STACK_URL="${HIVE_STACK_URL:-${HIVE_RAW_BASE}/deploy/hive-stack.yml}"
 STACK_NAME="${HIVE_STACK_NAME:-hive}"
+DIRECT_PORT="${HIVE_DIRECT_PORT:-8080}"
+CONTROL_PLANE_PORT="${HIVE_CONTROL_PLANE_PORT:-3000}"
 TEMP_FILES=()
 
 # Colors
@@ -157,6 +161,26 @@ prompt_required() {
   fi
 }
 
+prompt_optional() {
+  local var="$1" prompt="$2"
+  if [ -z "${!var:-}" ]; then
+    read_prompt "$var" "$prompt: " || true
+    export "$var"
+  fi
+}
+
+detect_host_ip() {
+  local ip
+  ip="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+  if [ -z "$ip" ]; then
+    ip="$(hostname -i 2>/dev/null | awk '{print $1}' || true)"
+  fi
+  if [ -z "$ip" ] || [ "$ip" = "127.0.0.1" ]; then
+    ip="localhost"
+  fi
+  echo "$ip"
+}
+
 wait_for_health() {
   local url="$1" timeout_sec="${2:-120}"
   info "Waiting for ${url} (timeout: ${timeout_sec}s)..."
@@ -179,8 +203,14 @@ cmd_install() {
   require_docker
   ensure_swarm
 
-  prompt_required "HIVE_DOMAIN" "Platform domain (e.g. hive.example.com)"
-  prompt_required "ACME_EMAIL" "Email for Let's Encrypt certificates"
+  prompt_optional "HIVE_DOMAIN" "Platform domain (optional; press Enter for direct-port only)"
+  if [ -n "${HIVE_DOMAIN:-}" ]; then
+    prompt_required "ACME_EMAIL" "Email for Let's Encrypt certificates"
+  else
+    ACME_EMAIL="${ACME_EMAIL:-admin@example.invalid}"
+    export ACME_EMAIL
+    warn "No HIVE_DOMAIN set; Hive will be available on the direct HTTP port only."
+  fi
 
   # Create secrets
   info "Ensuring secrets exist..."
@@ -216,12 +246,21 @@ cmd_install() {
   ok "Stack deployed"
 
   # Wait for health
-  wait_for_health "http://localhost:3000/api/v1/health" 120 || true
+  wait_for_health "http://localhost:${DIRECT_PORT}/api/v1/health" 120 || wait_for_health "http://localhost:${CONTROL_PLANE_PORT}/api/v1/health" 30 || true
 
   info ""
   ok "Hive is installed!"
-  info "  URL: https://${HIVE_DOMAIN}"
-  info "  Admin signup: https://${HIVE_DOMAIN}/register"
+  local host_ip
+  host_ip="$(detect_host_ip)"
+  info "  Direct UI: http://${host_ip}:${DIRECT_PORT}"
+  info "  Direct health: http://${host_ip}:${DIRECT_PORT}/api/v1/health"
+  info "  Cloudflare Tunnel target: http://localhost:${DIRECT_PORT}"
+  if [ -n "${HIVE_DOMAIN:-}" ]; then
+    info "  Domain URL: https://${HIVE_DOMAIN}"
+    info "  Admin signup: https://${HIVE_DOMAIN}/register"
+  else
+    info "  Admin signup: http://${host_ip}:${DIRECT_PORT}/register"
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -391,10 +430,12 @@ cmd_status() {
 
   echo ""
   echo "Health:"
-  if wget -q -O - http://localhost:3000/api/v1/health >/dev/null 2>&1; then
-    ok "  API: healthy"
+  if wget -q -O - "http://localhost:${DIRECT_PORT}/api/v1/health" >/dev/null 2>&1; then
+    ok "  Direct UI/API: healthy on port ${DIRECT_PORT}"
+  elif wget -q -O - "http://localhost:${CONTROL_PLANE_PORT}/api/v1/health" >/dev/null 2>&1; then
+    ok "  Control-plane API: healthy on port ${CONTROL_PLANE_PORT}"
   else
-    error "  API: unreachable"
+    error "  API unreachable on ports ${DIRECT_PORT} and ${CONTROL_PLANE_PORT}"
   fi
 }
 
@@ -428,15 +469,20 @@ Commands:
   logs [service]       Tail service logs (default: control-plane)
 
 Environment:
-  HIVE_DOMAIN          Platform domain (required for install)
-  ACME_EMAIL           Let's Encrypt email (required for install)
+  HIVE_DOMAIN          Optional platform domain for HTTPS routing
+  ACME_EMAIL           Let's Encrypt email when HIVE_DOMAIN is set
   HIVE_IMAGE_TAG       Image tag to deploy (default: latest)
+  HIVE_DIRECT_PORT     Direct HTTP UI port for LAN/Cloudflare Tunnel (default: 8080)
+  HIVE_CONTROL_PLANE_PORT
+                      Direct control-plane port (default: 3000)
   HIVE_STACK_FILE      Stack file path (default: deploy/hive-stack.yml)
   HIVE_STACK_URL       Stack file URL when running via curl pipe
   HIVE_STACK_NAME      Stack name (default: hive)
 
 Examples:
+  ./hivectl install
   HIVE_DOMAIN=hive.example.com ACME_EMAIL=admin@example.com ./hivectl install
+  HIVE_DIRECT_PORT=8080 ./hivectl install
   ./hivectl update nightly
   ./hivectl update nightly-20250603-abc123
   ./hivectl uninstall --purge
