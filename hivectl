@@ -150,6 +150,43 @@ service_image_tag() {
   fi
 }
 
+release_legacy_traefik_direct_port() {
+  local svc="${STACK_NAME}_traefik"
+  if ! docker service inspect "$svc" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local ports
+  ports="$(docker service inspect --format '{{range .Endpoint.Spec.Ports}}{{printf "%d:%d/%s\n" .PublishedPort .TargetPort .Protocol}}{{end}}' "$svc" 2>/dev/null || true)"
+  if ! printf '%s\n' "$ports" | grep -qx "${DIRECT_PORT}:8080/tcp"; then
+    return 0
+  fi
+
+  warn "Repairing previous Traefik direct-port binding on :${DIRECT_PORT}"
+  if docker service update --publish-rm 8080 "$svc" >/dev/null; then
+    for ((i = 0; i < 30; i += 2)); do
+      ports="$(docker service inspect --format '{{range .Endpoint.Spec.Ports}}{{printf "%d:%d/%s\n" .PublishedPort .TargetPort .Protocol}}{{end}}' "$svc" 2>/dev/null || true)"
+      if ! printf '%s\n' "$ports" | grep -qx "${DIRECT_PORT}:8080/tcp"; then
+        ok "Previous Traefik direct port released"
+        return 0
+      fi
+      sleep 2
+    done
+  fi
+
+  warn "Traefik still owns :${DIRECT_PORT}; removing ${svc} so stack deploy can recreate it cleanly"
+  docker service rm "$svc" >/dev/null 2>&1 || true
+  for ((i = 0; i < 30; i += 2)); do
+    if ! docker service inspect "$svc" >/dev/null 2>&1; then
+      ok "Removed stale Traefik service"
+      return 0
+    fi
+    sleep 2
+  done
+
+  warn "Stale Traefik service still exists; deploy may report a port conflict"
+}
+
 prompt_required() {
   local var="$1" prompt="$2"
   if [ -z "${!var:-}" ]; then
@@ -401,6 +438,7 @@ cmd_install() {
 
   # Deploy stack
   ensure_stack_file
+  release_legacy_traefik_direct_port
   info "Deploying stack with image tag: ${HIVE_IMAGE_TAG:-latest}..."
   docker stack deploy -c "$STACK_FILE" "$STACK_NAME"
   ok "Stack deployed"
@@ -428,7 +466,7 @@ cmd_install() {
       info "  Admin signup: http://${health_host}:${DIRECT_PORT}/register"
     fi
   else
-    warn "  Direct port ${DIRECT_PORT} is not currently routed to Hive"
+    warn "  Direct port ${DIRECT_PORT} is not currently serving Hive"
     warn "    - check any existing service on :${DIRECT_PORT} and port exposure on this host"
     info "  Fallback UI/API: http://${health_host}:${CONTROL_PLANE_PORT}"
     info "  Admin signup: http://${health_host}:${CONTROL_PLANE_PORT}/register"

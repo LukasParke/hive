@@ -53,6 +53,46 @@ check_health() {
   return 1
 }
 
+release_legacy_traefik_direct_port() {
+  svc="hive_traefik"
+  if ! docker service inspect "$svc" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  ports="$(docker service inspect --format '{{range .Endpoint.Spec.Ports}}{{printf "%d:%d/%s\n" .PublishedPort .TargetPort .Protocol}}{{end}}' "$svc" 2>/dev/null || true)"
+  if ! printf '%s\n' "$ports" | grep -qx "${HIVE_DIRECT_PORT}:8080/tcp"; then
+    return 0
+  fi
+
+  echo "Repairing previous Traefik direct-port binding on :${HIVE_DIRECT_PORT}"
+  if docker service update --publish-rm 8080 "$svc" >/dev/null; then
+    i=0
+    while [ "$i" -lt 30 ]; do
+      ports="$(docker service inspect --format '{{range .Endpoint.Spec.Ports}}{{printf "%d:%d/%s\n" .PublishedPort .TargetPort .Protocol}}{{end}}' "$svc" 2>/dev/null || true)"
+      if ! printf '%s\n' "$ports" | grep -qx "${HIVE_DIRECT_PORT}:8080/tcp"; then
+        echo "Previous Traefik direct port released"
+        return 0
+      fi
+      sleep 2
+      i=$((i + 2))
+    done
+  fi
+
+  echo "Warning: Traefik still owns :${HIVE_DIRECT_PORT}; removing ${svc} so stack deploy can recreate it cleanly"
+  docker service rm "$svc" >/dev/null 2>&1 || true
+  i=0
+  while [ "$i" -lt 30 ]; do
+    if ! docker service inspect "$svc" >/dev/null 2>&1; then
+      echo "Removed stale Traefik service"
+      return 0
+    fi
+    sleep 2
+    i=$((i + 2))
+  done
+
+  echo "Warning: stale Traefik service still exists; deploy may report a port conflict"
+}
+
 echo "Checking swarm status..."
 if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q active; then
   echo "Swarm inactive, running docker swarm init"
@@ -94,6 +134,8 @@ fi
 docker node update --label-add db=true "$(docker node ls --format '{{.ID}}' | head -n 1)"
 docker node update --label-add builder=true "$(docker node ls --format '{{.ID}}' | head -n 1)"
 docker node update --label-add registry=true "$(docker node ls --format '{{.ID}}' | head -n 1)"
+
+release_legacy_traefik_direct_port
 
 echo "Deploying stack (image tag: ${HIVE_IMAGE_TAG:-latest})..."
 docker stack deploy -c "$STACK_FILE" hive
