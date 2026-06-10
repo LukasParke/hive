@@ -112,18 +112,16 @@ function AppInner() {
 
   if (!isAuthed) {
     return (
-      <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <main style={{ minHeight: "100vh", width: "100%", display: "flex", alignItems: "stretch", justifyContent: "center" }}>
         <AuthRoutes />
       </main>
     );
   }
 
   return (
-    <main style={{ margin: "0 auto", maxWidth: 1240, padding: 20 }}>
-      <AppProvider>
-        <DashboardRoutes />
-      </AppProvider>
-    </main>
+    <AppProvider>
+      <DashboardRoutes />
+    </AppProvider>
   );
 }
 

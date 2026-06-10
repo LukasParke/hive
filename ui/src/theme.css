@@ -71,6 +71,16 @@
   margin: 0;
 }
 
+/* App root */
+html, body, #root {
+  min-height: 100%;
+  width: 100%;
+}
+
+#root {
+  min-height: 100vh;
+}
+
 /* Body */
 body {
   background: var(--bg-root);
