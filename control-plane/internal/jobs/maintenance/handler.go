@@ -16,7 +16,7 @@ import (
 // NodeMaintenanceJob represents a maintenance job for a single node.
 type NodeMaintenanceJob struct {
 	NodeID         string   `json:"node_id"`
-	Operations     []string `json:"operations"`      // "security_updates", "all_updates", "update_check"
+	Operations     []string `json:"operations"` // "security_updates", "all_updates", "update_check"
 	DrainFirst     bool     `json:"drain_first"`
 	UndrainAfter   bool     `json:"undrain_after"`
 	RebootIfNeeded bool     `json:"reboot_if_needed"`
@@ -68,12 +68,11 @@ func (h *Handler) Execute(ctx context.Context, job NodeMaintenanceJob) (*Result,
 	}()
 
 	// Resolve agent address
-	node, err := h.swarm.GetNode(ctx, job.NodeID)
+	addr, err := h.resolveAgentAddr(ctx, job.NodeID)
 	if err != nil {
-		result.Error = fmt.Sprintf("get node: %v", err)
+		result.Error = fmt.Sprintf("resolve agent address: %v", err)
 		return result, err
 	}
-	addr := node.Status.Addr + ":9090"
 	client := h.dialer.ClientPlaintext(job.NodeID, addr)
 
 	// Pre-flight: check node health
@@ -164,6 +163,14 @@ func (h *Handler) Execute(ctx context.Context, job NodeMaintenanceJob) (*Result,
 
 // ExecuteRolling runs maintenance on all nodes sequentially.
 // Workers first, then managers, sorted by fewest tasks.
+func (h *Handler) resolveAgentAddr(ctx context.Context, nodeID string) (string, error) {
+	ip, err := h.swarm.ServiceTaskIPOnNetwork(ctx, "hive.service", "agent", nodeID, "hive_internal")
+	if err != nil {
+		return "", fmt.Errorf("resolve agent address: %w", err)
+	}
+	return ip + ":9090", nil
+}
+
 func (h *Handler) ExecuteRolling(ctx context.Context, job NodeMaintenanceJob) ([]Result, error) {
 	nodes, err := h.swarm.ListNodes(ctx)
 	if err != nil {

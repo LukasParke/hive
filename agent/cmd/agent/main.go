@@ -78,13 +78,17 @@ func main() {
 	path, handler := agentv1connect.NewAgentServiceHandler(srv)
 	mux.Handle(path, handler)
 
-	// mTLS bootstrap
+	// By default the agent serves plaintext h2c on the encrypted hive_internal
+	// overlay, which is how the control-plane dials it. mTLS is opt-in via
+	// AGENT_MTLS_ENABLED=true; when enabled, a bootstrap failure is fatal
+	// rather than a silent downgrade to unauthenticated plaintext.
+	mtlsEnabled := os.Getenv("AGENT_MTLS_ENABLED") == "true"
 	bootstrapToken := readSecret("/run/secrets/agent-bootstrap-token")
 	if bootstrapToken == "" {
 		bootstrapToken = os.Getenv("AGENT_BOOTSTRAP_TOKEN")
 	}
 
-	mainServer := startMainServer(ctx, addr, nodeID, controlPlaneURL, certDir, bootstrapToken, mux, metrics)
+	mainServer := startMainServer(ctx, addr, nodeID, controlPlaneURL, certDir, bootstrapToken, mtlsEnabled, mux, metrics)
 
 	// Metrics + health server on separate port (always plaintext)
 	metricsMux := http.NewServeMux()
@@ -118,9 +122,15 @@ func main() {
 	cancel()
 }
 
-// startMainServer attempts mTLS if a bootstrap token is available, falling back to h2c plaintext.
-func startMainServer(ctx context.Context, addr, nodeID, controlPlaneURL, certDir, bootstrapToken string, handler http.Handler, metrics *server.Metrics) *http.Server {
-	if bootstrapToken != "" && controlPlaneURL != "" {
+// startMainServer serves plaintext h2c by default (intended for the encrypted
+// hive_internal overlay). When mtlsEnabled is true it serves mTLS instead, and
+// a bootstrap failure is fatal — it never silently downgrades to unauthenticated
+// plaintext.
+func startMainServer(ctx context.Context, addr, nodeID, controlPlaneURL, certDir, bootstrapToken string, mtlsEnabled bool, handler http.Handler, metrics *server.Metrics) *http.Server {
+	if mtlsEnabled {
+		if bootstrapToken == "" || controlPlaneURL == "" {
+			log.Fatal("AGENT_MTLS_ENABLED=true requires a bootstrap token and CONTROL_PLANE_URL")
+		}
 		cm := auth.NewCertManager(nodeID, controlPlaneURL, bootstrapToken, certDir)
 
 		if !cm.LoadExisting() {
@@ -129,8 +139,7 @@ func startMainServer(ctx context.Context, addr, nodeID, controlPlaneURL, certDir
 			err := cm.Bootstrap(bootstrapCtx)
 			bootstrapCancel()
 			if err != nil {
-				log.Printf("mTLS bootstrap failed, falling back to plaintext: %v", err)
-				return startPlaintext(addr, nodeID, handler)
+				log.Fatalf("mTLS bootstrap failed: %v", err)
 			}
 		}
 

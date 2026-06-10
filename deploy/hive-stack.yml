@@ -62,13 +62,9 @@ services:
       mode: global
       labels:
         - hive.service=agent
-    ports:
-      - target: 9090
-        published: ${HIVE_AGENT_PORT:-9090}
-        protocol: tcp
-      - target: 9091
-        published: ${HIVE_AGENT_METRICS_PORT:-9091}
-        protocol: tcp
+    # No published ports. The control-plane reaches the agent RPC (9090) over
+    # the encrypted hive_internal overlay by its per-node task IP, and the
+    # container healthcheck hits 9091 on localhost — neither needs LAN exposure.
     networks: [hive_internal]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -132,10 +128,8 @@ services:
       placement:
         constraints:
           - node.labels.db == true
-    ports:
-      - target: 5432
-        published: ${HIVE_POSTGRES_PORT:-5432}
-        protocol: tcp
+    # No published ports: Postgres is reachable only over the hive_internal
+    # overlay. Use deploy/hive-stack.ci.yml (or your own override) to expose it.
     volumes:
       - pgdata:/var/lib/postgresql/data
     secrets:
@@ -154,10 +148,7 @@ services:
       - DEFAULT_POOL_SIZE=20
     secrets:
       - postgres-password
-    ports:
-      - target: 5432
-        published: ${HIVE_PGBOUNCER_PORT:-6432}
-        protocol: tcp
+    # Internal-only; see postgres above.
     networks: [hive_internal]
 
   buildkit:
@@ -167,10 +158,9 @@ services:
       placement:
         constraints:
           - node.labels.builder == true
-    ports:
-      - target: 1234
-        published: ${HIVE_BUILDKIT_PORT:-1234}
-        protocol: tcp
+    # No published ports: BuildKit has no authentication, so it must never be
+    # reachable off the hive_internal overlay. The control-plane reaches it via
+    # BUILDKIT_ADDR=tcp://buildkit:1234.
     networks: [hive_internal]
     volumes:
       - buildkit-cache:/var/lib/buildkit
@@ -181,10 +171,9 @@ services:
       placement:
         constraints:
           - node.labels.registry == true
-    ports:
-      - target: 5000
-        published: ${HIVE_REGISTRY_PORT:-5000}
-        protocol: tcp
+    # No published ports: the registry runs without auth/TLS, so it stays on the
+    # hive_internal overlay only. The control-plane reaches it via
+    # REGISTRY_ADDR=registry:5000.
     networks: [hive_internal]
     volumes:
       - registry-data:/var/lib/registry

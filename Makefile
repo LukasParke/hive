@@ -1,7 +1,7 @@
 .PHONY: test build ui images lint proto
 
 VERSION ?= dev
-REGISTRY ?= ghcr.io/luke/hive
+REGISTRY ?= ghcr.io/lukasparke/hive
 
  test:
 	cd control-plane && go test ./...

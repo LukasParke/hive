@@ -18,24 +18,24 @@ import (
 )
 
 const (
-	githubAPIURL = "https://api.github.com/repos/luke/hive/releases/latest"
-	ghcrBase     = "ghcr.io/luke/hive"
+	githubAPIURL  = "https://api.github.com/repos/LukasParke/hive/releases/latest"
+	ghcrBase      = "ghcr.io/lukasparke/hive"
 	checkInterval = 15 * time.Minute
 )
 
 // Status describes whether an update is available.
 type Status struct {
-	CurrentVersion string `json:"currentVersion"`
-	LatestVersion  string `json:"latestVersion"`
-	UpdateAvailable bool  `json:"updateAvailable"`
+	CurrentVersion  string `json:"currentVersion"`
+	LatestVersion   string `json:"latestVersion"`
+	UpdateAvailable bool   `json:"updateAvailable"`
 	LastCheckedAt   string `json:"lastCheckedAt,omitempty"`
 }
 
 // Updater checks for new releases and can trigger Swarm service updates.
 type Updater struct {
-	swarm    *swarmclient.Client
+	swarm      *swarmclient.Client
 	httpClient *http.Client
-	status   Status
+	status     Status
 }
 
 // New creates an Updater.

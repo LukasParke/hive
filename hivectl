@@ -19,6 +19,7 @@ set -euo pipefail
 #   HIVE_AGENT_IMAGE        Agent image (default: ghcr.io/lukasparke/hive/agent)
 #   HIVE_DIRECT_PORT        Direct HTTP UI port for LAN/Cloudflare Tunnel (default: 8080)
 #   HIVE_CONTROL_PLANE_PORT Direct control-plane port (default: 3000)
+#   HIVE_HEALTH_HOST        Host used for install/status API probes (default: detected swarm node IP)
 #   HIVE_STACK_FILE         Path to stack file (default: deploy/hive-stack.yml)
 #   HIVE_STACK_URL          URL to stack file when running via curl pipe
 #   HIVE_STACK_NAME         Docker stack name (default: hive)
@@ -37,6 +38,7 @@ HIVE_STACK_URL="${HIVE_STACK_URL:-${HIVE_RAW_BASE}/deploy/hive-stack.yml}"
 STACK_NAME="${HIVE_STACK_NAME:-hive}"
 DIRECT_PORT="${HIVE_DIRECT_PORT:-8080}"
 CONTROL_PLANE_PORT="${HIVE_CONTROL_PLANE_PORT:-3000}"
+HIVE_HEALTH_HOST="${HIVE_HEALTH_HOST:-}"
 TEMP_FILES=()
 
 # Colors
@@ -224,29 +226,110 @@ print_stack_diagnostics() {
   warn "Try: docker service logs ${STACK_NAME}_control-plane --tail 100"
 }
 
-wait_for_hive_health() {
-  if wait_for_health "http://localhost:${DIRECT_PORT}/api/v1/health" 120; then
+normalize_image_tag() {
+  local tag="$1"
+  if [ -z "$tag" ]; then
+    printf '%s' ""
     return 0
   fi
-  if wait_for_health "http://localhost:${CONTROL_PLANE_PORT}/api/v1/health" 30; then
+  if [[ "$tag" == v* ]]; then
+    printf '%s' "${tag#v}"
     return 0
   fi
-  print_stack_diagnostics
+  printf '%s' "$tag"
+}
+
+probe_endpoint() {
+  local url="$1" timeout_sec="${2:-3}"
+
+  if cmd_exists curl; then
+    local raw status body
+    raw="$(curl -sS --max-time "$timeout_sec" -w '\n%{http_code}' "$url" 2>/dev/null || true)"
+    status="${raw##*$'\n'}"
+    body="${raw%$'\n'${status}}"
+    status="${status//$'\r'/}"
+    printf '%s|%s' "$status" "$body"
+    return 0
+  fi
+
+  if cmd_exists wget; then
+    local body_file header_file status body
+    body_file="$(mktemp "${TMPDIR:-/tmp}/hive-health-body.XXXXXX")"
+    header_file="$(mktemp "${TMPDIR:-/tmp}/hive-health-headers.XXXXXX")"
+    wget -q -S --timeout "$timeout_sec" -O "$body_file" "$url" 2>"$header_file" || true
+    status="$(awk '/^  HTTP/{print $2}' "$header_file" | tail -n 1)"
+    body="$(cat "$body_file")"
+    status="${status//$'\r'/}"
+    rm -f "$body_file" "$header_file"
+    printf '%s|%s' "$status" "$body"
+    return 0
+  fi
+
+  warn "curl or wget is required to probe endpoints"
   return 1
 }
 
 wait_for_health() {
-  local url="$1" timeout_sec="${2:-120}"
+  local url="$1" timeout_sec="${2:-120}" fail_fast_on_404="${3:-0}"
   info "Waiting for ${url} (timeout: ${timeout_sec}s)..."
+
   for ((i = 0; i < timeout_sec; i += 2)); do
-    if wget -q -O - "$url" >/dev/null 2>&1 || curl -sf "$url" >/dev/null 2>&1; then
+    local probe status body
+    probe="$(probe_endpoint "$url" 2 || true)"
+    status="${probe%%|*}"
+    body="${probe#*|}"
+
+    if [ "$status" = "200" ] && [[ "$body" == *'"status":"ok"'* ]]; then
       ok "Service is healthy"
       return 0
     fi
+
+    if [ "$status" = "404" ] && [ "$fail_fast_on_404" -eq 1 ]; then
+      warn "Endpoint ${url} is returning HTTP 404. This often means the request is reaching the wrong service or missing Traefik routing."
+      return 2
+    fi
+
     sleep 2
   done
-  warn "Health check timed out after ${timeout_sec}s"
+
+  warn "Health check timed out after ${timeout_sec}s for ${url}"
   return 1
+}
+
+endpoint_is_healthy() {
+  local url="$1" timeout_sec="${2:-3}"
+
+  local probe status body
+  probe="$(probe_endpoint "$url" "$timeout_sec" || true)"
+  status="${probe%%|*}"
+  body="${probe#*|}"
+
+  if [ "$status" = "200" ] && [[ "$body" == *'"status":"ok"'* ]]; then
+    return 0
+  fi
+  return 1
+}
+
+wait_for_hive_health() {
+  local host="${1:-${HIVE_HEALTH_HOST:-localhost}}"
+  local direct_url="http://${host}:${DIRECT_PORT}/api/v1/health"
+  local control_url="http://${host}:${CONTROL_PLANE_PORT}/api/v1/health"
+
+  wait_for_health "$direct_url" 120 1
+  HIVE_DIRECT_HEALTH_CHECK_STATUS=$?
+
+  if [ "$HIVE_DIRECT_HEALTH_CHECK_STATUS" -eq 0 ]; then
+    return 0
+  fi
+
+  wait_for_health "$control_url" 30 0
+  HIVE_CONTROL_HEALTH_CHECK_STATUS=$?
+  if [ "$HIVE_CONTROL_HEALTH_CHECK_STATUS" -eq 0 ]; then
+    return 0
+  fi
+
+  print_stack_diagnostics
+  return "$HIVE_CONTROL_HEALTH_CHECK_STATUS"
 }
 
 # ---------------------------------------------------------------------------
@@ -311,6 +394,11 @@ cmd_install() {
   docker node update --label-add registry=true "$first_node" >/dev/null 2>&1 || true
   ok "Node labels set"
 
+  # Normalize optional tag (docs historically mix v-prefixed and unprefixed release names)
+  if [ -n "${HIVE_IMAGE_TAG:-}" ]; then
+    HIVE_IMAGE_TAG="$(normalize_image_tag "$HIVE_IMAGE_TAG")"
+  fi
+
   # Deploy stack
   ensure_stack_file
   info "Deploying stack with image tag: ${HIVE_IMAGE_TAG:-latest}..."
@@ -318,7 +406,9 @@ cmd_install() {
   ok "Stack deployed"
 
   # Wait for health
-  if ! wait_for_hive_health; then
+  local health_host
+  health_host="${HIVE_HEALTH_HOST:-$(detect_host_ip)}"
+  if ! wait_for_hive_health "$health_host"; then
     error "Hive was deployed but did not become healthy. See diagnostics above."
     error "Once fixed, re-run this install — it is idempotent."
     exit 1
@@ -326,16 +416,27 @@ cmd_install() {
 
   info ""
   ok "Hive is installed!"
-  local host_ip
-  host_ip="$(detect_host_ip)"
-  info "  Direct UI: http://${host_ip}:${DIRECT_PORT}"
-  info "  Direct health: http://${host_ip}:${DIRECT_PORT}/api/v1/health"
+  info "  Control-plane API health: http://${health_host}:${CONTROL_PLANE_PORT}/api/v1/health"
+
+  if [ "${HIVE_DIRECT_HEALTH_CHECK_STATUS:-1}" -eq 0 ]; then
+    info "  Direct UI: http://${health_host}:${DIRECT_PORT}"
+    info "  Direct health: http://${health_host}:${DIRECT_PORT}/api/v1/health"
+    if [ -n "${HIVE_DOMAIN:-}" ]; then
+      info "  Admin signup: https://${HIVE_DOMAIN}/register"
+      info "  Admin signup (direct): http://${health_host}:${DIRECT_PORT}/register"
+    else
+      info "  Admin signup: http://${health_host}:${DIRECT_PORT}/register"
+    fi
+  else
+    warn "  Direct port ${DIRECT_PORT} is not currently routed to Hive"
+    warn "    - check any existing service on :${DIRECT_PORT} and port exposure on this host"
+    info "  Fallback UI/API: http://${health_host}:${CONTROL_PLANE_PORT}"
+    info "  Admin signup: http://${health_host}:${CONTROL_PLANE_PORT}/register"
+  fi
   info "  Cloudflare Tunnel target: http://localhost:${DIRECT_PORT}"
   if [ -n "${HIVE_DOMAIN:-}" ]; then
     info "  Domain URL: https://${HIVE_DOMAIN}"
-    info "  Admin signup: https://${HIVE_DOMAIN}/register"
-  else
-    info "  Admin signup: http://${host_ip}:${DIRECT_PORT}/register"
+    info "  Admin signup (domain): https://${HIVE_DOMAIN}/register"
   fi
 }
 
@@ -361,18 +462,19 @@ cmd_update() {
 
   # Determine target version
   if [ -n "${HIVE_IMAGE_TAG:-}" ]; then
-    new_tag="$HIVE_IMAGE_TAG"
+    new_tag="$(normalize_image_tag "$HIVE_IMAGE_TAG")"
     info "Using HIVE_IMAGE_TAG from environment: ${new_tag}"
   elif [ $# -gt 0 ]; then
-    new_tag="$1"
+    new_tag="$(normalize_image_tag "$1")"
     shift
   else
-    # Try to fetch latest nightly from GitHub
-    info "Checking GitHub for latest nightly release..."
+    # Try to fetch latest release from GitHub
+    info "Checking GitHub for latest release..."
     new_tag=$(curl -sfL \
       -H "Accept: application/vnd.github+json" \
       "https://api.github.com/repos/LukasParke/hive/releases/latest" 2>/dev/null \
       | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/') || true
+    new_tag="$(normalize_image_tag "$new_tag")"
 
     if [ -n "$new_tag" ] && [ "$new_tag" != "null" ]; then
       info "Latest release: ${new_tag}"
@@ -381,7 +483,7 @@ cmd_update() {
       if ! read_prompt new_tag "Enter image tag to update to (default: latest): "; then
         new_tag=""
       fi
-      new_tag="${new_tag:-latest}"
+      new_tag="$(normalize_image_tag "${new_tag:-latest}")"
     fi
   fi
 
@@ -508,12 +610,14 @@ cmd_status() {
 
   echo ""
   echo "Health:"
-  if wget -q -O - "http://localhost:${DIRECT_PORT}/api/v1/health" >/dev/null 2>&1; then
-    ok "  Direct UI/API: healthy on port ${DIRECT_PORT}"
-  elif wget -q -O - "http://localhost:${CONTROL_PLANE_PORT}/api/v1/health" >/dev/null 2>&1; then
-    ok "  Control-plane API: healthy on port ${CONTROL_PLANE_PORT}"
+  local status_host
+  status_host="${HIVE_STATUS_HOST:-${HIVE_HEALTH_HOST:-$(detect_host_ip)}}"
+  if endpoint_is_healthy "http://${status_host}:${DIRECT_PORT}/api/v1/health"; then
+    ok "  Direct UI/API: healthy on ${status_host}:${DIRECT_PORT}"
+  elif endpoint_is_healthy "http://${status_host}:${CONTROL_PLANE_PORT}/api/v1/health"; then
+    ok "  Control-plane API: healthy on ${status_host}:${CONTROL_PLANE_PORT}"
   else
-    error "  API unreachable on ports ${DIRECT_PORT} and ${CONTROL_PLANE_PORT}"
+    error "  API unreachable on ports ${DIRECT_PORT} and ${CONTROL_PLANE_PORT} for ${status_host}"
   fi
 }
 
@@ -556,6 +660,8 @@ Environment:
   HIVE_DIRECT_PORT     Direct HTTP UI port for LAN/Cloudflare Tunnel (default: 8080)
   HIVE_CONTROL_PLANE_PORT
                       Direct control-plane port (default: 3000)
+  HIVE_HEALTH_HOST     Host used for install/status health probes (default: detected swarm node IP)
+  HIVE_STATUS_HOST     Optional override for status health probes
   HIVE_STACK_FILE      Stack file path (default: deploy/hive-stack.yml)
   HIVE_STACK_URL       Stack file URL when running via curl pipe
   HIVE_STACK_NAME      Stack name (default: hive)

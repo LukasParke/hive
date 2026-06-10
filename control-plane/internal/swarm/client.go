@@ -2,6 +2,8 @@ package swarm
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/swarm"
@@ -145,4 +147,45 @@ func (c *Client) ListAllTasks(ctx context.Context) ([]swarm.Task, error) {
 func (c *Client) GetNode(ctx context.Context, nodeID string) (swarm.Node, error) {
 	result, err := c.raw.NodeInspect(ctx, nodeID, dockerclient.NodeInspectOptions{})
 	return result.Node, err
+}
+
+// ServiceTaskIPOnNetwork returns the overlay IP of the running task of the
+// service identified by the given service label (key=value) that is scheduled
+// on nodeID, on the network whose name has the given suffix. It is used to
+// reach a specific node's agent over the encrypted hive_internal overlay
+// instead of the node's host IP.
+func (c *Client) ServiceTaskIPOnNetwork(ctx context.Context, labelKey, labelValue, nodeID, networkNameSuffix string) (string, error) {
+	services, err := c.ListServices(ctx)
+	if err != nil {
+		return "", err
+	}
+	var serviceID string
+	for _, s := range services {
+		if s.Spec.Labels[labelKey] == labelValue {
+			serviceID = s.ID
+			break
+		}
+	}
+	if serviceID == "" {
+		return "", fmt.Errorf("no service found with label %s=%s", labelKey, labelValue)
+	}
+
+	tasks, err := c.ListTasks(ctx, serviceID)
+	if err != nil {
+		return "", err
+	}
+	for _, t := range tasks {
+		if t.NodeID != nodeID || t.DesiredState != swarm.TaskStateRunning {
+			continue
+		}
+		for _, na := range t.NetworksAttachments {
+			if !strings.HasSuffix(na.Network.Spec.Name, networkNameSuffix) {
+				continue
+			}
+			for _, addr := range na.Addresses {
+				return addr.Addr().String(), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no running task for %s=%s on node %s attached to %s", labelKey, labelValue, nodeID, networkNameSuffix)
 }

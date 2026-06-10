@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Docker Engine 24+ with Swarm mode initialized
-- One manager node with ports 80/443/3000 open
+- One manager node with ports 80/443 open, plus control-plane access to 8080 (direct mode) and 3000 (direct API fallback)
 - A domain pointing to the manager IP
 - `openssl` for secret generation
 
@@ -17,7 +17,7 @@
 export HIVE_DOMAIN=example.com
 export ACME_EMAIL=ops@example.com
 # Optional: pin to a specific release instead of latest
-# export HIVE_IMAGE_TAG=v0.1.0
+# export HIVE_IMAGE_TAG=0.1.0
 ```
 
 3. Run the bootstrap script:
@@ -83,7 +83,7 @@ The default `hive-stack.yml` deploys:
 To upgrade to a new version:
 
 ```sh
-export HIVE_IMAGE_TAG=v0.1.0
+export HIVE_IMAGE_TAG=0.1.0
 docker pull ghcr.io/lukasparke/hive/control-plane:${HIVE_IMAGE_TAG}
 docker pull ghcr.io/lukasparke/hive/agent:${HIVE_IMAGE_TAG}
 docker stack deploy -c deploy/hive-stack.yml hive

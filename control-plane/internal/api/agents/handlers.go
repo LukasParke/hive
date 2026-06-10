@@ -288,19 +288,20 @@ func (h *Handler) GetClusterResources(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if node.Status.State == "ready" && h.AgentDialer != nil {
-			addr := node.Status.Addr + ":9090"
-			client := h.AgentDialer.ClientPlaintext(node.ID, addr)
-			if resp, err := client.GetHostMetrics(r.Context(), connect.NewRequest(&agentv1.HostMetricsRequest{})); err == nil {
-				m := resp.Msg
-				nr.CPUCores = int32(len(m.CpuCores))
-				nr.CPUPercent = m.CpuTotalPercent
-				nr.MemTotal = m.MemoryTotal
-				nr.MemUsed = m.MemoryUsed
-				for _, fs := range m.Filesystems {
-					if fs.MountPoint == "/" {
-						nr.DiskTotal = fs.TotalBytes
-						nr.DiskUsed = fs.UsedBytes
-						break
+			client, err := h.resolveAgentClient(r.Context(), node.ID)
+			if err == nil {
+				if resp, err := client.GetHostMetrics(r.Context(), connect.NewRequest(&agentv1.HostMetricsRequest{})); err == nil {
+					m := resp.Msg
+					nr.CPUCores = int32(len(m.CpuCores))
+					nr.CPUPercent = m.CpuTotalPercent
+					nr.MemTotal = m.MemoryTotal
+					nr.MemUsed = m.MemoryUsed
+					for _, fs := range m.Filesystems {
+						if fs.MountPoint == "/" {
+							nr.DiskTotal = fs.TotalBytes
+							nr.DiskUsed = fs.UsedBytes
+							break
+						}
 					}
 				}
 			}
@@ -366,11 +367,15 @@ func (h *Handler) resolveAgentClient(ctx context.Context, nodeID string) (agentv
 	if h.AgentDialer == nil {
 		return nil, fmt.Errorf("agent dialer not configured")
 	}
-	node, err := h.Swarm.GetNode(ctx, nodeID)
+	// Reach the agent over the encrypted hive_internal overlay using its
+	// per-node task IP, not the node's host IP. This keeps agent RPC traffic
+	// off the LAN (the agent publishes no host port) and targets the correct
+	// node even in ingress-meshed multi-node clusters.
+	ip, err := h.Swarm.ServiceTaskIPOnNetwork(ctx, "hive.service", "agent", nodeID, "hive_internal")
 	if err != nil {
-		return nil, fmt.Errorf("get node: %w", err)
+		return nil, fmt.Errorf("resolve agent address: %w", err)
 	}
-	addr := node.Status.Addr + ":9090"
+	addr := ip + ":9090"
 	return h.AgentDialer.ClientPlaintext(nodeID, addr), nil
 }
 
