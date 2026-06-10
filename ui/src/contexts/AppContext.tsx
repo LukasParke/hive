@@ -76,62 +76,89 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshAll = useCallback(async () => {
     if (!session) return;
-    try {
-      const [me, orgs, projects, environments, applications, services, nodes, builds, buildQueue, domains, registries, stacks, backups, backupDestinations, schedules, gitProviders, notifications, databaseServices, secrets, configs, networks, securityRules] =
-        await Promise.all([
-          api.me(session),
-          api.listOrganizations(session),
-          api.listProjects(session),
-          api.listEnvironments(session),
-          api.listApplications(session),
-          api.listServices(session),
-          api.listNodes(session),
-          api.listBuilds(session),
-          api.listBuildQueue(session),
-          api.listDomains(session),
-          api.listRegistries(session),
-          api.listStacks(session),
-          api.listBackups(session),
-          api.listBackupDestinations(session),
-          api.listSchedules(session),
-          api.listGitProviders(session),
-          api.listNotifications(session),
-          api.listDatabaseServices(session),
-          api.listSecrets(session),
-          api.listConfigs(session),
-          api.listNetworks(session),
-          api.listSecurityRules(session),
-        ]);
-      const orgId = session.orgId ?? String(orgs.items[0]?.id ?? "");
-      if (orgId && orgId !== session.orgId) {
-        setSession({ ...session, orgId });
+
+    const fetchItems = async (fetcher: () => Promise<{ items: ItemMap[] }>) => {
+      try {
+        const res = await fetcher();
+        return res.items ?? [];
+      } catch (err) {
+        console.warn("Dashboard refresh request failed", err);
+        return [];
       }
+    };
+
+    try {
+      const [me, orgs] = await Promise.all([api.me(session), api.listOrganizations(session)]);
+      let organizations = (orgs.items ?? []) as ItemMap[];
+      let orgId = String(session.orgId ?? organizations[0]?.id ?? "");
+
+      // Greenfield installs start with no organization. Create a default org so
+      // organization-scoped endpoints receive X-Organization-Id on first load.
+      if (!orgId) {
+        try {
+          const created = await api.createOrganization(session, { name: "Hive", slug: "hive" });
+          orgId = String(created.id);
+          organizations = [{ ...created, role: "owner" }];
+        } catch (err) {
+          console.warn("Failed to create default organization", err);
+        }
+      }
+
+      const scopedSession = orgId ? { ...session, orgId } : session;
+      if (orgId && orgId !== session.orgId) {
+        setSession(scopedSession);
+      }
+
+      const [projects, environments, applications, services, nodes, builds, buildQueue, domains, registries, stacks, backups, backupDestinations, schedules, gitProviders, notifications, databaseServices, secrets, configs, networks, securityRules] =
+        await Promise.all([
+          fetchItems(() => api.listProjects(scopedSession)),
+          fetchItems(() => api.listEnvironments(scopedSession)),
+          fetchItems(() => api.listApplications(scopedSession)),
+          fetchItems(() => api.listServices(scopedSession)),
+          fetchItems(() => api.listNodes(scopedSession)),
+          fetchItems(() => api.listBuilds(scopedSession)),
+          fetchItems(() => api.listBuildQueue(scopedSession)),
+          fetchItems(() => api.listDomains(scopedSession)),
+          fetchItems(() => api.listRegistries(scopedSession)),
+          fetchItems(() => api.listStacks(scopedSession)),
+          fetchItems(() => api.listBackups(scopedSession)),
+          fetchItems(() => api.listBackupDestinations(scopedSession)),
+          fetchItems(() => api.listSchedules(scopedSession)),
+          fetchItems(() => api.listGitProviders(scopedSession)),
+          fetchItems(() => api.listNotifications(scopedSession)),
+          fetchItems(() => api.listDatabaseServices(scopedSession)),
+          fetchItems(() => api.listSecrets(scopedSession)),
+          fetchItems(() => api.listConfigs(scopedSession)),
+          fetchItems(() => api.listNetworks(scopedSession)),
+          fetchItems(() => api.listSecurityRules(scopedSession)),
+        ]);
+
       setDashboard({
-        me,
-        organizations: orgs.items,
-        projects: projects.items,
-        environments: environments.items,
-        applications: applications.items,
-        services: services.items,
-        nodes: nodes.items,
-        builds: builds.items,
-        buildQueue: buildQueue.items,
-        domains: domains.items,
-        registries: registries.items,
-        stacks: stacks.items,
-        backups: backups.items,
-        backupDestinations: backupDestinations.items,
-        schedules: schedules.items,
-        gitProviders: gitProviders.items,
-        notifications: notifications.items,
-        databaseServices: databaseServices.items,
-        secrets: secrets.items,
-        configs: configs.items,
-        networks: networks.items,
-        securityRules: securityRules.items,
+        me: me as ItemMap,
+        organizations,
+        projects,
+        environments,
+        applications,
+        services,
+        nodes,
+        builds,
+        buildQueue,
+        domains,
+        registries,
+        stacks,
+        backups,
+        backupDestinations,
+        schedules,
+        gitProviders,
+        notifications,
+        databaseServices,
+        secrets,
+        configs,
+        networks,
+        securityRules,
       });
-    } catch {
-      // ignore bulk refresh errors
+    } catch (err) {
+      console.warn("Dashboard refresh failed", err);
     }
   }, [session, setSession]);
 
