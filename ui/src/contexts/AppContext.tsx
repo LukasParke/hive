@@ -36,8 +36,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [dashboard, setDashboard] = useState<DashboardState>(initialDashboard);
   const [events, setEvents] = useState<string[]>([]);
 
-  const patch = useCallback((key: keyof DashboardState, items: ItemMap[]) => {
-    setDashboard((prev) => ({ ...prev, [key]: items }));
+  const patch = useCallback((key: keyof DashboardState, items: ItemMap[] | null | undefined) => {
+    setDashboard((prev) => ({ ...prev, [key]: Array.isArray(items) ? items : [] }));
   }, []);
 
   const refreshList = useCallback(
@@ -45,7 +45,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!session) return;
       try {
         const res = await fetcher();
-        patch(key, res.items);
+        patch(key, res.items ?? []);
       } catch {
         // silently ignore refresh errors
       }

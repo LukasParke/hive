@@ -307,10 +307,16 @@ func (s *Server) Router() http.Handler {
 
 			filePath := filepath.Join(uiDist, filepath.Clean(r.URL.Path))
 			if fileInfo, err := os.Stat(filePath); err == nil && !fileInfo.IsDir() {
+				if strings.HasPrefix(r.URL.Path, "/assets/") {
+					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				} else {
+					w.Header().Set("Cache-Control", "no-store")
+				}
 				fsys.ServeHTTP(w, r)
 				return
 			}
 
+			w.Header().Set("Cache-Control", "no-store")
 			http.ServeFile(w, r, indexPath)
 		}
 		r.Get("/*", spaHandler)
