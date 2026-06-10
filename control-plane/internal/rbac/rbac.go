@@ -25,6 +25,9 @@ func Require(pool *pgxpool.Pool, organizationID, userID string, allowed ...Role)
 	if err != nil {
 		return err
 	}
+	if len(allowed) == 0 {
+		return nil
+	}
 	for _, r := range allowed {
 		if current == string(r) {
 			return nil

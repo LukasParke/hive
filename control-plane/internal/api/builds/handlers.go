@@ -59,7 +59,7 @@ func (h *Handler) ListBuildQueue(w http.ResponseWriter, r *http.Request) {
 		from build_jobs b
 		join applications a on a.id = b.application_id
 		join projects p on p.id = a.project_id
-		where p.organization_id = $1::uuid and b.status in ('queued','running')
+		where p.organization_id = $1::uuid and b.status in ('queued','building')
 		order by b.created_at asc
 	`, orgID)
 	if err != nil {
@@ -91,9 +91,9 @@ func (h *Handler) CancelBuild(w http.ResponseWriter, r *http.Request) {
 	buildID := chi.URLParam(r, "id")
 	cmd, err := h.Pool.Exec(r.Context(), `
 		update build_jobs b
-		set status = 'canceled'
+		set status = 'cancelled'
 		from applications a, projects p
-		where b.id = $1::uuid and a.id = b.application_id and p.id = a.project_id and p.organization_id = $2::uuid and b.status in ('queued','running')
+		where b.id = $1::uuid and a.id = b.application_id and p.id = a.project_id and p.organization_id = $2::uuid and b.status in ('queued','building')
 	`, buildID, orgID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
