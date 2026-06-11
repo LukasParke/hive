@@ -19,7 +19,18 @@ export function OverviewPage() {
   const totalProjects = dashboard.projects.length;
   const totalNodes = dashboard.nodes.length;
   const totalStacks = dashboard.stacks.length;
+  const runningApps = dashboard.applications.filter((app) => String(app.status ?? "").toLowerCase() === "running").length;
+  const activeBuilds = dashboard.buildQueue.length;
+  const hasDomain = dashboard.domains.length > 0;
   const isLoading = dashboard.loading;
+
+  const readinessSteps = [
+    { label: "Create a project", done: totalProjects > 0, to: "/dashboard/projects" },
+    { label: "Deploy your first app", done: totalApps > 0, to: "/dashboard/projects" },
+    { label: "Attach a domain", done: hasDomain, to: "/dashboard/domains" },
+    { label: "Configure backups", done: dashboard.backupDestinations.length > 0 || dashboard.backups.length > 0, to: "/dashboard/settings/backups" },
+  ];
+  const completedSteps = readinessSteps.filter((step) => step.done).length;
 
   async function handleCreateOrg() {
     if (!session || !orgName) return;
@@ -48,10 +59,10 @@ export function OverviewPage() {
   }
 
   const statCards = [
-    { label: "Projects", count: totalProjects, to: "/dashboard/projects", icon: "◫" },
-    { label: "Applications", count: totalApps, to: "/dashboard/projects", icon: "◈" },
-    { label: "Stacks", count: totalStacks, to: "/dashboard/stacks", icon: "▣" },
-    { label: "Nodes", count: totalNodes, to: "/dashboard/runtime", icon: "◐" },
+    { label: "Projects", count: totalProjects, to: "/dashboard/projects", icon: "◫", detail: "deployment workspaces" },
+    { label: "Applications", count: totalApps, to: "/dashboard/projects", icon: "◈", detail: `${runningApps} running` },
+    { label: "Stacks", count: totalStacks, to: "/dashboard/stacks", icon: "▣", detail: "compose bundles" },
+    { label: "Nodes", count: totalNodes, to: "/dashboard/runtime", icon: "◐", detail: "swarm capacity" },
   ];
 
   return (
@@ -66,8 +77,28 @@ export function OverviewPage() {
         </div>
       )}
 
+      <section className="overview-hero">
+        <div>
+          <div className="eyebrow">Swarm-native deployment cockpit</div>
+          <h1>Ship apps, stacks, databases, domains, and backups from one place.</h1>
+          <p>
+            Hive is tuned for direct self-hosted operation: fast deploy loops, honest runtime status,
+            and clear next steps instead of blank dashboards.
+          </p>
+          <div className="hero-actions">
+            <Link className="btn-primary" to="/dashboard/projects">Create or deploy</Link>
+            <Link className="btn-ghost" to="/dashboard/runtime">Inspect runtime</Link>
+          </div>
+        </div>
+        <div className="hero-status-card" aria-label="Platform readiness">
+          <span className="hero-score">{completedSteps}/{readinessSteps.length}</span>
+          <span className="hero-label">launch checklist complete</span>
+          <span className="hero-meta">{activeBuilds} active build{activeBuilds === 1 ? "" : "s"}</span>
+        </div>
+      </section>
+
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
+      <div className="metric-grid">
         {statCards.map((card) => (
           <Link
             key={card.label}
@@ -77,16 +108,35 @@ export function OverviewPage() {
               color: "inherit",
             }}
           >
-            <div className="card" style={{ padding: "18px 20px" }}>
-              <div style={{ fontSize: 20, marginBottom: 8, opacity: 0.5 }}>{card.icon}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-heading)", letterSpacing: "-0.02em" }}>
-                {isLoading ? "…" : card.count}
+            <div className="card metric-card">
+              <div className="metric-icon">{card.icon}</div>
+              <div className="metric-value">
+                {isLoading ? <span className="skeleton-line skeleton-short" /> : card.count}
               </div>
-              <div style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 2 }}>{card.label}</div>
+              <div className="metric-label">{card.label}</div>
+              <div className="metric-detail">{card.detail}</div>
             </div>
           </Link>
         ))}
       </div>
+
+      <section className="card launch-checklist">
+        <div className="card-header">
+          <div>
+            <div className="card-title">Launch checklist</div>
+            <div className="card-subtitle">A guided path from empty cluster to production-ready app.</div>
+          </div>
+          <span className="badge badge-info">{completedSteps}/{readinessSteps.length}</span>
+        </div>
+        <div className="checklist-grid">
+          {readinessSteps.map((step, index) => (
+            <Link key={step.label} to={step.to} className={`checklist-item${step.done ? " is-done" : ""}`}>
+              <span className="checklist-index">{step.done ? "✓" : index + 1}</span>
+              <span>{step.label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <div className="responsive-grid-2">
         {/* Recent Builds */}

@@ -1,9 +1,10 @@
+import type { ReactNode } from "react";
 import type { ItemMap } from "../api/client";
 
 export interface Column {
   key: string;
   label: string;
-  render?: (value: unknown, row: ItemMap) => React.ReactNode;
+  render?: (value: unknown, row: ItemMap) => ReactNode;
 }
 
 interface DataTableProps {
@@ -17,15 +18,35 @@ interface DataTableProps {
 export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items yet.", loading = false }: DataTableProps) {
   if (loading) {
     return (
-      <div className="card" style={{ padding: 28 }}>
-        <div className="empty-state">Loading…</div>
+      <div className="table-wrap" aria-busy="true">
+        <table className="table">
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th key={col.key}>{col.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 5 }).map((_, rowIndex) => (
+              <tr key={rowIndex}>
+                {columns.map((col) => (
+                  <td key={col.key}>
+                    <span className="skeleton-line" />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
 
   if (rows.length === 0) {
     return (
-      <div className="card" style={{ padding: 40 }}>
+      <div className="card empty-card">
+        <div className="empty-orb">◇</div>
         <div className="empty-state">{emptyMessage}</div>
       </div>
     );

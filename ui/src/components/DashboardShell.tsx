@@ -1,57 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useAppData } from "../contexts/AppContext";
+import { useToast } from "../contexts/ToastContext";
+import { navGroups } from "../navigation";
+import { CommandPalette } from "./CommandPalette";
 import { SystemUpdateBanner } from "./SystemUpdateBanner";
 import { Logo } from "./Logo";
-
-type NavItem = { to: string; label: string; icon: string };
-type NavGroup = { label: string; items: NavItem[] };
-
-const navGroups: NavGroup[] = [
-  {
-    label: "",
-    items: [
-      { to: "/dashboard/overview", label: "Overview", icon: "◈" },
-    ],
-  },
-  {
-    label: "Applications",
-    items: [
-      { to: "/dashboard/projects", label: "Projects", icon: "◫" },
-      { to: "/dashboard/deployments", label: "Deployments", icon: "▶" },
-      { to: "/dashboard/stacks", label: "Stacks", icon: "▣" },
-      { to: "/dashboard/database/create", label: "Databases", icon: "◉" },
-    ],
-  },
-  {
-    label: "Infrastructure",
-    items: [
-      { to: "/dashboard/runtime", label: "Runtime / Nodes", icon: "◐" },
-      { to: "/dashboard/monitoring", label: "Monitoring", icon: "◎" },
-      { to: "/dashboard/secrets", label: "Secrets", icon: "◈" },
-      { to: "/dashboard/configs", label: "Configs", icon: "◫" },
-      { to: "/dashboard/networks", label: "Networks", icon: "◯" },
-      { to: "/dashboard/domains", label: "Domains", icon: "◊" },
-      { to: "/dashboard/security", label: "Security", icon: "◈" },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { to: "/dashboard/environments", label: "Environments", icon: "◐" },
-      { to: "/dashboard/settings", label: "Settings", icon: "◫" },
-      { to: "/dashboard/events", label: "Events", icon: "◎" },
-    ],
-  },
-];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { session, logout } = useAuth();
+  const { dashboard, refreshAll } = useAppData();
+  const toast = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isActive = (to: string) =>
     location.pathname === to || location.pathname.startsWith(to + "/");
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await refreshAll();
+      toast.success("Dashboard refreshed");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const totalResources = dashboard.projects.length + dashboard.applications.length + dashboard.stacks.length + dashboard.databaseServices.length;
 
   return (
     <section className="dashboard-shell">
@@ -64,6 +56,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         ☰
       </button>
       {sidebarOpen && <button type="button" className="dashboard-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
       <aside className={`dashboard-sidebar${sidebarOpen ? " is-open" : ""}`}>
 
         {/* Logo */}
@@ -162,6 +155,22 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="dashboard-main">
+        <div className="dashboard-topbar">
+          <button type="button" className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Search Hive">
+            <span aria-hidden="true">⌕</span>
+            <span>Search Hive</span>
+            <kbd>{navigator.platform.toLowerCase().includes("mac") ? "⌘" : "Ctrl"} K</kbd>
+          </button>
+          <div className="topbar-actions">
+            <span className={`health-pill${dashboard.error ? " is-error" : ""}`}>
+              <span className="dot" />
+              {dashboard.error ? "Needs attention" : `${totalResources} resources`}
+            </span>
+            <button type="button" className="btn-ghost btn-sm" onClick={handleRefresh} disabled={refreshing || dashboard.loading}>
+              {refreshing || dashboard.loading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+        </div>
         <SystemUpdateBanner />
         {children}
       </main>

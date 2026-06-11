@@ -1,58 +1,67 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AppProvider, useAppData } from "./contexts/AppContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { DashboardShell } from "./components/DashboardShell";
 import { Summary } from "./components/Summary";
+import { LoadingState } from "./components/LoadingState";
 
-// Auth pages
-import { LoginPage } from "./pages/auth/LoginPage";
-import { RegisterPage } from "./pages/auth/RegisterPage";
-import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
-import { InvitationPage } from "./pages/auth/InvitationPage";
+const LoginPage = lazy(() => import("./pages/auth/LoginPage").then((m) => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import("./pages/auth/RegisterPage").then((m) => ({ default: m.RegisterPage })));
+const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage })));
+const InvitationPage = lazy(() => import("./pages/auth/InvitationPage").then((m) => ({ default: m.InvitationPage })));
+const OverviewPage = lazy(() => import("./pages/dashboard/OverviewPage").then((m) => ({ default: m.OverviewPage })));
+const ProjectsPage = lazy(() => import("./pages/dashboard/ProjectsPage").then((m) => ({ default: m.ProjectsPage })));
+const DeploymentsPage = lazy(() => import("./pages/dashboard/DeploymentsPage").then((m) => ({ default: m.DeploymentsPage })));
+const StacksPage = lazy(() => import("./pages/dashboard/StacksPage").then((m) => ({ default: m.StacksPage })));
+const ApplicationDetailPage = lazy(() => import("./pages/dashboard/ServiceDetailsPage").then((m) => ({ default: m.ApplicationDetailPage })));
+const StackDetailPage = lazy(() => import("./pages/dashboard/ServiceDetailsPage").then((m) => ({ default: m.StackDetailPage })));
+const DatabaseServiceDetailPage = lazy(() => import("./pages/dashboard/ServiceDetailsPage").then((m) => ({ default: m.DatabaseServiceDetailPage })));
+const RuntimePage = lazy(() => import("./pages/dashboard/RuntimePage").then((m) => ({ default: m.RuntimePage })));
+const MonitoringPage = lazy(() => import("./pages/dashboard/MonitoringPage").then((m) => ({ default: m.MonitoringPage })));
+const NodeDetailPage = lazy(() => import("./pages/dashboard/NodeDetailPage").then((m) => ({ default: m.NodeDetailPage })));
+const TerminalPage = lazy(() => import("./pages/dashboard/TerminalPage").then((m) => ({ default: m.TerminalPage })));
+const LogViewerPage = lazy(() => import("./pages/dashboard/LogViewerPage").then((m) => ({ default: m.LogViewerPage })));
+const SecretsPage = lazy(() => import("./pages/dashboard/SecretsPage").then((m) => ({ default: m.SecretsPage })));
+const ConfigsPage = lazy(() => import("./pages/dashboard/ConfigsPage").then((m) => ({ default: m.ConfigsPage })));
+const NetworksPage = lazy(() => import("./pages/dashboard/NetworksPage").then((m) => ({ default: m.NetworksPage })));
+const DomainsPage = lazy(() => import("./pages/dashboard/DomainsPage").then((m) => ({ default: m.DomainsPage })));
+const SecurityPage = lazy(() => import("./pages/dashboard/SecurityPage").then((m) => ({ default: m.SecurityPage })));
+const DatabaseCreatePage = lazy(() => import("./pages/dashboard/DatabaseCreatePage").then((m) => ({ default: m.DatabaseCreatePage })));
+const EnvironmentHierarchyPage = lazy(() => import("./pages/dashboard/EnvironmentHierarchyPage").then((m) => ({ default: m.EnvironmentHierarchyPage })));
+const OrganizationAdminPage = lazy(() => import("./pages/dashboard/OrganizationAdminPage").then((m) => ({ default: m.OrganizationAdminPage })));
+const SettingsInfraPage = lazy(() => import("./pages/dashboard/SettingsInfraPage").then((m) => ({ default: m.SettingsInfraPage })));
+const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const PreviewsPage = lazy(() => import("./pages/dashboard/PreviewsPage").then((m) => ({ default: m.PreviewsPage })));
+const ProfilePage = lazy(() => import("./pages/dashboard/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const NotificationsPage = lazy(() => import("./pages/dashboard/settings/NotificationsPage").then((m) => ({ default: m.NotificationsPage })));
+const RegistriesPage = lazy(() => import("./pages/dashboard/settings/RegistriesPage").then((m) => ({ default: m.RegistriesPage })));
+const BackupDestinationsPage = lazy(() => import("./pages/dashboard/settings/BackupDestinationsPage").then((m) => ({ default: m.BackupDestinationsPage })));
+const SchedulesPage = lazy(() => import("./pages/dashboard/settings/SchedulesPage").then((m) => ({ default: m.SchedulesPage })));
+const GitProvidersPage = lazy(() => import("./pages/dashboard/settings/GitProvidersPage").then((m) => ({ default: m.GitProvidersPage })));
+const GlobalSettingsPage = lazy(() => import("./pages/dashboard/settings/GlobalSettingsPage").then((m) => ({ default: m.GlobalSettingsPage })));
 
-// Dashboard pages
-import { OverviewPage } from "./pages/dashboard/OverviewPage";
-import { ProjectsPage } from "./pages/dashboard/ProjectsPage";
-import { DeploymentsPage } from "./pages/dashboard/DeploymentsPage";
-import { StacksPage } from "./pages/dashboard/StacksPage";
-import { ApplicationDetailPage, StackDetailPage, DatabaseServiceDetailPage } from "./pages/dashboard/ServiceDetailsPage";
-import { RuntimePage } from "./pages/dashboard/RuntimePage";
-import { MonitoringPage } from "./pages/dashboard/MonitoringPage";
-import { NodeDetailPage } from "./pages/dashboard/NodeDetailPage";
-import { TerminalPage } from "./pages/dashboard/TerminalPage";
-import { LogViewerPage } from "./pages/dashboard/LogViewerPage";
-import { SecretsPage } from "./pages/dashboard/SecretsPage";
-import { ConfigsPage } from "./pages/dashboard/ConfigsPage";
-import { NetworksPage } from "./pages/dashboard/NetworksPage";
-import { DomainsPage } from "./pages/dashboard/DomainsPage";
-import { SecurityPage } from "./pages/dashboard/SecurityPage";
-import { DatabaseCreatePage } from "./pages/dashboard/DatabaseCreatePage";
-import { EnvironmentHierarchyPage } from "./pages/dashboard/EnvironmentHierarchyPage";
-import { OrganizationAdminPage } from "./pages/dashboard/OrganizationAdminPage";
-import { SettingsInfraPage } from "./pages/dashboard/SettingsInfraPage";
-import { SettingsPage } from "./pages/dashboard/SettingsPage";
-import { PreviewsPage } from "./pages/dashboard/PreviewsPage";
-import { ProfilePage } from "./pages/dashboard/ProfilePage";
-
-// Settings sub-pages
-import { NotificationsPage } from "./pages/dashboard/settings/NotificationsPage";
-import { RegistriesPage } from "./pages/dashboard/settings/RegistriesPage";
-import { BackupDestinationsPage } from "./pages/dashboard/settings/BackupDestinationsPage";
-import { SchedulesPage } from "./pages/dashboard/settings/SchedulesPage";
-import { GitProvidersPage } from "./pages/dashboard/settings/GitProvidersPage";
-import { GlobalSettingsPage } from "./pages/dashboard/settings/GlobalSettingsPage";
+function PageFallback() {
+  return (
+    <div className="card" style={{ margin: 16 }}>
+      <LoadingState />
+    </div>
+  );
+}
 
 function AuthRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/invitation" element={<InvitationPage />} />
-      <Route path="/accept-invitation/:id" element={<InvitationPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/invitation" element={<InvitationPage />} />
+        <Route path="/accept-invitation/:id" element={<InvitationPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 
@@ -64,45 +73,47 @@ function EventsPage() {
 function DashboardRoutes() {
   return (
     <DashboardShell>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard/overview" replace />} />
-        <Route path="/dashboard/overview" element={<OverviewPage />} />
-        <Route path="/dashboard/projects" element={<ProjectsPage />} />
-        <Route path="/dashboard/deployments" element={<DeploymentsPage />} />
-        <Route path="/dashboard/stacks" element={<StacksPage />} />
-        <Route path="/dashboard/services/application/:id" element={<ApplicationDetailPage />} />
-        <Route path="/dashboard/services/application/:id/previews" element={<PreviewsPage />} />
-        <Route path="/dashboard/services/stack/:id" element={<StackDetailPage />} />
-        <Route path="/dashboard/services/database/:id" element={<DatabaseServiceDetailPage />} />
-        <Route path="/dashboard/database/create" element={<DatabaseCreatePage />} />
-        <Route path="/dashboard/runtime" element={<RuntimePage />} />
-        <Route path="/dashboard/monitoring" element={<MonitoringPage />} />
-        <Route path="/dashboard/nodes/:id" element={<NodeDetailPage />} />
-        <Route path="/dashboard/terminal/:containerID" element={<TerminalPage />} />
-        <Route path="/dashboard/logs/:containerID" element={<LogViewerPage />} />
-        <Route path="/dashboard/secrets" element={<SecretsPage />} />
-        <Route path="/dashboard/configs" element={<ConfigsPage />} />
-        <Route path="/dashboard/networks" element={<NetworksPage />} />
-        <Route path="/dashboard/domains" element={<DomainsPage />} />
-        <Route path="/dashboard/security" element={<SecurityPage />} />
-        <Route path="/dashboard/environments" element={<EnvironmentHierarchyPage />} />
-        <Route path="/dashboard/settings" element={<SettingsPage />} />
-        <Route path="/dashboard/settings/notifications" element={<NotificationsPage />} />
-        <Route path="/dashboard/settings/registries" element={<RegistriesPage />} />
-        <Route path="/dashboard/settings/backups" element={<BackupDestinationsPage />} />
-        <Route path="/dashboard/settings/schedules" element={<SchedulesPage />} />
-        <Route path="/dashboard/settings/git-providers" element={<GitProvidersPage />} />
-        <Route path="/dashboard/settings/global" element={<GlobalSettingsPage />} />
-        <Route path="/dashboard/settings/users" element={<OrganizationAdminPage />} />
-        <Route path="/dashboard/settings/infra" element={<SettingsInfraPage />} />
-        <Route path="/dashboard/profile" element={<ProfilePage />} />
-        <Route path="/dashboard/events" element={<EventsPage />} />
-        {/* Legacy redirects */}
-        <Route path="/overview" element={<Navigate to="/dashboard/overview" replace />} />
-        <Route path="/projects" element={<Navigate to="/dashboard/projects" replace />} />
-        <Route path="/settings" element={<Navigate to="/dashboard/settings" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard/overview" replace />} />
-      </Routes>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard/overview" replace />} />
+          <Route path="/dashboard/overview" element={<OverviewPage />} />
+          <Route path="/dashboard/projects" element={<ProjectsPage />} />
+          <Route path="/dashboard/deployments" element={<DeploymentsPage />} />
+          <Route path="/dashboard/stacks" element={<StacksPage />} />
+          <Route path="/dashboard/services/application/:id" element={<ApplicationDetailPage />} />
+          <Route path="/dashboard/services/application/:id/previews" element={<PreviewsPage />} />
+          <Route path="/dashboard/services/stack/:id" element={<StackDetailPage />} />
+          <Route path="/dashboard/services/database/:id" element={<DatabaseServiceDetailPage />} />
+          <Route path="/dashboard/database/create" element={<DatabaseCreatePage />} />
+          <Route path="/dashboard/runtime" element={<RuntimePage />} />
+          <Route path="/dashboard/monitoring" element={<MonitoringPage />} />
+          <Route path="/dashboard/nodes/:id" element={<NodeDetailPage />} />
+          <Route path="/dashboard/terminal/:containerID" element={<TerminalPage />} />
+          <Route path="/dashboard/logs/:containerID" element={<LogViewerPage />} />
+          <Route path="/dashboard/secrets" element={<SecretsPage />} />
+          <Route path="/dashboard/configs" element={<ConfigsPage />} />
+          <Route path="/dashboard/networks" element={<NetworksPage />} />
+          <Route path="/dashboard/domains" element={<DomainsPage />} />
+          <Route path="/dashboard/security" element={<SecurityPage />} />
+          <Route path="/dashboard/environments" element={<EnvironmentHierarchyPage />} />
+          <Route path="/dashboard/settings" element={<SettingsPage />} />
+          <Route path="/dashboard/settings/notifications" element={<NotificationsPage />} />
+          <Route path="/dashboard/settings/registries" element={<RegistriesPage />} />
+          <Route path="/dashboard/settings/backups" element={<BackupDestinationsPage />} />
+          <Route path="/dashboard/settings/schedules" element={<SchedulesPage />} />
+          <Route path="/dashboard/settings/git-providers" element={<GitProvidersPage />} />
+          <Route path="/dashboard/settings/global" element={<GlobalSettingsPage />} />
+          <Route path="/dashboard/settings/users" element={<OrganizationAdminPage />} />
+          <Route path="/dashboard/settings/infra" element={<SettingsInfraPage />} />
+          <Route path="/dashboard/profile" element={<ProfilePage />} />
+          <Route path="/dashboard/events" element={<EventsPage />} />
+          {/* Legacy redirects */}
+          <Route path="/overview" element={<Navigate to="/dashboard/overview" replace />} />
+          <Route path="/projects" element={<Navigate to="/dashboard/projects" replace />} />
+          <Route path="/settings" element={<Navigate to="/dashboard/settings" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard/overview" replace />} />
+        </Routes>
+      </Suspense>
     </DashboardShell>
   );
 }
