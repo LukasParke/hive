@@ -6,15 +6,16 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	dockerswarm "github.com/moby/moby/api/types/swarm"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
 	"github.com/luke/hive/control-plane/internal/deploy"
 	"github.com/luke/hive/control-plane/internal/rbac"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
+	dockerswarm "github.com/moby/moby/api/types/swarm"
 )
 
 type Handler struct {
@@ -57,23 +58,37 @@ func (h *Handler) ListStacks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateStack(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
+	if !ok {
+		return
+	}
 	var req struct {
 		ProjectID      string `json:"projectId"`
 		Name           string `json:"name"`
 		ComposeContent string `json:"composeContent"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ProjectID == "" || req.Name == "" || req.ComposeContent == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"message":"invalid payload"}`, http.StatusBadRequest)
+		return
+	}
+	req.Name = normalizeStackName(req.Name)
+	req.ComposeContent = strings.TrimSpace(req.ComposeContent)
+	if req.ProjectID == "" || req.Name == "" || req.ComposeContent == "" {
+		http.Error(w, `{"message":"projectId, name, and composeContent are required"}`, http.StatusBadRequest)
 		return
 	}
 	var id string
 	if err := h.Pool.QueryRow(r.Context(), `
-		insert into stacks(project_id, name, compose_content) values ($1::uuid, $2, $3) returning id::text
-	`, req.ProjectID, req.Name, req.ComposeContent).Scan(&id); err != nil {
+		insert into stacks(project_id, name, compose_content)
+		select p.id, $2, $3
+		from projects p
+		where p.id = $1::uuid and p.organization_id = $4::uuid
+		returning id::text
+	`, req.ProjectID, req.Name, req.ComposeContent, orgID).Scan(&id); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := h.deployStackByID(r.Context(), id); err != nil {
+	if err := h.deployStackByID(r.Context(), id, orgID); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -104,20 +119,33 @@ func (h *Handler) GetStack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateStack(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
+	if !ok {
+		return
+	}
 	stackID := chi.URLParam(r, "id")
 	var req struct {
 		ComposeContent string `json:"composeContent"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ComposeContent == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.ComposeContent) == "" {
 		http.Error(w, `{"message":"invalid payload"}`, http.StatusBadRequest)
 		return
 	}
-	_, err := h.Pool.Exec(r.Context(), `update stacks set compose_content=$2 where id=$1::uuid`, stackID, req.ComposeContent)
+	cmd, err := h.Pool.Exec(r.Context(), `
+		update stacks s
+		set compose_content = $3
+		from projects p
+		where s.id = $1::uuid and p.id = s.project_id and p.organization_id = $2::uuid
+	`, stackID, orgID, req.ComposeContent)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := h.deployStackByID(r.Context(), stackID); err != nil {
+	if cmd.RowsAffected() == 0 {
+		http.Error(w, `{"message":"stack not found"}`, http.StatusNotFound)
+		return
+	}
+	if err := h.deployStackByID(r.Context(), stackID, orgID); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -125,9 +153,18 @@ func (h *Handler) UpdateStack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteStack(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
+	if !ok {
+		return
+	}
 	stackID := chi.URLParam(r, "id")
 	var stackName string
-	err := h.Pool.QueryRow(r.Context(), `select name from stacks where id = $1::uuid`, stackID).Scan(&stackName)
+	err := h.Pool.QueryRow(r.Context(), `
+		select s.name
+		from stacks s
+		join projects p on p.id = s.project_id
+		where s.id = $1::uuid and p.organization_id = $2::uuid
+	`, stackID, orgID).Scan(&stackName)
 	if err != nil {
 		http.Error(w, `{"message":"stack not found"}`, http.StatusNotFound)
 		return
@@ -145,18 +182,27 @@ func (h *Handler) DeleteStack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeployStack(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
+	if !ok {
+		return
+	}
 	stackID := chi.URLParam(r, "id")
-	if err := h.deployStackByID(r.Context(), stackID); err != nil {
+	if err := h.deployStackByID(r.Context(), stackID, orgID); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
-func (h *Handler) deployStackByID(ctx context.Context, stackID string) error {
+func (h *Handler) deployStackByID(ctx context.Context, stackID, orgID string) error {
 	var stackName string
 	var composeContent string
-	if err := h.Pool.QueryRow(ctx, `select name, compose_content from stacks where id = $1::uuid`, stackID).Scan(&stackName, &composeContent); err != nil {
+	if err := h.Pool.QueryRow(ctx, `
+		select s.name, s.compose_content
+		from stacks s
+		join projects p on p.id = s.project_id
+		where s.id = $1::uuid and p.organization_id = $2::uuid
+	`, stackID, orgID).Scan(&stackName, &composeContent); err != nil {
 		return err
 	}
 	dir, err := os.MkdirTemp("", "hive-stack-*")
@@ -216,6 +262,33 @@ func (h *Handler) scaleStack(w http.ResponseWriter, r *http.Request, replicas ui
 		}
 	}
 	common.WriteJSON(w, http.StatusOK, map[string]any{"status": "ok", "replicas": replicas})
+}
+
+func normalizeStackName(name string) string {
+	var b strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(name)) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "stack"
+	}
+	if len(out) > 48 {
+		out = strings.Trim(out[:48], "-")
+	}
+	if out == "" {
+		return "stack"
+	}
+	return out
 }
 
 func ptrUint64(v uint64) *uint64 {
