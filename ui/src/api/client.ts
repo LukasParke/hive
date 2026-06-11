@@ -330,6 +330,7 @@ export const api = {
   createDatabaseService: (session: Session, body: components["schemas"]["CreateDatabaseServiceRequest"]) =>
     request<DatabaseService>("/api/v1/database-services", { method: "POST", body: JSON.stringify(body) }, session),
   getDatabaseService: (session: Session, id: string) => request<DatabaseService>(`/api/v1/database-services/${id}`, undefined, session),
+  deleteDatabaseService: (session: Session, id: string) => request<ItemMap>(`/api/v1/database-services/${id}`, { method: "DELETE" }, session),
 
   // ── Security Rules ──
   listSecurityRules: (session: Session) => request<{ items: SecurityRule[] }>("/api/v1/security-rules", undefined, session),

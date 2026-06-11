@@ -1635,7 +1635,11 @@ export interface paths {
         get: operations["getDatabaseService"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete database service
+         * @description Delete database service and remove its Swarm service
+         */
+        delete: operations["deleteDatabaseService"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3132,6 +3136,12 @@ export interface components {
             username?: string;
             /** @description Database name. */
             databaseName?: string;
+            /** @description Docker Swarm service name. */
+            serviceName?: string;
+            /** @description Docker secret used for the database password. */
+            passwordSecretName?: string;
+            /** @description Default database port. */
+            port?: number;
             /**
              * Format: date-time
              * @description Creation timestamp (ISO 8601).
@@ -6687,6 +6697,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatabaseService"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteDatabaseService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Database service deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
                 };
             };
             404: components["responses"]["NotFound"];

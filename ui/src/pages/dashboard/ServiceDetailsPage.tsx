@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api, type ItemMap, type Session } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
@@ -482,10 +482,14 @@ export function DatabaseServiceDetailPage() {
   const { id = "" } = useParams();
   const { session } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+  const { refreshDatabaseServices } = useAppData();
 
   const [db, setDB] = useState<ItemMap | null>(null);
   const [loading, setLoading] = useState(true);
   const [backups, setBackups] = useState<ItemMap[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id || !session) return;
@@ -506,6 +510,21 @@ export function DatabaseServiceDetailPage() {
   if (loading) return <LoadingState />;
   if (!db || !session) return <p>Database service not found.</p>;
 
+  async function handleDeleteDatabase() {
+    setDeleting(true);
+    try {
+      await api.deleteDatabaseService(session!, id);
+      toast.success("Database service deleted");
+      await refreshDatabaseServices();
+      navigate("/dashboard/runtime");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
   async function handleCreateBackup() {
     try {
       await api.createBackup(session!, { targetType: "database", targetId: id });
@@ -525,9 +544,12 @@ export function DatabaseServiceDetailPage() {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <h2 style={{ margin: 0 }}>{String(db.name)}</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <h2 style={{ margin: 0 }}>{String(db.name)}</h2>
+        <button onClick={() => setConfirmDelete(true)} style={{ padding: "6px 14px", color: "var(--danger-text)" }}>Delete Database</button>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
         <section style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-primary)", borderRadius: 8, padding: 16 }}>
           <h3 style={{ margin: "0 0 12px" }}>Info</h3>
           {[
@@ -560,6 +582,16 @@ export function DatabaseServiceDetailPage() {
         </div>
         <DataTable columns={backupColumns} rows={backups} emptyMessage="No backups yet." />
       </section>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete Database Service"
+        message={`Delete ${String(db.name)} and remove its Swarm service? Database volume cleanup depends on the configured Docker volume lifecycle.`}
+        destructive
+        onConfirm={handleDeleteDatabase}
+        onCancel={() => setConfirmDelete(false)}
+        loading={deleting}
+      />
     </div>
   );
 }

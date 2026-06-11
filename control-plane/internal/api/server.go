@@ -278,6 +278,7 @@ func (s *Server) Router() http.Handler {
 		pr.Get("/api/v1/database-services", databasesHandler.ListDatabaseServices)
 		pr.Post("/api/v1/database-services", databasesHandler.CreateDatabaseService)
 		pr.Get("/api/v1/database-services/{id}", databasesHandler.GetDatabaseService)
+		pr.Delete("/api/v1/database-services/{id}", databasesHandler.DeleteDatabaseService)
 		pr.Get("/api/v1/git/providers", gitProvidersHandler.ListGitProviders)
 		pr.Post("/api/v1/git/providers", gitProvidersHandler.CreateGitProvider)
 		pr.Get("/api/v1/notifications", notificationsHandler.ListNotifications)

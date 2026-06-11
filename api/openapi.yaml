@@ -1254,6 +1254,15 @@ components:
         databaseName:
           type: string
           description: Database name.
+        serviceName:
+          type: string
+          description: Docker Swarm service name.
+        passwordSecretName:
+          type: string
+          description: Docker secret used for the database password.
+        port:
+          type: integer
+          description: Default database port.
         createdAt:
           type: string
           format: date-time
@@ -4686,6 +4695,21 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       description: Retrieve database services id
+    delete:
+      operationId: deleteDatabaseService
+      summary: Delete database service
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Database service deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      description: Delete database service and remove its Swarm service
   /git/providers:
     get:
       operationId: listGitProviders
