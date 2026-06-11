@@ -138,7 +138,7 @@ func (h *Handler) Handle(ctx context.Context, jobID string) error {
 		return err
 	}
 
-	rows, err := h.pool.Query(ctx, `select hostname from domains where application_id = $1::uuid`, applicationID)
+	rows, err := h.pool.Query(ctx, `select hostname, tls_enabled from domains where application_id = $1::uuid`, applicationID)
 	if err == nil {
 		defer rows.Close()
 		services, _ := h.swarm.ListServices(ctx)
@@ -153,8 +153,9 @@ func (h *Handler) Handle(ctx context.Context, jobID string) error {
 			domainManager := proxy.NewDomainManager(h.swarm)
 			for rows.Next() {
 				var host string
-				if err := rows.Scan(&host); err == nil {
-					_ = domainManager.ApplyDomain(ctx, targetServiceID, proxy.RouterNameFromHost(host), host, containerPort)
+				var tlsEnabled bool
+				if err := rows.Scan(&host, &tlsEnabled); err == nil {
+					_ = domainManager.ApplyDomain(ctx, targetServiceID, proxy.RouterNameFromHost(host), host, containerPort, tlsEnabled)
 				}
 			}
 		}

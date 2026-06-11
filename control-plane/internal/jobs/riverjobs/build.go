@@ -6,13 +6,13 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
 	buildruntime "github.com/luke/hive/control-plane/internal/build"
 	"github.com/luke/hive/control-plane/internal/deploy"
 	"github.com/luke/hive/control-plane/internal/git"
 	"github.com/luke/hive/control-plane/internal/notify"
 	"github.com/luke/hive/control-plane/internal/proxy"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
+	"github.com/riverqueue/river"
 )
 
 type BuildWorker struct {
@@ -118,7 +118,7 @@ func (w *BuildWorker) Work(ctx context.Context, job *river.Job[BuildJobArgs]) er
 		return err
 	}
 
-	rows, err := w.Pool.Query(ctx, `select hostname from domains where application_id = $1::uuid`, applicationID)
+	rows, err := w.Pool.Query(ctx, `select hostname, tls_enabled from domains where application_id = $1::uuid`, applicationID)
 	if err == nil {
 		defer rows.Close()
 		services, _ := w.Swarm.ListServices(ctx)
@@ -133,8 +133,9 @@ func (w *BuildWorker) Work(ctx context.Context, job *river.Job[BuildJobArgs]) er
 			domainManager := proxy.NewDomainManager(w.Swarm)
 			for rows.Next() {
 				var host string
-				if err := rows.Scan(&host); err == nil {
-					_ = domainManager.ApplyDomain(ctx, targetServiceID, proxy.RouterNameFromHost(host), host, containerPort)
+				var tlsEnabled bool
+				if err := rows.Scan(&host, &tlsEnabled); err == nil {
+					_ = domainManager.ApplyDomain(ctx, targetServiceID, proxy.RouterNameFromHost(host), host, containerPort, tlsEnabled)
 				}
 			}
 		}

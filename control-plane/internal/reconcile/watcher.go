@@ -27,14 +27,19 @@ func (w *Watcher) Run(ctx context.Context) {
 		log.Printf("reconcile failed: %v", err)
 		return
 	}
-	domainsByApp := map[string][]string{}
-	rows, err := w.pool.Query(ctx, `select application_id::text, hostname from domains`)
+	type domainRoute struct {
+		Host       string
+		TLSEnabled bool
+	}
+	domainsByApp := map[string][]domainRoute{}
+	rows, err := w.pool.Query(ctx, `select application_id::text, hostname, tls_enabled from domains`)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
 			var appID, host string
-			if err := rows.Scan(&appID, &host); err == nil {
-				domainsByApp[appID] = append(domainsByApp[appID], host)
+			var tlsEnabled bool
+			if err := rows.Scan(&appID, &host, &tlsEnabled); err == nil {
+				domainsByApp[appID] = append(domainsByApp[appID], domainRoute{Host: host, TLSEnabled: tlsEnabled})
 			}
 		}
 	}
@@ -45,8 +50,8 @@ func (w *Watcher) Run(ctx context.Context) {
 			continue
 		}
 		port := 3000
-		for _, host := range domainsByApp[appID] {
-			_ = manager.ApplyDomain(ctx, svc.ID, proxy.RouterNameFromHost(host), host, port)
+		for _, route := range domainsByApp[appID] {
+			_ = manager.ApplyDomain(ctx, svc.ID, proxy.RouterNameFromHost(route.Host), route.Host, port, route.TLSEnabled)
 		}
 	}
 	payload, _ := json.Marshal(map[string]any{"services": len(services)})

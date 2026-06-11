@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
 	buildruntime "github.com/luke/hive/control-plane/internal/build"
 	"github.com/luke/hive/control-plane/internal/deploy"
 	"github.com/luke/hive/control-plane/internal/git"
 	"github.com/luke/hive/control-plane/internal/notify"
 	"github.com/luke/hive/control-plane/internal/proxy"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
+	"github.com/riverqueue/river"
 )
 
 type PreviewDeployWorker struct {
@@ -109,7 +109,7 @@ func (w *PreviewDeployWorker) Work(ctx context.Context, job *river.Job[PreviewDe
 		}
 		if targetServiceID != "" {
 			domainManager := proxy.NewDomainManager(w.Swarm)
-			_ = domainManager.ApplyDomain(ctx, targetServiceID, proxy.RouterNameFromHost(previewURL), previewURL, containerPort)
+			_ = domainManager.ApplyDomain(ctx, targetServiceID, proxy.RouterNameFromHost(previewURL), previewURL, containerPort, true)
 		}
 	}
 

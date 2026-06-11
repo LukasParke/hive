@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/moby/moby/api/types/swarm"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
+	"github.com/moby/moby/api/types/swarm"
 )
 
 type DomainManager struct {
@@ -18,7 +18,7 @@ func NewDomainManager(client *swarmclient.Client) *DomainManager {
 	return &DomainManager{client: client}
 }
 
-func (m *DomainManager) ApplyDomain(ctx context.Context, serviceID, routerName, host string, port int) error {
+func (m *DomainManager) ApplyDomain(ctx context.Context, serviceID, routerName, host string, port int, tlsEnabled bool) error {
 	services, err := m.client.ListServices(ctx)
 	if err != nil {
 		return err
@@ -32,9 +32,14 @@ func (m *DomainManager) ApplyDomain(ctx context.Context, serviceID, routerName, 
 		}
 		svc.Spec.Labels["traefik.enable"] = "true"
 		svc.Spec.Labels["traefik.http.routers."+routerName+".rule"] = fmt.Sprintf("Host(`%s`)", host)
-		svc.Spec.Labels["traefik.http.routers."+routerName+".entrypoints"] = "websecure"
-		svc.Spec.Labels["traefik.http.routers."+routerName+".tls"] = "true"
-		svc.Spec.Labels["traefik.http.routers."+routerName+".tls.certresolver"] = "letsencrypt"
+		svc.Spec.Labels["traefik.http.routers."+routerName+".entrypoints"] = "web"
+		delete(svc.Spec.Labels, "traefik.http.routers."+routerName+".tls")
+		delete(svc.Spec.Labels, "traefik.http.routers."+routerName+".tls.certresolver")
+		if tlsEnabled {
+			svc.Spec.Labels["traefik.http.routers."+routerName+".entrypoints"] = "websecure"
+			svc.Spec.Labels["traefik.http.routers."+routerName+".tls"] = "true"
+			svc.Spec.Labels["traefik.http.routers."+routerName+".tls.certresolver"] = "letsencrypt"
+		}
 		svc.Spec.Labels["traefik.http.services."+routerName+".loadbalancer.server.port"] = strconv.Itoa(port)
 		return m.client.UpdateService(ctx, svc.ID, svc.Version.Index, svc.Spec)
 	}
