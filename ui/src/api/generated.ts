@@ -2572,6 +2572,23 @@ export interface components {
             name: string;
             /** @enum {string} */
             sourceType: "git" | "image";
+            /**
+             * @description Current runtime status derived from the Swarm service.
+             * @enum {string}
+             */
+            status?: "not_deployed" | "deploying" | "running" | "degraded" | "stopped";
+            /** @description Docker Swarm service name when deployed. */
+            serviceName?: string;
+            /**
+             * Format: int64
+             * @description Desired replica count for the Swarm service.
+             */
+            desiredReplicas?: number;
+            /**
+             * Format: int64
+             * @description Currently running replica count for the Swarm service.
+             */
+            runningReplicas?: number;
             /** @description Docker image reference. */
             image?: string;
             /** @description Repository url. */

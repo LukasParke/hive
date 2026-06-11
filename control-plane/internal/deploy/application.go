@@ -3,9 +3,10 @@ package deploy
 import (
 	"context"
 	"strconv"
+	"strings"
 
-	dockerswarm "github.com/moby/moby/api/types/swarm"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
+	dockerswarm "github.com/moby/moby/api/types/swarm"
 )
 
 type EnvVar struct {
@@ -24,6 +25,7 @@ type ApplicationSpec struct {
 }
 
 func DeployApplication(ctx context.Context, cli *swarmclient.Client, spec ApplicationSpec) error {
+	serviceName := normalizeServiceName(spec.ServiceName, spec.AppID)
 	services, err := cli.ListServices(ctx)
 	if err != nil {
 		return err
@@ -58,16 +60,16 @@ func DeployApplication(ctx context.Context, cli *swarmclient.Client, spec Applic
 
 	serviceSpec := dockerswarm.ServiceSpec{
 		Annotations: dockerswarm.Annotations{
-			Name: spec.ServiceName,
+			Name: serviceName,
 			Labels: map[string]string{
-				"hive.app.id":        spec.AppID,
-				"hive.app.port":      strconv.Itoa(spec.ContainerPort),
+				"hive.app.id":   spec.AppID,
+				"hive.app.port": strconv.Itoa(spec.ContainerPort),
 			},
 		},
 		TaskTemplate: dockerswarm.TaskSpec{
 			ContainerSpec: &dockerswarm.ContainerSpec{
-				Image: spec.Image,
-				Env:   envStrings,
+				Image:   spec.Image,
+				Env:     envStrings,
 				Secrets: secretRefs,
 				Labels: map[string]string{
 					"hive.app.id":   spec.AppID,
@@ -75,8 +77,8 @@ func DeployApplication(ctx context.Context, cli *swarmclient.Client, spec Applic
 				},
 			},
 			RestartPolicy: &dockerswarm.RestartPolicy{
-				Condition: dockerswarm.RestartPolicyConditionAny,
-				Delay:     nil,
+				Condition:   dockerswarm.RestartPolicyConditionAny,
+				Delay:       nil,
 				MaxAttempts: nil,
 			},
 		},
@@ -97,6 +99,51 @@ func DeployApplication(ctx context.Context, cli *swarmclient.Client, spec Applic
 
 	serviceSpec.Annotations.Name = existing.Spec.Name
 	return cli.UpdateService(ctx, existing.ID, existing.Version.Index, serviceSpec)
+}
+
+func normalizeServiceName(base, appID string) string {
+	cleaned := strings.Builder{}
+	lastDash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(base)) {
+		if isServiceNameChar(r) {
+			cleaned.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			cleaned.WriteByte('-')
+			lastDash = true
+		}
+	}
+	name := strings.Trim(cleaned.String(), "-")
+	if name == "" {
+		name = "app"
+	}
+	if !isServiceNameChar(rune(name[0])) {
+		name = "app-" + name
+	}
+	shortID := strings.ToLower(strings.TrimSpace(appID))
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	if shortID != "" && !strings.HasSuffix(name, "-"+shortID) {
+		maxBase := 63 - len(shortID) - 1
+		if len(name) > maxBase {
+			name = strings.Trim(name[:maxBase], "-")
+			if name == "" {
+				name = "app"
+			}
+		}
+		name += "-" + shortID
+	}
+	if len(name) > 63 {
+		name = strings.Trim(name[:63], "-")
+	}
+	return name
+}
+
+func isServiceNameChar(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
 }
 
 func ptrUint64(v uint64) *uint64 { return &v }

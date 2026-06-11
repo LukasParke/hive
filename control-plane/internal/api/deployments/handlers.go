@@ -21,30 +21,51 @@ func NewHandler(pool *pgxpool.Pool) *Handler {
 }
 
 func (h *Handler) EnqueueDeploy(w http.ResponseWriter, r *http.Request) {
-	appID := chi.URLParam(r, "id")
-	if _, err := uuid.Parse(appID); err != nil {
-		http.Error(w, `{"message":"invalid id"}`, http.StatusBadRequest)
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
+	if !ok {
 		return
 	}
-	_, err := h.Pool.Exec(r.Context(), `
+	appID := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(appID); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid_id", "invalid application id")
+		return
+	}
+	cmd, err := h.Pool.Exec(r.Context(), `
 		insert into build_jobs(application_id, trigger, status)
-		values ($1::uuid, 'api', 'queued')
-	`, appID)
+		select a.id, 'api', 'queued'
+		from applications a
+		join projects p on p.id = a.project_id
+		where a.id = $1::uuid and p.organization_id = $2::uuid
+	`, appID, orgID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		common.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	if cmd.RowsAffected() == 0 {
+		common.WriteError(w, http.StatusNotFound, "not_found", "application not found")
 		return
 	}
 	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
 func (h *Handler) ListApplicationDeployments(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
+	if !ok {
+		return
+	}
 	appID := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(appID); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid_id", "invalid application id")
+		return
+	}
 	rows, err := h.Pool.Query(r.Context(), `
-		select id::text, image_tag, status, trigger, created_at
-		from deployments
-		where application_id = $1::uuid
-		order by created_at desc
-	`, appID)
+		select d.id::text, d.image_tag, d.status, d.trigger, d.created_at
+		from deployments d
+		join applications a on a.id = d.application_id
+		join projects p on p.id = a.project_id
+		where d.application_id = $1::uuid and p.organization_id = $2::uuid
+		order by d.created_at desc
+	`, appID, orgID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -66,40 +87,67 @@ func (h *Handler) ListApplicationDeployments(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) RollbackApplication(w http.ResponseWriter, r *http.Request) {
-	appID := chi.URLParam(r, "id")
-	var imageTag string
-	err := h.Pool.QueryRow(r.Context(), `
-		select image_tag
-		from deployments
-		where application_id = $1::uuid
-		order by created_at desc
-		offset 1
-		limit 1
-	`, appID).Scan(&imageTag)
-	if err != nil {
-		http.Error(w, `{"message":"no previous deployment found"}`, http.StatusBadRequest)
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
+	if !ok {
 		return
 	}
-	_, err = h.Pool.Exec(r.Context(), `
-		insert into build_jobs(application_id, trigger, status, image_tag)
-		values ($1::uuid, 'rollback', 'queued', $2)
-	`, appID, imageTag)
+	appID := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(appID); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid_id", "invalid application id")
+		return
+	}
+	var imageTag string
+	err := h.Pool.QueryRow(r.Context(), `
+		select d.image_tag
+		from deployments d
+		join applications a on a.id = d.application_id
+		join projects p on p.id = a.project_id
+		where d.application_id = $1::uuid and p.organization_id = $2::uuid
+		order by d.created_at desc
+		offset 1
+		limit 1
+	`, appID, orgID).Scan(&imageTag)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		common.WriteError(w, http.StatusBadRequest, "no_previous_deployment", "no previous deployment found")
+		return
+	}
+	cmd, err := h.Pool.Exec(r.Context(), `
+		insert into build_jobs(application_id, trigger, status, image_tag)
+		select a.id, 'rollback', 'queued', $3
+		from applications a
+		join projects p on p.id = a.project_id
+		where a.id = $1::uuid and p.organization_id = $2::uuid
+	`, appID, orgID, imageTag)
+	if err != nil {
+		common.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	if cmd.RowsAffected() == 0 {
+		common.WriteError(w, http.StatusNotFound, "not_found", "application not found")
 		return
 	}
 	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
 func (h *Handler) ApplicationLogs(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
+	if !ok {
+		return
+	}
 	appID := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(appID); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "invalid_id", "invalid application id")
+		return
+	}
 	rows, err := h.Pool.Query(r.Context(), `
-		select id::text, image_tag, status, trigger, created_at
-		from deployments
-		where application_id = $1::uuid
-		order by created_at desc
+		select d.id::text, d.image_tag, d.status, d.trigger, d.created_at
+		from deployments d
+		join applications a on a.id = d.application_id
+		join projects p on p.id = a.project_id
+		where d.application_id = $1::uuid and p.organization_id = $2::uuid
+		order by d.created_at desc
 		limit 100
-	`, appID)
+	`, appID, orgID)
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "failed to read application logs")
 		return

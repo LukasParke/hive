@@ -20,6 +20,8 @@ import (
 	"github.com/luke/hive/control-plane/internal/ca"
 	"github.com/luke/hive/control-plane/internal/config"
 	"github.com/luke/hive/control-plane/internal/db"
+	"github.com/luke/hive/control-plane/internal/jobs"
+	buildjobs "github.com/luke/hive/control-plane/internal/jobs/build"
 	"github.com/luke/hive/control-plane/internal/jobs/riverjobs"
 	"github.com/luke/hive/control-plane/internal/leader"
 	"github.com/luke/hive/control-plane/internal/notify"
@@ -87,7 +89,8 @@ func main() {
 	}()
 
 	notifier := notify.NewDispatcher(pool)
-	riverClient, err := riverjobs.NewClient(pool, cfg.RegistryAddr, sw, buildruntime.NewClient(cfg.BuildkitAddr), notifier)
+	buildClient := buildruntime.NewClient(cfg.BuildkitAddr)
+	riverClient, err := riverjobs.NewClient(pool, cfg.RegistryAddr, sw, buildClient, notifier)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -97,6 +100,20 @@ func main() {
 	defer func() {
 		if err := riverClient.Stop(ctx); err != nil {
 			log.Printf("river client stop: %v", err)
+		}
+	}()
+
+	legacyBuildWorker := jobs.NewWorker(pool)
+	legacyBuildWorker.Register("api", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
+	legacyBuildWorker.Register("webhook", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
+	legacyBuildWorker.Register("retry", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
+	legacyBuildWorker.Register("rollback", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
+	go func() {
+		for ctx.Err() == nil {
+			if err := legacyBuildWorker.Run(ctx); err != nil && ctx.Err() == nil {
+				log.Printf("legacy build worker stopped: %v", err)
+				time.Sleep(2 * time.Second)
+			}
 		}
 	}()
 

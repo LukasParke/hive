@@ -511,6 +511,26 @@ components:
           enum:
           - git
           - image
+        status:
+          type: string
+          enum:
+          - not_deployed
+          - deploying
+          - running
+          - degraded
+          - stopped
+          description: Current runtime status derived from the Swarm service.
+        serviceName:
+          type: string
+          description: Docker Swarm service name when deployed.
+        desiredReplicas:
+          type: integer
+          format: int64
+          description: Desired replica count for the Swarm service.
+        runningReplicas:
+          type: integer
+          format: int64
+          description: Currently running replica count for the Swarm service.
         image:
           type: string
           description: Docker image reference.

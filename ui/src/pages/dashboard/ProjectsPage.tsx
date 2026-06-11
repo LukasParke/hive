@@ -25,6 +25,7 @@ export function ProjectsPage() {
   const [appSourceType, setAppSourceType] = useState("image");
   const [appImage, setAppImage] = useState("");
   const [appRepoUrl, setAppRepoUrl] = useState("");
+  const [appGitRef, setAppGitRef] = useState("main");
   const [appPort, setAppPort] = useState("80");
   const [creatingApp, setCreatingApp] = useState(false);
 
@@ -70,15 +71,23 @@ export function ProjectsPage() {
 
   async function handleCreateApp() {
     if (!session || !appName || !appProjectId) return;
+    if (appSourceType === "image" && !appImage.trim()) {
+      toast.error("Image is required for image applications");
+      return;
+    }
+    if (appSourceType === "git" && !appRepoUrl.trim()) {
+      toast.error("Repository URL is required for git applications");
+      return;
+    }
     setCreatingApp(true);
     try {
       const payload: components["schemas"]["CreateApplicationRequest"] = {
         projectId: appProjectId,
         name: appName,
         sourceType: appSourceType as "git" | "image",
-        image: appSourceType === "image" ? appImage : undefined,
-        repositoryUrl: appSourceType === "git" ? appRepoUrl : undefined,
-        gitRef: appSourceType === "git" ? "main" : undefined,
+        image: appSourceType === "image" ? appImage.trim() : undefined,
+        repositoryUrl: appSourceType === "git" ? appRepoUrl.trim() : undefined,
+        gitRef: appSourceType === "git" ? appGitRef.trim() || "main" : undefined,
         containerPort: appPort ? parseInt(appPort, 10) : 8080,
         watchPaths: [],
       };
@@ -87,6 +96,8 @@ export function ProjectsPage() {
       setShowCreateApp(false);
       setAppName("");
       setAppImage("");
+      setAppRepoUrl("");
+      setAppGitRef("main");
       await refreshApplications();
     } catch (err) {
       toast.error((err as Error).message);
@@ -178,8 +189,7 @@ export function ProjectsPage() {
           Source Type
           <select value={appSourceType} onChange={(e) => setAppSourceType(e.target.value)} style={{ width: "100%", padding: "6px 10px", marginTop: 4 }}>
             <option value="image">Image</option>
-            <option value="git">Git</option>
-            <option value="compose">Compose</option>
+            <option value="git">Git repository</option>
           </select>
         </label>
         {appSourceType === "image" && (
@@ -189,10 +199,16 @@ export function ProjectsPage() {
           </label>
         )}
         {appSourceType === "git" && (
-          <label>
-            Repository URL
-            <input value={appRepoUrl} onChange={(e) => setAppRepoUrl(e.target.value)} placeholder="https://github.com/..." style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} />
-          </label>
+          <>
+            <label>
+              Repository URL
+              <input value={appRepoUrl} onChange={(e) => setAppRepoUrl(e.target.value)} placeholder="https://github.com/org/app.git" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} />
+            </label>
+            <label>
+              Git Ref
+              <input value={appGitRef} onChange={(e) => setAppGitRef(e.target.value)} placeholder="main" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} />
+            </label>
+          </>
         )}
         <label>
           Container Port

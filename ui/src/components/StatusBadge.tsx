@@ -13,6 +13,9 @@ const badgeMap: Record<string, string> = {
   building: "badge-info",
   pushing: "badge-info",
   deploying: "badge-deploying",
+  restarting: "badge-deploying",
+  degraded: "badge-warning",
+  not_deployed: "badge-neutral",
 };
 
 export function StatusBadge({ status }: { status?: string }) {

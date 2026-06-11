@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -41,7 +42,7 @@ func (h *Handler) ListApplications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := h.Pool.Query(r.Context(), `
-		select a.id, a.project_id, a.name, a.source_type, a.image, a.created_at
+		select a.id::text, a.project_id::text, a.name, a.source_type::text, coalesce(a.image, ''), a.created_at
 		from applications a
 		join projects p on p.id = a.project_id
 		where p.organization_id = $1::uuid
@@ -53,19 +54,32 @@ func (h *Handler) ListApplications(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	type item struct {
-		ID        string    `json:"id"`
-		ProjectID string    `json:"projectId"`
-		Name      string    `json:"name"`
-		Source    string    `json:"sourceType"`
-		Image     string    `json:"image"`
-		CreatedAt time.Time `json:"createdAt"`
+		ID              string    `json:"id"`
+		ProjectID       string    `json:"projectId"`
+		Name            string    `json:"name"`
+		Source          string    `json:"sourceType"`
+		Image           string    `json:"image"`
+		Status          string    `json:"status"`
+		ServiceName     string    `json:"serviceName,omitempty"`
+		DesiredReplicas uint64    `json:"desiredReplicas"`
+		RunningReplicas uint64    `json:"runningReplicas"`
+		CreatedAt       time.Time `json:"createdAt"`
 	}
+	statuses := h.applicationRuntimeStatuses(r.Context())
 	var out []item
 	for rows.Next() {
 		var it item
 		if err := rows.Scan(&it.ID, &it.ProjectID, &it.Name, &it.Source, &it.Image, &it.CreatedAt); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if status, ok := statuses[it.ID]; ok {
+			it.Status = status.Status
+			it.ServiceName = status.ServiceName
+			it.DesiredReplicas = status.DesiredReplicas
+			it.RunningReplicas = status.RunningReplicas
+		} else {
+			it.Status = "not_deployed"
 		}
 		out = append(out, it)
 	}
@@ -83,8 +97,29 @@ func (h *Handler) CreateApplication(w http.ResponseWriter, r *http.Request) {
 		ContainerPort int      `json:"containerPort"`
 		WatchPaths    []string `json:"watchPaths"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" || req.ProjectID == "" || req.Source == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"message":"invalid payload"}`, http.StatusBadRequest)
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Source = strings.TrimSpace(req.Source)
+	req.Image = strings.TrimSpace(req.Image)
+	req.RepositoryURL = strings.TrimSpace(req.RepositoryURL)
+	req.GitRef = strings.TrimSpace(req.GitRef)
+	if req.Name == "" || req.ProjectID == "" || req.Source == "" {
+		http.Error(w, `{"message":"name, projectId, and sourceType are required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Source != "image" && req.Source != "git" {
+		http.Error(w, `{"message":"sourceType must be image or git; use Stacks for compose deployments"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Source == "image" && req.Image == "" {
+		http.Error(w, `{"message":"image is required for image applications"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Source == "git" && req.RepositoryURL == "" {
+		http.Error(w, `{"message":"repositoryUrl is required for git applications"}`, http.StatusBadRequest)
 		return
 	}
 	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
@@ -103,6 +138,10 @@ func (h *Handler) CreateApplication(w http.ResponseWriter, r *http.Request) {
 
 	if req.ContainerPort == 0 {
 		req.ContainerPort = 3000
+	}
+	if req.ContainerPort < 1 || req.ContainerPort > 65535 {
+		http.Error(w, `{"message":"containerPort must be between 1 and 65535"}`, http.StatusBadRequest)
+		return
 	}
 	if req.GitRef == "" {
 		req.GitRef = "main"
@@ -154,8 +193,13 @@ func (h *Handler) GetApplication(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"application not found"}`, http.StatusNotFound)
 		return
 	}
+	status := h.applicationRuntimeStatuses(r.Context())[appID]
+	if status.Status == "" {
+		status.Status = "not_deployed"
+	}
 	common.WriteJSON(w, http.StatusOK, map[string]any{
 		"id": appID, "projectId": projectID, "name": name, "sourceType": sourceType, "image": image, "repositoryUrl": repositoryURL, "gitRef": gitRef, "containerPort": containerPort, "createdAt": createdAt,
+		"status": status.Status, "serviceName": status.ServiceName, "desiredReplicas": status.DesiredReplicas, "runningReplicas": status.RunningReplicas,
 	})
 }
 
@@ -468,54 +512,139 @@ func (h *Handler) DeleteAppEnvVar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StartApplication(w http.ResponseWriter, r *http.Request) {
-	h.scaleApp(w, r, 1)
+	h.updateAppService(w, r, 1, false)
 }
 
 func (h *Handler) StopApplication(w http.ResponseWriter, r *http.Request) {
-	h.scaleApp(w, r, 0)
+	h.updateAppService(w, r, 0, false)
 }
 
 func (h *Handler) RestartApplication(w http.ResponseWriter, r *http.Request) {
-	h.scaleApp(w, r, 1)
+	h.updateAppService(w, r, 1, true)
 }
 
-func (h *Handler) scaleApp(w http.ResponseWriter, r *http.Request, replicas uint64) {
+func (h *Handler) updateAppService(w http.ResponseWriter, r *http.Request, replicas uint64, restart bool) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
 		return
 	}
 	appID := chi.URLParam(r, "id")
-	var serviceName string
+	var exists bool
 	if err := h.Pool.QueryRow(r.Context(), `
-		select a.service_name
-		from applications a
-		join projects p on p.id = a.project_id
-		where a.id = $1::uuid and p.organization_id = $2::uuid
-	`, appID, orgID).Scan(&serviceName); err != nil {
+		select exists(
+			select 1
+			from applications a
+			join projects p on p.id = a.project_id
+			where a.id = $1::uuid and p.organization_id = $2::uuid
+		)
+	`, appID, orgID).Scan(&exists); err != nil || !exists {
 		common.WriteError(w, http.StatusNotFound, "not_found", "application not found")
 		return
 	}
-	if err := h.scaleServiceByName(r.Context(), serviceName, replicas); err != nil {
+	serviceName, err := h.updateServiceByAppID(r.Context(), appID, replicas, restart)
+	if err != nil {
 		common.WriteError(w, http.StatusBadGateway, "runtime_error", err.Error())
 		return
 	}
-	common.WriteJSON(w, http.StatusOK, map[string]any{"status": "ok", "replicas": replicas})
+	status := "running"
+	if replicas == 0 {
+		status = "stopped"
+	} else if restart {
+		status = "restarting"
+	}
+	common.WriteJSON(w, http.StatusOK, map[string]any{"status": status, "serviceName": serviceName, "replicas": replicas})
 }
 
-func (h *Handler) scaleServiceByName(ctx context.Context, serviceName string, replicas uint64) error {
+func (h *Handler) updateServiceByAppID(ctx context.Context, appID string, replicas uint64, restart bool) (string, error) {
 	services, err := h.Swarm.ListServices(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 	for _, svc := range services {
-		if svc.Spec.Name != serviceName {
+		if svc.Spec.Labels["hive.app.id"] != appID {
 			continue
 		}
 		spec := svc.Spec
 		spec.Mode = dockerswarm.ServiceMode{Replicated: &dockerswarm.ReplicatedService{Replicas: ptrUint64(replicas)}}
-		return h.Swarm.UpdateService(ctx, svc.ID, svc.Version.Index, spec)
+		if restart {
+			spec.TaskTemplate.ForceUpdate++
+		}
+		return svc.Spec.Name, h.Swarm.UpdateService(ctx, svc.ID, svc.Version.Index, spec)
 	}
-	return fmt.Errorf("service %s not found", serviceName)
+	return "", fmt.Errorf("no deployed service found for application %s", appID)
+}
+
+type applicationRuntimeStatus struct {
+	Status          string
+	ServiceName     string
+	DesiredReplicas uint64
+	RunningReplicas uint64
+}
+
+func (h *Handler) applicationRuntimeStatuses(ctx context.Context) map[string]applicationRuntimeStatus {
+	out := map[string]applicationRuntimeStatus{}
+	if h.Swarm == nil {
+		return out
+	}
+	services, err := h.Swarm.ListServices(ctx)
+	if err != nil {
+		return out
+	}
+	serviceToApp := map[string]string{}
+	for _, svc := range services {
+		appID := svc.Spec.Labels["hive.app.id"]
+		if appID == "" {
+			continue
+		}
+		desired := desiredReplicas(svc)
+		out[appID] = applicationRuntimeStatus{
+			Status:          statusFromReplicas(desired, 0),
+			ServiceName:     svc.Spec.Name,
+			DesiredReplicas: desired,
+		}
+		serviceToApp[svc.ID] = appID
+	}
+	tasks, err := h.Swarm.ListAllTasks(ctx)
+	if err != nil {
+		return out
+	}
+	for _, task := range tasks {
+		appID := serviceToApp[task.ServiceID]
+		if appID == "" || task.DesiredState != dockerswarm.TaskStateRunning || task.Status.State != dockerswarm.TaskStateRunning {
+			continue
+		}
+		status := out[appID]
+		status.RunningReplicas++
+		out[appID] = status
+	}
+	for appID, status := range out {
+		status.Status = statusFromReplicas(status.DesiredReplicas, status.RunningReplicas)
+		out[appID] = status
+	}
+	return out
+}
+
+func desiredReplicas(svc dockerswarm.Service) uint64 {
+	if svc.Spec.Mode.Replicated != nil && svc.Spec.Mode.Replicated.Replicas != nil {
+		return *svc.Spec.Mode.Replicated.Replicas
+	}
+	if svc.Spec.Mode.Global != nil {
+		return 1
+	}
+	return 0
+}
+
+func statusFromReplicas(desired, running uint64) string {
+	switch {
+	case desired == 0:
+		return "stopped"
+	case running == 0:
+		return "deploying"
+	case running < desired:
+		return "degraded"
+	default:
+		return "running"
+	}
 }
 
 func ptrUint64(v uint64) *uint64 {

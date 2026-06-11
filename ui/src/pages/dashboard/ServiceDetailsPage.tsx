@@ -101,9 +101,10 @@ export function ApplicationDetailPage() {
     setActionLoading(true);
     try {
       await fn();
-      toast.success(`${action} successful`);
-      const a = await api.getApplication(session!, id);
+      toast.success(action === "Deploy" || action === "Rollback" ? `${action} queued` : `${action} successful`);
+      const [a, d] = await Promise.all([api.getApplication(session!, id), api.listApplicationDeployments(session!, id)]);
       setApp(a);
+      setDeployments(d.items);
       await refreshApplications();
     } catch (err) {
       toast.error((err as Error).message);
