@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AppProvider, useAppData } from "./contexts/AppContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { DashboardShell } from "./components/DashboardShell";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Summary } from "./components/Summary";
 import { LoadingState } from "./components/LoadingState";
 
@@ -148,7 +149,9 @@ export function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <AppInner />
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
       </ToastProvider>
     </AuthProvider>
   );

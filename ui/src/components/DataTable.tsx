@@ -8,21 +8,24 @@ export interface Column {
 }
 
 interface DataTableProps {
-  columns: Column[];
-  rows: ItemMap[];
+  columns: Column[] | null | undefined;
+  rows: ItemMap[] | null | undefined;
   onRowClick?: (row: ItemMap) => void;
   emptyMessage?: string;
   loading?: boolean;
 }
 
 export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items yet.", loading = false }: DataTableProps) {
+  const safeColumns = Array.isArray(columns) ? columns : [];
+  const safeRows = Array.isArray(rows) ? rows : [];
+
   if (loading) {
     return (
       <div className="table-wrap" aria-busy="true">
         <table className="table">
           <thead>
             <tr>
-              {columns.map((col) => (
+              {safeColumns.map((col) => (
                 <th key={col.key}>{col.label}</th>
               ))}
             </tr>
@@ -30,7 +33,7 @@ export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items 
           <tbody>
             {Array.from({ length: 5 }).map((_, rowIndex) => (
               <tr key={rowIndex}>
-                {columns.map((col) => (
+                {safeColumns.map((col) => (
                   <td key={col.key}>
                     <span className="skeleton-line" />
                   </td>
@@ -43,7 +46,7 @@ export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items 
     );
   }
 
-  if (rows.length === 0) {
+  if (safeRows.length === 0) {
     return (
       <div className="card empty-card">
         <div className="empty-orb">◇</div>
@@ -57,13 +60,13 @@ export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items 
       <table className="table">
         <thead>
           <tr>
-            {columns.map((col) => (
+            {safeColumns.map((col) => (
               <th key={col.key}>{col.label}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {safeRows.map((row, i) => (
             <tr
               key={String(row.id ?? i)}
               onClick={() => onRowClick?.(row)}
@@ -78,7 +81,7 @@ export function DataTable({ columns, rows, onRowClick, emptyMessage = "No items 
               role={onRowClick ? "button" : undefined}
               style={{ cursor: onRowClick ? "pointer" : "default" }}
             >
-              {columns.map((col) => (
+              {safeColumns.map((col) => (
                 <td key={col.key}>
                   {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? "—")}
                 </td>

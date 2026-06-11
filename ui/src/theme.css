@@ -434,6 +434,36 @@ label {
   }
 }
 
+.app-error-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg-root);
+}
+.app-error-card {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+}
+.app-error-card h1 {
+  font-size: 24px;
+}
+.app-error-card p {
+  color: var(--text-secondary);
+}
+.app-error-card pre {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--code-bg);
+  color: var(--error-fg);
+  padding: 12px;
+  font-size: 12px;
+}
+
 /* ── Layout ── */
 .dashboard-shell {
   min-height: 100vh;
