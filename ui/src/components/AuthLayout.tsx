@@ -1,34 +1,43 @@
+import type { ReactNode } from "react";
 import { LogoWithText } from "./Logo";
 
-export function AuthLayout({ children }: { children: React.ReactNode }) {
+interface AuthLayoutProps {
+  children: ReactNode;
+  eyebrow?: string;
+  title?: string;
+  subtitle?: string;
+}
+
+export function AuthLayout({ children, eyebrow, title, subtitle }: AuthLayoutProps) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--bg-root)",
-        padding: 24,
-        gap: 28,
-      }}
-    >
-      <LogoWithText size={36} />
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          background: "var(--bg-secondary)",
-          border: "1px solid var(--border-primary)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "var(--shadow-lg)",
-          padding: "28px 28px 24px",
-        }}
-      >
+    <div className="auth-shell">
+      <section className="auth-brand-panel" aria-label="Hive platform introduction">
+        <LogoWithText size={38} />
+        <div className="auth-brand-copy">
+          <span className="eyebrow">Self-hosted deployment platform</span>
+          <h1>Bring your apps home to a calmer control plane.</h1>
+          <p>
+            Hive gives independent operators a warm, swarm-native cockpit for apps, databases,
+            domains, backups, and runtime health.
+          </p>
+        </div>
+        <div className="auth-proof-grid" aria-label="Hive security and operations highlights">
+          <div><strong>Direct install</strong><span>No vendor cloud required.</span></div>
+          <div><strong>Runtime aware</strong><span>Live Swarm status and logs.</span></div>
+          <div><strong>Secure by default</strong><span>Short-lived access sessions.</span></div>
+        </div>
+      </section>
+
+      <section className="auth-card" aria-label={title ?? "Authentication"}>
+        {(eyebrow || title || subtitle) && (
+          <header className="auth-card-header">
+            {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+            {title && <h2>{title}</h2>}
+            {subtitle && <p>{subtitle}</p>}
+          </header>
+        )}
         {children}
-      </div>
+      </section>
     </div>
   );
 }

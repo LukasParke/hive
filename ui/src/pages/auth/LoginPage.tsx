@@ -1,133 +1,95 @@
-import { useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { useToast } from "../../contexts/ToastContext";
 import { AuthLayout } from "../../components/AuthLayout";
 
-export function LoginPage() {
-  const { login, register } = useAuth();
-  const toast = useToast();
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
 
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("password123");
-  const [displayName, setDisplayName] = useState("Admin");
-  const [isRegistering, setIsRegistering] = useState(false);
+export function LoginPage() {
+  const { login } = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
-    setLoading(true);
-    setError(null);
-    try {
-      await login(email, password);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const canSubmit = useMemo(() => normalizeEmail(email).includes("@") && password.length > 0 && !loading, [email, password, loading]);
 
-  async function handleRegister() {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmit) return;
     setLoading(true);
     setError(null);
     try {
-      await register(email, password, displayName);
-      toast.success("Account created. You can now log in.");
-      setIsRegistering(false);
+      await login(normalizeEmail(email), password);
     } catch (err) {
-      setError((err as Error).message);
+      setError("We could not sign you in. Check your email and password, then try again.");
+      console.warn("Login failed", err);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <AuthLayout>
-      <h2 style={{ margin: "0 0 4px", fontSize: 20 }}>
-        {isRegistering ? "Create Account" : "Sign in to Hive"}
-      </h2>
-      <p style={{ color: "var(--text-faint)", fontSize: 13, marginBottom: 20 }}>
-        {isRegistering ? "Set up your admin account" : "Enter your credentials to continue"}
-      </p>
-
-      <div className="form-stack">
-        {isRegistering && (
-          <div className="form-group">
-            <label>Display name</label>
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Admin"
-            />
-          </div>
-        )}
+    <AuthLayout eyebrow="Welcome back" title="Sign in to Hive" subtitle="Manage your self-hosted deployment platform from a secure operator session.">
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <div className="form-group">
-          <label>Email</label>
+          <div className="field-label-row">
+            <label htmlFor="login-email">Email</label>
+          </div>
           <input
+            id="login-email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@example.com"
+            onChange={(event) => setEmail(event.target.value)}
+            onBlur={() => setEmail((value) => normalizeEmail(value))}
+            placeholder="you@example.com"
             type="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            autoFocus
+            required
           />
         </div>
+
         <div className="form-group">
-          <label>Password</label>
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            type="password"
-          />
+          <div className="field-label-row">
+            <label htmlFor="login-password">Password</label>
+            <Link to="/reset-password">Forgot password?</Link>
+          </div>
+          <div className="password-field">
+            <input
+              id="login-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+            />
+            <button type="button" className="btn-ghost password-toggle" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
         </div>
 
         {error && (
-          <div
-            style={{
-              background: "var(--error-bg)",
-              color: "var(--error-fg)",
-              padding: "10px 14px",
-              borderRadius: "var(--radius-sm)",
-              fontSize: 13,
-            }}
-          >
+          <div className="auth-alert" role="alert">
             {error}
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          {isRegistering ? (
-            <button onClick={handleRegister} disabled={loading} className="btn-primary" style={{ flex: 1 }}>
-              {loading ? "Creating…" : "Create Account"}
-            </button>
-          ) : (
-            <button onClick={handleLogin} disabled={loading} className="btn-primary" style={{ flex: 1 }}>
-              {loading ? "Signing in…" : "Sign In"}
-            </button>
-          )}
-        </div>
+        <button type="submit" disabled={!canSubmit} className="btn-primary auth-submit">
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: 13,
-          }}
-        >
-          <button
-            onClick={() => { setIsRegistering((v) => !v); setError(null); }}
-            className="btn-ghost"
-            style={{ padding: 0, fontSize: 13 }}
-          >
-            {isRegistering ? "Back to sign in" : "Create account"}
-          </button>
-          {!isRegistering && (
-            <Link to="/reset-password" style={{ color: "var(--text-faint)", fontSize: 13 }}>
-              Forgot password?
-            </Link>
-          )}
-        </div>
-      </div>
+        <p className="auth-switch-copy">
+          New to this Hive? <Link to="/register">Create the first operator account</Link>
+        </p>
+      </form>
     </AuthLayout>
   );
 }
