@@ -27,6 +27,7 @@ export ACME_EMAIL=ops@example.com
 ```
 
 This script will:
+- Install or refresh the local `hivectl` CLI (`/usr/local/bin/hivectl`, falling back to `~/.local/bin/hivectl`)
 - Verify Swarm is active
 - Generate required secrets (`hive-master-key`, `postgres-password`, `hive-jwt-secret`, `agent-bootstrap-token`)
 - Create the `hive_internal` and `hive_proxy` overlay networks
@@ -35,6 +36,8 @@ This script will:
 - Poll the health endpoint until the control plane is ready
 
 4. Access the UI at `https://example.com`.
+
+If you need a custom CLI path, set `HIVE_CLI_PATH=/path/to/hivectl` before running the installer. Set `HIVE_INSTALL_CLI=false` only if you intentionally do not want the helper installed on the host.
 
 ## First Login
 

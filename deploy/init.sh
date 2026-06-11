@@ -53,6 +53,61 @@ check_health() {
   return 1
 }
 
+path_contains_dir() {
+  dir="$1"
+  old_ifs="$IFS"
+  IFS=:
+  for part in ${PATH:-}; do
+    if [ "$part" = "$dir" ]; then
+      IFS="$old_ifs"
+      return 0
+    fi
+  done
+  IFS="$old_ifs"
+  return 1
+}
+
+install_hivectl_cli() {
+  case "${HIVE_INSTALL_CLI:-true}" in
+    false|False|FALSE|0|no|NO)
+      echo "Skipping hivectl CLI install because HIVE_INSTALL_CLI=${HIVE_INSTALL_CLI}"
+      return 0
+      ;;
+  esac
+
+  script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  src="$(CDPATH= cd -- "$script_dir/.." && pwd)/hivectl"
+  if [ ! -f "$src" ]; then
+    echo "Warning: $src not found; skipping hivectl CLI install"
+    return 0
+  fi
+
+  target="${HIVE_CLI_PATH:-/usr/local/bin/hivectl}"
+  target_dir="$(dirname -- "$target")"
+  if mkdir -p "$target_dir" 2>/dev/null && install -m 0755 "$src" "$target" 2>/dev/null; then
+    echo "Installed hivectl CLI: $target"
+    return 0
+  fi
+  if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+    if sudo mkdir -p "$target_dir" && sudo install -m 0755 "$src" "$target"; then
+      echo "Installed hivectl CLI: $target"
+      return 0
+    fi
+  fi
+  if [ -n "${HOME:-}" ]; then
+    fallback="$HOME/.local/bin/hivectl"
+    fallback_dir="$(dirname -- "$fallback")"
+    if mkdir -p "$fallback_dir" && install -m 0755 "$src" "$fallback"; then
+      echo "Installed hivectl CLI: $fallback"
+      if ! path_contains_dir "$fallback_dir"; then
+        echo "Warning: $fallback_dir is not in PATH. Add: export PATH=\"$fallback_dir:\$PATH\""
+      fi
+      return 0
+    fi
+  fi
+  echo "Warning: could not install hivectl CLI. Set HIVE_CLI_PATH to a writable path and rerun."
+}
+
 release_legacy_traefik_direct_port() {
   svc="hive_traefik"
   if ! docker service inspect "$svc" >/dev/null 2>&1; then
@@ -92,6 +147,8 @@ release_legacy_traefik_direct_port() {
 
   echo "Warning: stale Traefik service still exists; deploy may report a port conflict"
 }
+
+install_hivectl_cli
 
 echo "Checking swarm status..."
 if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q active; then

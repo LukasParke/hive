@@ -49,6 +49,14 @@ export ACME_EMAIL=admin@example.com
 
 After install, open `https://hive.example.com` and create your admin account.
 
+The installer also leaves a reusable `hivectl` CLI on the host. It installs to `/usr/local/bin/hivectl` when writable or available through passwordless sudo, and falls back to `~/.local/bin/hivectl`. Override the destination with `HIVE_CLI_PATH=/path/to/hivectl`, or disable persistence with `HIVE_INSTALL_CLI=false`.
+
+```bash
+hivectl status
+hivectl update
+hivectl host-management enable
+```
+
 ### Update
 
 ```bash

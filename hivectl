@@ -8,6 +8,7 @@ set -euo pipefail
 #   install      Install or re-install the Hive platform
 #   update       Update Hive to a newer version
 #   uninstall    Remove the Hive stack
+#   install-cli  Install hivectl to PATH without deploying the stack
 #   status       Show Hive stack status
 #   logs         Tail control-plane logs
 #
@@ -22,6 +23,8 @@ set -euo pipefail
 #   HIVE_HEALTH_HOST        Host used for install/status API probes (default: detected swarm node IP)
 #   HIVE_TRAEFIK_ENABLE     Enable Traefik domain routing (default: true when HIVE_DOMAIN is set)
 #   HIVE_HOST_MGMT          Enable agent host maintenance actions (default: false; preserved once enabled)
+#   HIVE_INSTALL_CLI        Persist hivectl during install (default: true)
+#   HIVE_CLI_PATH           Preferred CLI install path (default: /usr/local/bin/hivectl)
 #   HIVE_STACK_FILE         Path to stack file (default: deploy/hive-stack.yml)
 #   HIVE_STACK_URL          URL to stack file when running via curl pipe
 #   HIVE_STACK_NAME         Docker stack name (default: hive)
@@ -87,6 +90,81 @@ download_file() {
     error "curl or wget is required to download ${url}"
     return 1
   fi
+}
+
+path_contains_dir() {
+  local dir="$1" part
+  local -a parts
+  IFS=':' read -r -a parts <<< "${PATH:-}"
+  for part in "${parts[@]}"; do
+    if [ "$part" = "$dir" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+write_executable_file() {
+  local src="$1" dest="$2" dir
+  dir="$(dirname "$dest")"
+  if mkdir -p "$dir" 2>/dev/null && install -m 0755 "$src" "$dest" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+install_hivectl_cli() {
+  case "${HIVE_INSTALL_CLI:-true}" in
+    false|False|FALSE|0|no|NO)
+      info "Skipping hivectl CLI install because HIVE_INSTALL_CLI=${HIVE_INSTALL_CLI}"
+      return 0
+      ;;
+  esac
+
+  local tmp target target_dir fallback fallback_dir source_desc
+  tmp="$(mktemp "${TMPDIR:-/tmp}/hivectl.XXXXXX")"
+  TEMP_FILES+=("$tmp")
+
+  if [ -n "$SCRIPT_PATH" ] && [ -f "$SCRIPT_PATH" ]; then
+    cp "$SCRIPT_PATH" "$tmp"
+    source_desc="$SCRIPT_PATH"
+  else
+    source_desc="${HIVE_RAW_BASE}/hivectl"
+    if ! download_file "$source_desc" "$tmp"; then
+      warn "Could not download hivectl for local CLI install; continuing stack install."
+      return 0
+    fi
+  fi
+  chmod +x "$tmp"
+
+  target="${HIVE_CLI_PATH:-/usr/local/bin/hivectl}"
+  target_dir="$(dirname "$target")"
+
+  if write_executable_file "$tmp" "$target"; then
+    ok "Installed hivectl CLI: ${target}"
+    return 0
+  fi
+
+  if cmd_exists sudo && sudo -n true >/dev/null 2>&1; then
+    if sudo mkdir -p "$target_dir" && sudo install -m 0755 "$tmp" "$target"; then
+      ok "Installed hivectl CLI: ${target}"
+      return 0
+    fi
+  fi
+
+  if [ -n "${HOME:-}" ]; then
+    fallback="${HOME}/.local/bin/hivectl"
+    fallback_dir="$(dirname "$fallback")"
+    if write_executable_file "$tmp" "$fallback"; then
+      ok "Installed hivectl CLI: ${fallback}"
+      if ! path_contains_dir "$fallback_dir"; then
+        warn "${fallback_dir} is not in PATH. Add: export PATH=\"${fallback_dir}:\$PATH\""
+      fi
+      return 0
+    fi
+  fi
+
+  warn "Could not install hivectl CLI from ${source_desc}. Re-run with HIVE_CLI_PATH set to a writable path or install manually."
 }
 
 ensure_stack_file() {
@@ -467,6 +545,7 @@ wait_for_hive_health() {
 # ---------------------------------------------------------------------------
 
 cmd_install() {
+  install_hivectl_cli
   require_docker
   ensure_swarm
 
@@ -833,6 +912,7 @@ Commands:
   update [version]     Update Hive to a new version
   uninstall [--purge]  Remove the Hive stack
   host-management      Show/enable/disable host maintenance actions
+  install-cli          Install/update the hivectl CLI on this host
   status               Show stack status
   logs [service]       Tail service logs (default: control-plane)
 
@@ -850,6 +930,8 @@ Environment:
   HIVE_STATUS_HOST     Optional override for status health probes
   HIVE_TRAEFIK_ENABLE  Enable Traefik domain routing (default: true when HIVE_DOMAIN is set)
   HIVE_HOST_MGMT       Enable agent host package/reboot actions (default: false; preserved once enabled)
+  HIVE_INSTALL_CLI     Persist hivectl during install (default: true)
+  HIVE_CLI_PATH        Preferred CLI path (default: /usr/local/bin/hivectl; falls back to ~/.local/bin)
   HIVE_STACK_FILE      Stack file path (default: deploy/hive-stack.yml)
   HIVE_STACK_URL       Stack file URL when running via curl pipe
   HIVE_STACK_NAME      Stack name (default: hive)
@@ -862,6 +944,7 @@ Examples:
   ./hivectl update nightly-20250603-abc123
   ./hivectl host-management enable
   HIVE_HOST_MGMT=true ./hivectl update latest
+  ./hivectl install-cli
   ./hivectl uninstall --purge
   ./hivectl logs agent
 
@@ -882,6 +965,7 @@ main() {
     update) cmd_update "$@" ;;
     uninstall) cmd_uninstall "$@" ;;
     host-management|host_mgmt|host-mgmt) cmd_host_management "$@" ;;
+    install-cli|self-install) install_hivectl_cli "$@" ;;
     status) cmd_status "$@" ;;
     logs) cmd_logs "$@" ;;
     help|--help|-h) cmd_help ;;
