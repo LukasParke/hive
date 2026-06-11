@@ -30,7 +30,7 @@ This script will:
 - Verify Swarm is active
 - Generate required secrets (`hive-master-key`, `postgres-password`, `hive-jwt-secret`, `agent-bootstrap-token`)
 - Create the `hive_internal` and `hive_proxy` overlay networks
-- Label the current node with `db=true`, `builder=true`, `registry=true`
+- Pin stateful placement labels (`db=true`, `registry=true`) to the current/existing data node and ensure a `builder=true` node exists
 - Deploy the Hive stack
 - Poll the health endpoint until the control plane is ready
 
@@ -38,11 +38,29 @@ This script will:
 
 ## First Login
 
-On first boot, the control plane creates an admin user. Check the control plane logs for the auto-generated admin password:
+Open `/register` and create the first operator account. After that, use `/` to sign in.
+
+## Host Management
+
+Host management actions are intentionally disabled by default. Enable them only if you want Hive to run node-level package checks/upgrades and reboot scheduling through the agent:
 
 ```sh
-docker service logs hive_control-plane --tail 50
+./hivectl host-management enable
+# or on any stack deploy/update:
+HIVE_HOST_MGMT=true ./hivectl update latest
 ```
+
+Then open **Runtime / Nodes → node detail** to check packages or run maintenance.
+
+## Data Durability
+
+Normal installs and updates preserve data. `hivectl install` and `hivectl update` both use `docker stack deploy`; they do not remove volumes or secrets. `hivectl uninstall` also preserves data unless you explicitly pass `--purge`.
+
+Important durability rules:
+
+- Keep the same `HIVE_STACK_NAME` (`hive` by default). A different stack name creates different Docker volume names.
+- Do not run `docker volume rm hive_pgdata` or `docker volume prune` unless you want to delete Hive data.
+- On multi-node Swarm clusters, default Docker named volumes are node-local. Keep `db=true` pinned to the node that already holds Postgres data, or use a real shared/external volume driver for production HA.
 
 ## Scale Managers (Production)
 

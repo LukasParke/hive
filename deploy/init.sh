@@ -135,9 +135,59 @@ if ! docker network ls --format '{{.Name}}' | grep -q '^hive_proxy$'; then
   docker network create --driver overlay --attachable hive_proxy
 fi
 
-docker node update --label-add db=true "$(docker node ls --format '{{.ID}}' | head -n 1)"
-docker node update --label-add builder=true "$(docker node ls --format '{{.ID}}' | head -n 1)"
-docker node update --label-add registry=true "$(docker node ls --format '{{.ID}}' | head -n 1)"
+node_has_label() {
+  docker node inspect --format "{{ index .Spec.Labels \"$2\" }}" "$1" 2>/dev/null | grep -qx true
+}
+
+first_node_with_label() {
+  label="$1"
+  for node in $(docker node ls --format '{{.Hostname}}'); do
+    if node_has_label "$node" "$label"; then
+      echo "$node"
+      return 0
+    fi
+  done
+  return 1
+}
+
+running_service_node() {
+  docker service ps "hive_$1" --filter desired-state=running --format '{{.Node}}' 2>/dev/null | head -n 1
+}
+
+ensure_singleton_node_label() {
+  label="$1"
+  service="$2"
+  purpose="$3"
+  target="$(running_service_node "$service" || true)"
+  if [ -z "$target" ]; then
+    target="$(first_node_with_label "$label" || true)"
+  fi
+  if [ -z "$target" ]; then
+    target="$(docker node ls --format '{{.Hostname}}' | head -n 1)"
+  fi
+  for node in $(docker node ls --format '{{.Hostname}}'); do
+    if [ "$node" = "$target" ]; then
+      docker node update --label-add "${label}=true" "$node" >/dev/null 2>&1 || true
+    elif node_has_label "$node" "$label"; then
+      docker node update --label-rm "$label" "$node" >/dev/null 2>&1 || true
+    fi
+  done
+  echo "$purpose pinned to node: $target"
+}
+
+# Swarm named volumes are node-local by default. Preserve the current stateful
+# service node across re-installs/updates so Postgres/registry do not appear
+# empty after being rescheduled to a different node.
+ensure_singleton_node_label db postgres "Postgres data"
+ensure_singleton_node_label registry registry "Registry data"
+builder_node="$(running_service_node buildkit || true)"
+if [ -z "$builder_node" ]; then
+  builder_node="$(first_node_with_label builder || true)"
+fi
+if [ -z "$builder_node" ]; then
+  builder_node="$(docker node ls --format '{{.Hostname}}' | head -n 1)"
+fi
+docker node update --label-add builder=true "$builder_node" >/dev/null 2>&1 || true
 
 release_legacy_traefik_direct_port
 

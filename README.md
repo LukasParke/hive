@@ -56,6 +56,23 @@ After install, open `https://hive.example.com` and create your admin account.
 ./hivectl update nightly  # Update to specific tag
 ```
 
+Updates and re-runs of `./hivectl install` are designed to be durable: they use `docker stack deploy`, keep PostgreSQL/registry volumes, preserve secrets, and pin stateful services to their existing Swarm node when possible. Keep the same `HIVE_STACK_NAME` and do **not** delete/prune `hive_pgdata` unless you intentionally want a fresh install.
+
+### Host management
+
+Host management is intentionally off by default because it lets Hive run node-level maintenance actions such as package update checks, package upgrades, and reboot scheduling through the global agent.
+
+```bash
+./hivectl host-management status
+./hivectl host-management enable     # persistent across future hivectl updates
+./hivectl host-management disable
+
+# Equivalent one-shot deploy/update form:
+HIVE_HOST_MGMT=true ./hivectl update latest
+```
+
+After enabling, open **Runtime / Nodes → a node** to check packages or run maintenance.
+
 ### Uninstall
 
 ```bash

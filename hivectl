@@ -21,6 +21,7 @@ set -euo pipefail
 #   HIVE_CONTROL_PLANE_PORT Direct control-plane port (default: 3000)
 #   HIVE_HEALTH_HOST        Host used for install/status API probes (default: detected swarm node IP)
 #   HIVE_TRAEFIK_ENABLE     Enable Traefik domain routing (default: true when HIVE_DOMAIN is set)
+#   HIVE_HOST_MGMT          Enable agent host maintenance actions (default: false; preserved once enabled)
 #   HIVE_STACK_FILE         Path to stack file (default: deploy/hive-stack.yml)
 #   HIVE_STACK_URL          URL to stack file when running via curl pipe
 #   HIVE_STACK_NAME         Docker stack name (default: hive)
@@ -148,6 +149,97 @@ service_image_tag() {
     echo "$img" | sed 's/.*://' | sed 's/@.*//'
   else
     echo "unknown"
+  fi
+}
+
+service_env_value() {
+  local svc="$1" key="$2"
+  docker service inspect --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' "${STACK_NAME}_${svc}" 2>/dev/null \
+    | awk -F= -v key="$key" '$1 == key {print $2; exit}'
+}
+
+preserve_host_mgmt_setting() {
+  if [ -n "${HIVE_HOST_MGMT+x}" ]; then
+    export HIVE_HOST_MGMT
+    return 0
+  fi
+  local current
+  current="$(service_env_value agent HOST_MGMT_ENABLED || true)"
+  case "$current" in
+    true|false)
+      HIVE_HOST_MGMT="$current"
+      export HIVE_HOST_MGMT
+      ;;
+  esac
+}
+
+node_has_label() {
+  local node="$1" label="$2"
+  docker node inspect --format "{{ index .Spec.Labels \"${label}\" }}" "$node" 2>/dev/null | grep -qx true
+}
+
+first_node_with_label() {
+  local label="$1" node
+  while read -r node; do
+    [ -n "$node" ] || continue
+    if node_has_label "$node" "$label"; then
+      echo "$node"
+      return 0
+    fi
+  done <<EOF_NODES
+$(docker node ls --format '{{.Hostname}}')
+EOF_NODES
+  return 1
+}
+
+running_service_node() {
+  local svc="$1"
+  docker service ps "${STACK_NAME}_${svc}" --filter desired-state=running --format '{{.Node}}' 2>/dev/null | head -n 1
+}
+
+ensure_singleton_node_label() {
+  local label="$1" service="$2" purpose="$3" target node
+  target="$(running_service_node "$service" || true)"
+  if [ -z "$target" ]; then
+    target="$(first_node_with_label "$label" || true)"
+  fi
+  if [ -z "$target" ]; then
+    target="$(docker node ls --format '{{.Hostname}}' | head -n 1)"
+  fi
+  if [ -z "$target" ]; then
+    warn "No swarm node found for ${purpose} placement label ${label}=true"
+    return 0
+  fi
+
+  while read -r node; do
+    [ -n "$node" ] || continue
+    if [ "$node" = "$target" ]; then
+      docker node update --label-add "${label}=true" "$node" >/dev/null 2>&1 || true
+    elif node_has_label "$node" "$label"; then
+      docker node update --label-rm "$label" "$node" >/dev/null 2>&1 || true
+    fi
+  done <<EOF_NODES
+$(docker node ls --format '{{.Hostname}}')
+EOF_NODES
+  ok "${purpose} pinned to node: ${target} (${label}=true)"
+}
+
+ensure_stateful_placement_labels() {
+  info "Ensuring durable placement labels..."
+  ensure_singleton_node_label db postgres "Postgres data"
+  ensure_singleton_node_label registry registry "Registry data"
+
+  local builder_node
+  builder_node="$(running_service_node buildkit || true)"
+  if [ -z "$builder_node" ]; then
+    builder_node="$(first_node_with_label builder || true)"
+  fi
+  if [ -z "$builder_node" ]; then
+    builder_node="$(docker node ls --format '{{.Hostname}}' | head -n 1)"
+  fi
+  if [ -n "$builder_node" ]; then
+    docker node update --label-add builder=true "$builder_node" >/dev/null 2>&1 || true
+    ok "BuildKit cache available on node: ${builder_node} (builder=true)"
   fi
 }
 
@@ -426,14 +518,10 @@ cmd_install() {
   ensure_network "hive_internal" --opt encrypted=true
   ensure_network "hive_proxy"
 
-  # Label nodes for placement
-  info "Labeling nodes..."
-  local first_node
-  first_node="$(docker node ls --format '{{.ID}}' | head -n 1)"
-  docker node update --label-add db=true "$first_node" >/dev/null 2>&1 || true
-  docker node update --label-add builder=true "$first_node" >/dev/null 2>&1 || true
-  docker node update --label-add registry=true "$first_node" >/dev/null 2>&1 || true
-  ok "Node labels set"
+  # Pin stateful services to their existing nodes when possible. Swarm named
+  # volumes are node-local by default; allowing Postgres or the registry to
+  # reschedule onto another node makes the app look freshly installed.
+  ensure_stateful_placement_labels
 
   # Normalize optional tag (docs historically mix v-prefixed and unprefixed release names)
   if [ -n "${HIVE_IMAGE_TAG:-}" ]; then
@@ -442,6 +530,7 @@ cmd_install() {
 
   # Deploy stack
   ensure_stack_file
+  preserve_host_mgmt_setting
   release_legacy_traefik_direct_port
   info "Deploying stack with image tag: ${HIVE_IMAGE_TAG:-latest}..."
   docker stack deploy -c "$STACK_FILE" "$STACK_NAME"
@@ -476,6 +565,11 @@ cmd_install() {
     info "  Admin signup: http://${health_host}:${CONTROL_PLANE_PORT}/register"
   fi
   info "  Cloudflare Tunnel target: http://localhost:${DIRECT_PORT}"
+  if [ "${HIVE_HOST_MGMT:-false}" = "true" ]; then
+    warn "  Host management is ENABLED: node maintenance actions can run package upgrades/reboots via the agent."
+  else
+    info "  Host management: disabled (enable with HIVE_HOST_MGMT=true ./hivectl update latest)"
+  fi
   if [ -n "${HIVE_DOMAIN:-}" ]; then
     info "  Domain URL: https://${HIVE_DOMAIN}"
     info "  Admin signup (domain): https://${HIVE_DOMAIN}/register"
@@ -536,6 +630,8 @@ cmd_update() {
 
   info "Updating to ${new_tag}..."
   ensure_stack_file
+  preserve_host_mgmt_setting
+  ensure_stateful_placement_labels
   HIVE_IMAGE_TAG="$new_tag" docker stack deploy -c "$STACK_FILE" "$STACK_NAME"
   ok "Stack update triggered"
 
@@ -564,6 +660,45 @@ cmd_update() {
   done
 
   ok "Update complete"
+}
+
+# ---------------------------------------------------------------------------
+# host-management
+# ---------------------------------------------------------------------------
+
+cmd_host_management() {
+  require_docker
+  local action="${1:-status}"
+  case "$action" in
+    status)
+      local current
+      current="$(service_env_value agent HOST_MGMT_ENABLED || true)"
+      if [ "$current" = "true" ]; then
+        ok "Host management is enabled on ${STACK_NAME}_agent"
+      else
+        info "Host management is disabled on ${STACK_NAME}_agent"
+      fi
+      ;;
+    enable|on|true)
+      ensure_stack_file
+      HIVE_HOST_MGMT=true
+      export HIVE_HOST_MGMT
+      warn "Enabling host management allows node package maintenance and reboot scheduling through Hive."
+      docker stack deploy -c "$STACK_FILE" "$STACK_NAME"
+      ok "Host management enabled; agent rollout triggered"
+      ;;
+    disable|off|false)
+      ensure_stack_file
+      HIVE_HOST_MGMT=false
+      export HIVE_HOST_MGMT
+      docker stack deploy -c "$STACK_FILE" "$STACK_NAME"
+      ok "Host management disabled; agent rollout triggered"
+      ;;
+    *)
+      error "Usage: ./hivectl host-management [status|enable|disable]"
+      exit 1
+      ;;
+  esac
 }
 
 # ---------------------------------------------------------------------------
@@ -651,6 +786,14 @@ cmd_status() {
   echo "  agent:         ${agent_tag}"
 
   echo ""
+  echo "Durability:"
+  local host_mgmt
+  host_mgmt="$(service_env_value agent HOST_MGMT_ENABLED || true)"
+  echo "  stack name: ${STACK_NAME}"
+  echo "  postgres volume: ${STACK_NAME}_pgdata (preserved unless uninstall --purge or docker volume rm/prune)"
+  echo "  host management: ${host_mgmt:-false}"
+
+  echo ""
   echo "Health:"
   local status_host
   status_host="${HIVE_STATUS_HOST:-${HIVE_HEALTH_HOST:-$(detect_host_ip)}}"
@@ -689,6 +832,7 @@ Commands:
   install              Install Hive (idempotent)
   update [version]     Update Hive to a new version
   uninstall [--purge]  Remove the Hive stack
+  host-management      Show/enable/disable host maintenance actions
   status               Show stack status
   logs [service]       Tail service logs (default: control-plane)
 
@@ -705,6 +849,7 @@ Environment:
   HIVE_HEALTH_HOST     Host used for install/status health probes (default: detected swarm node IP)
   HIVE_STATUS_HOST     Optional override for status health probes
   HIVE_TRAEFIK_ENABLE  Enable Traefik domain routing (default: true when HIVE_DOMAIN is set)
+  HIVE_HOST_MGMT       Enable agent host package/reboot actions (default: false; preserved once enabled)
   HIVE_STACK_FILE      Stack file path (default: deploy/hive-stack.yml)
   HIVE_STACK_URL       Stack file URL when running via curl pipe
   HIVE_STACK_NAME      Stack name (default: hive)
@@ -715,6 +860,8 @@ Examples:
   HIVE_DIRECT_PORT=8080 ./hivectl install
   ./hivectl update nightly
   ./hivectl update nightly-20250603-abc123
+  ./hivectl host-management enable
+  HIVE_HOST_MGMT=true ./hivectl update latest
   ./hivectl uninstall --purge
   ./hivectl logs agent
 
@@ -734,6 +881,7 @@ main() {
     install) cmd_install "$@" ;;
     update) cmd_update "$@" ;;
     uninstall) cmd_uninstall "$@" ;;
+    host-management|host_mgmt|host-mgmt) cmd_host_management "$@" ;;
     status) cmd_status "$@" ;;
     logs) cmd_logs "$@" ;;
     help|--help|-h) cmd_help ;;
