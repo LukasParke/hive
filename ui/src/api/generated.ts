@@ -292,16 +292,36 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * Regenerate API key
-         * @description Regenerate an API key (replaces old key with a new token)
-         */
-        post: operations["regenerateApiKey"];
+        post?: never;
         /**
          * Revoke API key
          * @description Delete organizations id api keys keyId
          */
         delete: operations["deleteApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{id}/api-keys/{keyId}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate API key
+         * @description Replaces the API key with a new token and returns it. The old token stops working immediately.
+         */
+        post: operations["regenerateApiKey"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -322,9 +342,29 @@ export interface paths {
          * @description Retrieve organizations id members
          */
         get: operations["listOrganizationMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizations/{id}/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+                userId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
         /**
          * Update member role
-         * @description Update organizations id members
+         * @description Changes an organization member's role. Requires owner access.
          */
         put: operations["updateOrganizationMemberRole"];
         post?: never;
@@ -982,6 +1022,121 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/nodes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove node from swarm
+         * @description Drains workloads and removes the node from the Swarm cluster.
+         */
+        delete: operations["removeNode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nodes/{id}/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace node labels
+         * @description Replaces the node's label set with the provided labels.
+         */
+        put: operations["updateNodeLabels"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nodes/{id}/drain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drain node
+         * @description Sets the node's availability to drain so no new tasks are scheduled on it.
+         */
+        post: operations["drainNode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nodes/{id}/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Promote node to manager
+         * @description Promotes a worker node to swarm manager.
+         */
+        post: operations["promoteNode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nodes/{id}/demote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Demote manager to worker
+         * @description Demotes a manager node to swarm worker.
+         */
+        post: operations["demoteNode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cluster/resources": {
         parameters: {
             query?: never;
@@ -1213,6 +1368,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/stacks/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start stack
+         * @description Scales every service in the stack back to one replica.
+         */
+        post: operations["startStack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stacks/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop stack
+         * @description Scales every service in the stack to zero replicas.
+         */
+        post: operations["stopStack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stacks/{id}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart stack
+         * @description Restarts every service in the stack by scaling it back to one replica.
+         */
+        post: operations["restartStack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/secrets": {
         parameters: {
             query?: never;
@@ -1231,6 +1455,56 @@ export interface paths {
          * @description Create secrets
          */
         post: operations["createSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/secrets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Secret ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update secret
+         * @description Replaces a Swarm secret's data.
+         */
+        put: operations["updateSecret"];
+        post?: never;
+        /**
+         * Delete secret
+         * @description Removes a Swarm secret.
+         */
+        delete: operations["deleteSecret"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/secrets/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Secret ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate secret
+         * @description Replaces the secret's payload with a new value (rotation without changing the secret's identity).
+         */
+        post: operations["rotateSecret"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1261,6 +1535,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/configs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Config ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update config
+         * @description Replaces a Swarm config's data.
+         */
+        put: operations["updateConfig"];
+        post?: never;
+        /**
+         * Delete config
+         * @description Removes a Swarm config.
+         */
+        delete: operations["deleteConfig"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/networks": {
         parameters: {
             query?: never;
@@ -1280,6 +1581,76 @@ export interface paths {
          */
         post: operations["createNetwork"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/networks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Network ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update network
+         * @description Updates an existing Swarm network's settings.
+         */
+        put: operations["updateNetwork"];
+        post?: never;
+        /**
+         * Delete network
+         * @description Removes a Swarm network.
+         */
+        delete: operations["deleteNetwork"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List deployments
+         * @description Lists the most recent deployments across all applications in the active organization (latest 200).
+         */
+        get: operations["listDeployments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete deployment
+         * @description Removes a deployment record.
+         */
+        delete: operations["deleteDeployment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1371,6 +1742,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/builds/{id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get build logs
+         * @description Returns the raw build output for a build as plain text.
+         */
+        get: operations["getBuildLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings": {
         parameters: {
             query?: never;
@@ -1388,6 +1782,118 @@ export interface paths {
          * @description Update settings
          */
         put: operations["putSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List registered servers
+         * @description Lists servers registered for agent provisioning.
+         */
+        get: operations["listServers"];
+        put?: never;
+        /**
+         * Register server
+         * @description Registers an SSH-reachable host for agent provisioning.
+         */
+        post: operations["createServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/cluster": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get cluster info
+         * @description Returns swarm node/service counts plus the raw node objects.
+         */
+        get: operations["getClusterInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/ssh-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List SSH keys
+         * @description Lists stored SSH key pairs (private key material is never returned).
+         */
+        get: operations["listSshKeys"];
+        put?: never;
+        /**
+         * Store SSH key
+         * @description Stores an SSH key pair for later use when provisioning servers.
+         */
+        post: operations["createSshKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List certificates
+         * @description Lists stored TLS certificates by domain.
+         */
+        get: operations["listCertificates"];
+        put?: never;
+        /**
+         * Store certificate
+         * @description Stores or replaces the TLS certificate for a domain.
+         */
+        post: operations["createCertificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List request events
+         * @description Returns the most recent audit events (latest 200).
+         */
+        get: operations["listRequestEvents"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1839,6 +2345,62 @@ export interface paths {
          * @description Retrieve ws events
          */
         get: operations["wsEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ws/terminal/{containerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Docker container ID. */
+                containerId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Interactive container terminal over WebSocket
+         * @description WebSocket endpoint (RFC 6455). The HTTP GET performs a protocol upgrade;
+         *     after upgrading, binary frames carry terminal input from the client and
+         *     output from the container's exec session. The connection is proxied to
+         *     the agent running on the node that hosts the container.
+         */
+        get: operations["wsTerminal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ws/logs/{containerId}": {
+        parameters: {
+            query?: {
+                /** @description Keep streaming new log lines after replaying history. */
+                follow?: boolean;
+                /** @description Number of recent lines to replay before streaming. */
+                tail?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Docker container ID. */
+                containerId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Stream container logs over WebSocket
+         * @description WebSocket endpoint (RFC 6455). After the protocol upgrade, each text
+         *     frame carries one chunk of container log output (timestamps included).
+         *     The stream is proxied to the agent on the node hosting the container.
+         */
+        get: operations["wsContainerLogs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2682,6 +3244,8 @@ export interface components {
              * @description Application ID.
              */
             applicationId: string;
+            /** @description Application name (present on the global deployment list). */
+            applicationName?: string;
             /** @description Docker image tag. */
             imageTag: string;
             /** @description Current status. */
@@ -3898,6 +4462,267 @@ export interface components {
             /** @description Whether the rule is active */
             enabled?: boolean;
         };
+        /**
+         * @description Server registered for agent provisioning (SSH-reachable host).
+         * @example {
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "name": "edge-01",
+         *       "host": "10.0.0.11",
+         *       "sshPort": 22,
+         *       "description": "Primary edge node",
+         *       "createdAt": "2026-01-15T09:30:00Z"
+         *     }
+         */
+        Server: {
+            /**
+             * Format: uuid
+             * @description Unique identifier.
+             */
+            id: string;
+            /** @description Display name. */
+            name: string;
+            /** @description SSH hostname or IP address. */
+            host: string;
+            /** @description SSH port. */
+            sshPort: number;
+            /** @description Free-form description. */
+            description?: string;
+            /**
+             * Format: date-time
+             * @description Creation timestamp (ISO 8601).
+             */
+            createdAt: string;
+        };
+        /**
+         * @description Request to register a server.
+         * @example {
+         *       "name": "edge-01",
+         *       "host": "10.0.0.11",
+         *       "sshPort": 22,
+         *       "description": "Primary edge node"
+         *     }
+         */
+        CreateServerRequest: {
+            /** @description Display name. */
+            name: string;
+            /** @description SSH hostname or IP address. */
+            host: string;
+            /**
+             * @description SSH port.
+             * @default 22
+             */
+            sshPort: number;
+            /** @description Free-form description. */
+            description?: string;
+        };
+        /**
+         * @description Swarm cluster overview.
+         * @example {
+         *       "nodeCount": 2,
+         *       "serviceCount": 7,
+         *       "nodes": [
+         *         {
+         *           "ID": "q7wdm3clv2im6c9gfsp9cvr8d",
+         *           "Spec": {
+         *             "Role": "manager",
+         *             "Availability": "active"
+         *           }
+         *         }
+         *       ]
+         *     }
+         */
+        ClusterInfo: {
+            /** @description Number of nodes in the swarm. */
+            nodeCount: number;
+            /** @description Number of swarm services. */
+            serviceCount: number;
+            /** @description Raw Docker Swarm node objects as returned by the Docker API. */
+            nodes: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * @description Stored SSH key pair metadata (private key is never returned).
+         * @example {
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "name": "deploy-key",
+         *       "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... luke@hive",
+         *       "createdAt": "2026-02-01T12:00:00Z"
+         *     }
+         */
+        SSHKey: {
+            /**
+             * Format: uuid
+             * @description Unique identifier.
+             */
+            id: string;
+            /** @description Display name. */
+            name: string;
+            /** @description OpenSSH public key material. */
+            publicKey: string;
+            /**
+             * Format: date-time
+             * @description Creation timestamp (ISO 8601).
+             */
+            createdAt: string;
+        };
+        /**
+         * @description Request to store an SSH key pair.
+         * @example {
+         *       "name": "deploy-key",
+         *       "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... luke@hive"
+         *     }
+         */
+        CreateSSHKeyRequest: {
+            /** @description Display name. */
+            name: string;
+            /** @description OpenSSH public key material. */
+            publicKey: string;
+            /** @description Private key material (stored encrypted; never returned). */
+            privateKey?: string;
+        };
+        /**
+         * @description Stored TLS certificate metadata.
+         * @example {
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "domain": "api.example.com",
+         *       "createdAt": "2026-03-10T08:00:00Z"
+         *     }
+         */
+        Certificate: {
+            /**
+             * Format: uuid
+             * @description Unique identifier.
+             */
+            id: string;
+            /** @description Domain the certificate was issued for. */
+            domain: string;
+            /**
+             * Format: date-time
+             * @description Creation timestamp (ISO 8601).
+             */
+            createdAt: string;
+        };
+        /**
+         * @description Request to store a TLS certificate for a domain.
+         * @example {
+         *       "domain": "api.example.com",
+         *       "certPem": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
+         *       "keyPem": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+         *     }
+         */
+        CreateCertificateRequest: {
+            /** @description Domain the certificate is issued for. */
+            domain: string;
+            /** @description Certificate chain in PEM format. */
+            certPem: string;
+            /** @description Private key in PEM format (stored encrypted; never returned). */
+            keyPem: string;
+        };
+        /**
+         * @description Audit entry for a control-plane request or system action.
+         * @example {
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "category": "server",
+         *       "message": "server created",
+         *       "payload": {
+         *         "serverId": "550e8400-e29b-41d4-a716-446655440001"
+         *       },
+         *       "createdAt": "2026-04-05T10:15:00Z"
+         *     }
+         */
+        RequestEvent: {
+            /**
+             * Format: uuid
+             * @description Unique identifier.
+             */
+            id: string;
+            /** @description Event category (for example server, certificate, ssh_key). */
+            category: string;
+            /** @description Human-readable summary. */
+            message: string;
+            /** @description Structured event details. */
+            payload: {
+                [key: string]: unknown;
+            };
+            /**
+             * Format: date-time
+             * @description Creation timestamp (ISO 8601).
+             */
+            createdAt: string;
+        };
+        /**
+         * @description Result of a stack start/stop/restart action.
+         * @example {
+         *       "status": "ok",
+         *       "replicas": 1
+         *     }
+         */
+        StackActionResponse: {
+            /** @description Action result status. */
+            status: string;
+            /** @description Replica count every stack service was scaled to. */
+            replicas: number;
+        };
+        /**
+         * @description Request to update or rotate a Swarm secret's data.
+         * @example {
+         *       "data": "s3cr3t-new-value"
+         *     }
+         */
+        UpdateSecretRequest: {
+            /** @description New secret payload (base64-encoded by the server). */
+            data: string;
+            /** @description Key-value labels. */
+            labels?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * @description Request to update a Swarm config's data.
+         * @example {
+         *       "data": "listen 443 ssl;"
+         *     }
+         */
+        UpdateConfigRequest: {
+            /** @description New config payload. */
+            data: string;
+            /** @description Key-value labels. */
+            labels?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * @description Request to update a Swarm network.
+         * @example {
+         *       "attachable": true
+         *     }
+         */
+        UpdateNetworkRequest: {
+            /** @description Whether the network is internal. */
+            internal?: boolean;
+            /** @description Whether containers can attach to the network. */
+            attachable?: boolean;
+            /** @description Key-value labels. */
+            labels?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * @description Request to replace a node's labels.
+         * @example {
+         *       "labels": {
+         *         "role": "edge",
+         *         "zone": "eu-west"
+         *       }
+         *     }
+         */
+        UpdateNodeLabelsRequest: {
+            /** @description Full replacement label set. */
+            labels: {
+                [key: string]: string;
+            };
+        };
     };
     responses: {
         /** @description Bad request */
@@ -3929,6 +4754,33 @@ export interface components {
         };
         /** @description Not found */
         NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Conflicting concurrent update */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Upstream (agent or Docker) unavailable */
+        BadGateway: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Internal server error */
+        InternalServerError: {
             headers: {
                 [name: string]: unknown;
             };
@@ -4343,34 +5195,6 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
-    regenerateApiKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description IdParam schema. */
-                id: components["parameters"]["IdParam"];
-                keyId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description New API key token */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description New API key token */
-                        token: string;
-                    };
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
-    };
     deleteApiKey: {
         parameters: {
             query?: never;
@@ -4394,6 +5218,43 @@ export interface operations {
                 };
             };
             403: components["responses"]["Forbidden"];
+        };
+    };
+    regenerateApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description New API key token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description New API key token */
+                        token: string;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
         };
     };
     listOrganizationMembers: {
@@ -4428,6 +5289,7 @@ export interface operations {
             path: {
                 /** @description IdParam schema. */
                 id: components["parameters"]["IdParam"];
+                userId: string;
             };
             cookie?: never;
         };
@@ -4447,7 +5309,10 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
         };
     };
     listOrganizationInvitations: {
@@ -4540,7 +5405,12 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
         responses: {
             /** @description Invitation resent */
             200: {
@@ -4570,7 +5440,12 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
         responses: {
             /** @description Invitation revoked */
             200: {
@@ -5470,6 +6345,166 @@ export interface operations {
             502: components["responses"]["BadRequest"];
         };
     };
+    removeNode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Node removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    updateNodeLabels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNodeLabelsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated node */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Node"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    drainNode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Node draining */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    promoteNode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Node promoted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    demoteNode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Node ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Node demoted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
     getClusterResources: {
         parameters: {
             query?: never;
@@ -5931,6 +6966,102 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    startStack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Stack started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StackActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    stopStack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Stack stopped */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StackActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    restartStack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        /** @description Empty request body. */
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Stack restarted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StackActionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
     listSecrets: {
         parameters: {
             query?: never;
@@ -5985,6 +7116,99 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    updateSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Secret ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSecretRequest"];
+            };
+        };
+        responses: {
+            /** @description Secret updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    deleteSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Secret ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Secret removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    rotateSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Secret ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSecretRequest"];
+            };
+        };
+        responses: {
+            /** @description Secret rotated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
     listConfigs: {
         parameters: {
             query?: never;
@@ -6037,6 +7261,66 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    updateConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Config ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Config updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    deleteConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Config ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Config removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
         };
     };
     listNetworks: {
@@ -6096,6 +7380,117 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    updateNetwork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Network ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNetworkRequest"];
+            };
+        };
+        responses: {
+            /** @description Network updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    deleteNetwork: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Network ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Network removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    listDeployments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deployment list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Deployment"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    deleteDeployment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deployment removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
         };
     };
     listBuilds: {
@@ -6202,6 +7597,33 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getBuildLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description IdParam schema. */
+                id: components["parameters"]["IdParam"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Build log output */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                    "application/json": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
     getSettings: {
         parameters: {
             query?: never;
@@ -6247,6 +7669,205 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    listServers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Server"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateServerRequest"];
+            };
+        };
+        responses: {
+            /** @description Server created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    getClusterInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cluster overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterInfo"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listSshKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSH key list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SSHKey"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createSshKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSSHKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description SSH key stored */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listCertificates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Certificate list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Certificate"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCertificateRequest"];
+            };
+        };
+        responses: {
+            /** @description Certificate stored */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    listRequestEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Request event list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["RequestEvent"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
         };
     };
     listSchedules: {
@@ -7046,6 +8667,63 @@ export interface operations {
             };
         };
     };
+    wsTerminal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Docker container ID. */
+                containerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebSocket upgrade response; stream follows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    wsContainerLogs: {
+        parameters: {
+            query?: {
+                /** @description Keep streaming new log lines after replaying history. */
+                follow?: boolean;
+                /** @description Number of recent lines to replay before streaming. */
+                tail?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Docker container ID. */
+                containerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebSocket upgrade response; stream follows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
     getMetrics: {
         parameters: {
             query?: never;
@@ -7179,7 +8857,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             404: components["responses"]["NotFound"];
         };
@@ -7296,7 +8976,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             404: components["responses"]["NotFound"];
         };
@@ -7413,7 +9095,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             404: components["responses"]["NotFound"];
         };
@@ -7502,7 +9186,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             404: components["responses"]["NotFound"];
         };
@@ -7622,7 +9308,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             404: components["responses"]["NotFound"];
         };
@@ -7720,7 +9408,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
             404: components["responses"]["NotFound"];
         };

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hive API
-  version: 0.3.0
+  version: 0.4.0
   description: 'Hive is a Swarm-native platform control plane. This spec is the single
 
     source of truth for all API contracts. Every request body, response, and
@@ -647,6 +647,9 @@ components:
           type: string
           format: uuid
           description: Application ID.
+        applicationName:
+          type: string
+          description: Application name (present on the global deployment list).
         imageTag:
           type: string
           description: Docker image tag.
@@ -2229,6 +2232,315 @@ components:
           - 10.0.0.0/8
         priority: 10
         enabled: true
+    Server:
+      description: Server registered for agent provisioning (SSH-reachable host).
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - host
+      - sshPort
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        host:
+          type: string
+          description: SSH hostname or IP address.
+        sshPort:
+          type: integer
+          description: SSH port.
+        description:
+          type: string
+          description: Free-form description.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        name: edge-01
+        host: 10.0.0.11
+        sshPort: 22
+        description: Primary edge node
+        createdAt: 2026-01-15T09:30:00Z
+    CreateServerRequest:
+      description: Request to register a server.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - host
+      properties:
+        name:
+          type: string
+          description: Display name.
+        host:
+          type: string
+          description: SSH hostname or IP address.
+        sshPort:
+          type: integer
+          default: 22
+          description: SSH port.
+        description:
+          type: string
+          description: Free-form description.
+      example:
+        name: edge-01
+        host: 10.0.0.11
+        sshPort: 22
+        description: Primary edge node
+    ClusterInfo:
+      description: Swarm cluster overview.
+      type: object
+      additionalProperties: false
+      required:
+      - nodeCount
+      - serviceCount
+      - nodes
+      properties:
+        nodeCount:
+          type: integer
+          description: Number of nodes in the swarm.
+        serviceCount:
+          type: integer
+          description: Number of swarm services.
+        nodes:
+          type: array
+          description: Raw Docker Swarm node objects as returned by the Docker API.
+          items:
+            type: object
+            additionalProperties: true
+      example:
+        nodeCount: 2
+        serviceCount: 7
+        nodes:
+        - ID: q7wdm3clv2im6c9gfsp9cvr8d
+          Spec:
+            Role: manager
+            Availability: active
+    SSHKey:
+      description: Stored SSH key pair metadata (private key is never returned).
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - name
+      - publicKey
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        name:
+          type: string
+          description: Display name.
+        publicKey:
+          type: string
+          description: OpenSSH public key material.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        name: deploy-key
+        publicKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... luke@hive
+        createdAt: 2026-02-01T12:00:00Z
+    CreateSSHKeyRequest:
+      description: Request to store an SSH key pair.
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - publicKey
+      properties:
+        name:
+          type: string
+          description: Display name.
+        publicKey:
+          type: string
+          description: OpenSSH public key material.
+        privateKey:
+          type: string
+          description: Private key material (stored encrypted; never returned).
+      example:
+        name: deploy-key
+        publicKey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... luke@hive
+    Certificate:
+      description: Stored TLS certificate metadata.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - domain
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        domain:
+          type: string
+          description: Domain the certificate was issued for.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        domain: api.example.com
+        createdAt: 2026-03-10T08:00:00Z
+    CreateCertificateRequest:
+      description: Request to store a TLS certificate for a domain.
+      type: object
+      additionalProperties: false
+      required:
+      - domain
+      - certPem
+      - keyPem
+      properties:
+        domain:
+          type: string
+          description: Domain the certificate is issued for.
+        certPem:
+          type: string
+          description: Certificate chain in PEM format.
+        keyPem:
+          type: string
+          description: Private key in PEM format (stored encrypted; never returned).
+      example:
+        domain: api.example.com
+        certPem: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+        keyPem: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+    RequestEvent:
+      description: Audit entry for a control-plane request or system action.
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - category
+      - message
+      - payload
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier.
+        category:
+          type: string
+          description: Event category (for example server, certificate, ssh_key).
+        message:
+          type: string
+          description: Human-readable summary.
+        payload:
+          type: object
+          additionalProperties: true
+          description: Structured event details.
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp (ISO 8601).
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        category: server
+        message: server created
+        payload:
+          serverId: 550e8400-e29b-41d4-a716-446655440001
+        createdAt: 2026-04-05T10:15:00Z
+    StackActionResponse:
+      description: Result of a stack start/stop/restart action.
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      - replicas
+      properties:
+        status:
+          type: string
+          description: Action result status.
+        replicas:
+          type: integer
+          description: Replica count every stack service was scaled to.
+      example:
+        status: ok
+        replicas: 1
+    UpdateSecretRequest:
+      description: Request to update or rotate a Swarm secret's data.
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: string
+          description: New secret payload (base64-encoded by the server).
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels.
+      example:
+        data: s3cr3t-new-value
+    UpdateConfigRequest:
+      description: Request to update a Swarm config's data.
+      type: object
+      additionalProperties: false
+      required:
+      - data
+      properties:
+        data:
+          type: string
+          description: New config payload.
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels.
+      example:
+        data: "listen 443 ssl;"
+    UpdateNetworkRequest:
+      description: Request to update a Swarm network.
+      type: object
+      additionalProperties: false
+      properties:
+        internal:
+          type: boolean
+          description: Whether the network is internal.
+        attachable:
+          type: boolean
+          description: Whether containers can attach to the network.
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value labels.
+      example:
+        attachable: true
+    UpdateNodeLabelsRequest:
+      description: Request to replace a node's labels.
+      type: object
+      additionalProperties: false
+      required:
+      - labels
+      properties:
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Full replacement label set.
+      example:
+        labels:
+          role: edge
+          zone: eu-west
   parameters:
     IdParam:
       description: IdParam schema.
@@ -2259,6 +2571,24 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     NotFound:
       description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflicting concurrent update
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadGateway:
+      description: Upstream (agent or Docker) unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Internal server error
       content:
         application/json:
           schema:
@@ -2624,11 +2954,28 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       description: Delete organizations id api keys keyId
+  /organizations/{id}/api-keys/{keyId}/regenerate:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    - name: keyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     post:
       operationId: regenerateApiKey
       summary: Regenerate API key
+      description: Replaces the API key with a new token and returns it. The old token stops working immediately.
       security:
       - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
       responses:
         '200':
           description: New API key token
@@ -2642,9 +2989,18 @@ paths:
                   token:
                     type: string
                     description: New API key token
+                example:
+                  token: hv_9f2b7c1d4e5a6f708192a3b4c5d6e7f8091a2b3c
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-      description: Regenerate an API key (replaces old key with a new token)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /organizations/{id}/members:
     parameters:
     - $ref: '#/components/parameters/IdParam'
@@ -2668,9 +3024,19 @@ paths:
                     items:
                       $ref: '#/components/schemas/Member'
       description: Retrieve organizations id members
+  /organizations/{id}/members/{userId}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     put:
       operationId: updateOrganizationMemberRole
       summary: Update member role
+      description: Changes an organization member's role. Requires owner access.
       security:
       - bearerAuth: []
       requestBody:
@@ -2688,9 +3054,14 @@ paths:
                 $ref: '#/components/schemas/StatusResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-      description: Update organizations id members
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /organizations/{id}/invitations:
     parameters:
     - $ref: '#/components/parameters/IdParam'
@@ -2775,6 +3146,13 @@ paths:
       summary: Resend invitation
       security:
       - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
       responses:
         '200':
           description: Invitation resent
@@ -2822,6 +3200,13 @@ paths:
                 $ref: '#/components/schemas/StatusResponse'
         '403':
           $ref: '#/components/responses/Forbidden'
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
       description: Revoke an organization invitation (marks as revoked without deleting)
   /invitations/{token}:
     get:
@@ -3601,6 +3986,187 @@ paths:
         '502':
           $ref: '#/components/responses/BadRequest'
       description: Create nodes id maintain
+  /nodes/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Node ID.
+    delete:
+      operationId: removeNode
+      summary: Remove node from swarm
+      description: Drains workloads and removes the node from the Swarm cluster.
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Node removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /nodes/{id}/labels:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Node ID.
+    put:
+      operationId: updateNodeLabels
+      summary: Replace node labels
+      description: Replaces the node's label set with the provided labels.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNodeLabelsRequest'
+      responses:
+        '200':
+          description: Updated node
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /nodes/{id}/drain:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Node ID.
+    post:
+      operationId: drainNode
+      summary: Drain node
+      description: Sets the node's availability to drain so no new tasks are scheduled on it.
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Node draining
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /nodes/{id}/promote:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Node ID.
+    post:
+      operationId: promoteNode
+      summary: Promote node to manager
+      description: Promotes a worker node to swarm manager.
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Node promoted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /nodes/{id}/demote:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Node ID.
+    post:
+      operationId: demoteNode
+      summary: Demote manager to worker
+      description: Demotes a manager node to swarm worker.
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Node demoted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
   /cluster/resources:
     get:
       operationId: getClusterResources
@@ -3981,6 +4547,99 @@ paths:
             schema:
               type: object
               additionalProperties: false
+  /stacks/{id}/start:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: startStack
+      summary: Start stack
+      description: Scales every service in the stack back to one replica.
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Stack started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackActionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /stacks/{id}/stop:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: stopStack
+      summary: Stop stack
+      description: Scales every service in the stack to zero replicas.
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Stack stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackActionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /stacks/{id}/restart:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    post:
+      operationId: restartStack
+      summary: Restart stack
+      description: Restarts every service in the stack by scaling it back to one replica.
+      security:
+      - bearerAuth: []
+      requestBody:
+        description: Empty request body.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Stack restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StackActionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
   /secrets:
     get:
       operationId: listSecrets
@@ -4037,6 +4696,105 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       description: Create secrets
+  /secrets/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Secret ID.
+    put:
+      operationId: updateSecret
+      summary: Update secret
+      description: Replaces a Swarm secret's data.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSecretRequest'
+      responses:
+        '200':
+          description: Secret updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+    delete:
+      operationId: deleteSecret
+      summary: Delete secret
+      description: Removes a Swarm secret.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Secret removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /secrets/{id}/rotate:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Secret ID.
+    post:
+      operationId: rotateSecret
+      summary: Rotate secret
+      description: Replaces the secret's payload with a new value (rotation without changing the secret's identity).
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSecretRequest'
+      responses:
+        '200':
+          description: Secret rotated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/BadGateway'
   /configs:
     get:
       operationId: listConfigs
@@ -4093,6 +4851,66 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       description: Create configs
+  /configs/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Config ID.
+    put:
+      operationId: updateConfig
+      summary: Update config
+      description: Replaces a Swarm config's data.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConfigRequest'
+      responses:
+        '200':
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+    delete:
+      operationId: deleteConfig
+      summary: Delete config
+      description: Removes a Swarm config.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Config removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
   /networks:
     get:
       operationId: listNetworks
@@ -4156,6 +4974,115 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
       description: Create networks
+  /networks/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Network ID.
+    put:
+      operationId: updateNetwork
+      summary: Update network
+      description: Updates an existing Swarm network's settings.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNetworkRequest'
+      responses:
+        '200':
+          description: Network updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+    delete:
+      operationId: deleteNetwork
+      summary: Delete network
+      description: Removes a Swarm network.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Network removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /deployments:
+    get:
+      operationId: listDeployments
+      summary: List deployments
+      description: Lists the most recent deployments across all applications in the active organization (latest 200).
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Deployment list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Deployment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /deployments/{id}:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    delete:
+      operationId: deleteDeployment
+      summary: Delete deployment
+      description: Removes a deployment record.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Deployment removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /builds:
     get:
       operationId: listBuilds
@@ -4252,6 +5179,38 @@ paths:
             schema:
               type: object
               additionalProperties: false
+  /builds/{id}/logs:
+    parameters:
+    - $ref: '#/components/parameters/IdParam'
+    get:
+      operationId: getBuildLogs
+      summary: Get build logs
+      description: Returns the raw build output for a build as plain text.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Build log output
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  Step 1/4 : FROM node:22-alpine
+                   ---> 7b1c5d9f4e2a
+                  Step 2/4 : WORKDIR /app
+                   ---> Using cache
+                  Successfully built 9f8e7d6c5b4a
+            application/json:
+              schema:
+                type: string
+                description: Build log output (also available as text/plain).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /settings:
     get:
       operationId: getSettings
@@ -4292,6 +5251,199 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
       description: Update settings
+  /settings/servers:
+    get:
+      operationId: listServers
+      summary: List registered servers
+      description: Lists servers registered for agent provisioning.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Server list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Server'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: createServer
+      summary: Register server
+      description: Registers an SSH-reachable host for agent provisioning.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServerRequest'
+      responses:
+        '201':
+          description: Server created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /settings/cluster:
+    get:
+      operationId: getClusterInfo
+      summary: Get cluster info
+      description: Returns swarm node/service counts plus the raw node objects.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Cluster overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /settings/ssh-keys:
+    get:
+      operationId: listSshKeys
+      summary: List SSH keys
+      description: Lists stored SSH key pairs (private key material is never returned).
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: SSH key list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SSHKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: createSshKey
+      summary: Store SSH key
+      description: Stores an SSH key pair for later use when provisioning servers.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSSHKeyRequest'
+      responses:
+        '201':
+          description: SSH key stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /settings/certificates:
+    get:
+      operationId: listCertificates
+      summary: List certificates
+      description: Lists stored TLS certificates by domain.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Certificate list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Certificate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      operationId: createCertificate
+      summary: Store certificate
+      description: Stores or replaces the TLS certificate for a domain.
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCertificateRequest'
+      responses:
+        '201':
+          description: Certificate stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /settings/requests:
+    get:
+      operationId: listRequestEvents
+      summary: List request events
+      description: Returns the most recent audit events (latest 200).
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Request event list
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RequestEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /schedules:
     get:
       operationId: listSchedules
@@ -4974,6 +6126,83 @@ paths:
                 type: object
                 description: WebSocket stream.
       description: Retrieve ws events
+  /ws/terminal/{containerId}:
+    parameters:
+    - name: containerId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Docker container ID.
+    get:
+      operationId: wsTerminal
+      summary: Interactive container terminal over WebSocket
+      description: |
+        WebSocket endpoint (RFC 6455). The HTTP GET performs a protocol upgrade;
+        after upgrading, binary frames carry terminal input from the client and
+        output from the container's exec session. The connection is proxied to
+        the agent running on the node that hosts the container.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: WebSocket upgrade response; stream follows.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: WebSocket stream.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /ws/logs/{containerId}:
+    parameters:
+    - name: containerId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Docker container ID.
+    - name: follow
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+      description: Keep streaming new log lines after replaying history.
+    - name: tail
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 200
+      description: Number of recent lines to replay before streaming.
+    get:
+      operationId: wsContainerLogs
+      summary: Stream container logs over WebSocket
+      description: |
+        WebSocket endpoint (RFC 6455). After the protocol upgrade, each text
+        frame carries one chunk of container log output (timestamps included).
+        The stream is proxied to the agent on the node hosting the container.
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: WebSocket upgrade response; stream follows.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: WebSocket stream.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
   /metrics:
     get:
       operationId: getMetrics
@@ -5093,6 +6322,12 @@ paths:
       responses:
         '204':
           description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                description: No response body.
         '404':
           $ref: '#/components/responses/NotFound'
       description: Delete redirect rule
@@ -5199,6 +6434,12 @@ paths:
       responses:
         '204':
           description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                description: No response body.
         '404':
           $ref: '#/components/responses/NotFound'
       description: Delete mount configuration
@@ -5305,6 +6546,12 @@ paths:
       responses:
         '204':
           description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                description: No response body.
         '404':
           $ref: '#/components/responses/NotFound'
       description: Delete port policy
@@ -5381,6 +6628,12 @@ paths:
       responses:
         '204':
           description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                description: No response body.
         '404':
           $ref: '#/components/responses/NotFound'
       description: Delete volume backup record
@@ -5481,6 +6734,12 @@ paths:
       responses:
         '204':
           description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                description: No response body.
         '404':
           $ref: '#/components/responses/NotFound'
       description: Delete security rule
@@ -5587,6 +6846,12 @@ paths:
       responses:
         '204':
           description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                description: No response body.
         '404':
           $ref: '#/components/responses/NotFound'
       description: Delete a preview deployment
