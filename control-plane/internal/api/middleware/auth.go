@@ -13,6 +13,7 @@ import (
 	"github.com/luke/hive/control-plane/internal/auth"
 )
 
+// WithAuth returns middleware that authenticates requests via JWT bearer token or API key.
 func WithAuth(svc *auth.Service, pool *pgxpool.Pool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +56,7 @@ func WithAuth(svc *auth.Service, pool *pgxpool.Pool) func(http.Handler) http.Han
 }
 
 // ClaimsFromContext retrieves auth claims from the context.
+//
 // Deprecated: use ctx.ClaimsFromContext instead.
 func ClaimsFromContext(c context.Context) (*auth.Claims, bool) {
 	return apicxt.ClaimsFromContext(c)

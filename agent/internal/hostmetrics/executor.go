@@ -41,7 +41,7 @@ func (e *Executor) Execute(ctx context.Context, req *agentv1.HostOperationReques
 	defer cancel()
 
 	start := time.Now()
-	c := exec.CommandContext(ctx, "nsenter", append([]string{"-t", "1", "-m", "-u", "-i", "-n", "--"}, cmd...)...)
+	c := exec.CommandContext(ctx, "nsenter", append([]string{"-t", "1", "-m", "-u", "-i", "-n", "--"}, cmd...)...) //nolint:gosec // nsenter into the host namespaces is the deliberate purpose of this tooling; cmd is built from an allowlisted operation set
 
 	var stdout, stderr strings.Builder
 	c.Stdout = &stdout

@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -20,6 +21,25 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	dockerclient "github.com/moby/moby/client"
 )
+
+// TestMain gates the whole suite on cluster health: after a control-plane
+// redeploy the API can reset connections for a few seconds while booting,
+// and per-test bootstrap logins would otherwise race that window.
+func TestMain(m *testing.M) {
+	healthURL := getenv("HIVE_API_BASE_URL", "http://127.0.0.1:3000") + "/api/v1/health"
+	deadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(healthURL) //nolint:gosec
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				break
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	os.Exit(m.Run())
+}
 
 func TestClusterBootstrap(t *testing.T) {
 	baseURL := getenv("HIVE_API_BASE_URL", "http://127.0.0.1:3000")
@@ -34,7 +54,7 @@ func TestClusterBootstrap(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("health returned %d", resp.StatusCode)
 		}
-		var body map[string]string
+		var body map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 			return err
 		}
@@ -187,7 +207,7 @@ func TestApplicationGitDeploy(t *testing.T) {
 		t.Fatalf("enqueue deploy failed: %v", err)
 	}
 
-	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:6432/hive?sslmode=disable")
+	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:5432/hive?sslmode=disable")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	pool, err := pgxpool.New(ctx, dbURL)
@@ -257,14 +277,39 @@ func TestRollbackQueueFlow(t *testing.T) {
 	}
 	appID := asString(appRes["id"])
 
-	_ = authedPostJSONWithHeaders(baseURL+"/api/v1/applications/"+appID+"/deploy", auth.AccessToken, map[string]string{
+	// The platform enforces ONE active build per application (partial unique
+	// index on queued/building rows), so rapid double-deploys are rejected.
+	// Deploy, wait for completion, then deploy again to get two deployments.
+	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/applications/"+appID+"/deploy", auth.AccessToken, map[string]string{
 		"X-Organization-Id": auth.OrganizationID,
-	}, map[string]any{}, &map[string]any{}, http.StatusAccepted)
-	_ = authedPostJSONWithHeaders(baseURL+"/api/v1/applications/"+appID+"/deploy", auth.AccessToken, map[string]string{
+	}, map[string]any{}, &map[string]any{}, http.StatusAccepted); err != nil {
+		t.Fatalf("first deploy enqueue failed: %v", err)
+	}
+	prePool, err := pgxpool.New(context.Background(), getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:5432/hive?sslmode=disable"))
+	if err != nil {
+		t.Fatalf("create pgx pool failed: %v", err)
+	}
+	if err := retry(30, 1*time.Second, func() error {
+		var status string
+		if err := prePool.QueryRow(context.Background(), `select status::text from build_jobs where application_id=$1::uuid order by created_at desc limit 1`, appID).Scan(&status); err != nil {
+			return err
+		}
+		if status != "complete" && status != "failed" {
+			return fmt.Errorf("first build still %s", status)
+		}
+		return nil
+	}); err != nil {
+		prePool.Close()
+		t.Fatalf("first build did not finish: %v", err)
+	}
+	prePool.Close()
+	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/applications/"+appID+"/deploy", auth.AccessToken, map[string]string{
 		"X-Organization-Id": auth.OrganizationID,
-	}, map[string]any{}, &map[string]any{}, http.StatusAccepted)
+	}, map[string]any{}, &map[string]any{}, http.StatusAccepted); err != nil {
+		t.Fatalf("second deploy enqueue failed: %v", err)
+	}
 
-	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:6432/hive?sslmode=disable")
+	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:5432/hive?sslmode=disable")
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 	pool, err := pgxpool.New(ctx, dbURL)
@@ -448,7 +493,7 @@ func TestGithubWebhookSignatureFlow(t *testing.T) {
 		t.Fatalf("webhook status=%d", resp.StatusCode)
 	}
 
-	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:6432/hive?sslmode=disable")
+	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:5432/hive?sslmode=disable")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	pool, err := pgxpool.New(ctx, dbURL)
@@ -543,9 +588,16 @@ func authedPostJSONWithHeaders(url, accessToken string, headers map[string]strin
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != expectedStatus {
-		return fmt.Errorf("status=%d expected=%d", resp.StatusCode, expectedStatus)
+		return statusError(resp)
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// statusError builds an error carrying the status code plus a short
+// response-body snippet so failures point at the actual API error.
+func statusError(resp *http.Response) error {
+	snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+	return fmt.Errorf("status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(snippet)))
 }
 
 func authedPutJSONWithHeaders(url, accessToken string, headers map[string]string, payload any, out any, expectedStatus int) error {
@@ -619,11 +671,22 @@ func bootstrapAuthContext(t *testing.T, baseURL string) authContext {
 	}, &map[string]any{}, http.StatusCreated)
 
 	loginRes := map[string]any{}
-	if err := postJSON(baseURL+"/api/v1/auth/login", map[string]any{
-		"email":    email,
-		"password": password,
-	}, &loginRes, http.StatusOK); err != nil {
-		t.Fatalf("login bootstrap failed: %v", err)
+	// The public auth endpoints are rate limited; the full suite logs in
+	// once per test, which can trip the bucket. Retry 429s with backoff —
+	// the same behavior production clients need.
+	var loginErr error
+	for attempt := 0; attempt < 8; attempt++ {
+		loginErr = postJSON(baseURL+"/api/v1/auth/login", map[string]any{
+			"email":    email,
+			"password": password,
+		}, &loginRes, http.StatusOK)
+		if loginErr == nil || !strings.Contains(loginErr.Error(), "status=429") {
+			break
+		}
+		time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
+	}
+	if loginErr != nil {
+		t.Fatalf("login bootstrap failed: %v", loginErr)
 	}
 	accessToken := asString(loginRes["accessToken"])
 	refreshToken := asString(loginRes["refreshToken"])

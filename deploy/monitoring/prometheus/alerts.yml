@@ -1,0 +1,75 @@
+groups:
+  - name: hive-availability
+    rules:
+      # A node's cAdvisor task stopped answering (node down or cAdvisor dead).
+      - alert: CadvisorNodeDown
+        expr: up{job="cadvisor"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "cAdvisor unreachable on {{ $labels.instance }}"
+          description: "Prometheus has failed to scrape cAdvisor on {{ $labels.instance }} for more than 5 minutes."
+
+      # Swarm tasks whose target still resolves but no longer scrapes — the
+      # practical stand-in for desired != running, which Prometheus cannot
+      # see directly (Swarm state is not exposed as metrics).
+      - alert: HiveServiceTasksUnhealthy
+        expr: count by (job) (up{job=~"agent|control-plane"} == 1) < count by (job) (up{job=~"agent|control-plane"})
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Some {{ $labels.job }} tasks are not serving metrics"
+          description: "{{ $value }} task(s) of service {{ $labels.job }} resolve but fail to scrape — likely crashed or restarting replicas."
+
+      # A whole job vanished from DNS discovery entirely.
+      - alert: HiveServiceTargetMissing
+        expr: absent(up{job="control-plane"}) or absent(up{job="agent"}) or absent(up{job="cadvisor"})
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No targets found for a monitored service"
+          description: "DNS discovery returned zero tasks for one of agent/control-plane/cadvisor."
+
+      # Agent mTLS certificate expiring within 48h. Metric only exists when a
+      # certificate is loaded; > 0 guards against a zeroed gauge.
+      - alert: AgentCertificateExpiringSoon
+        expr: hive_agent_cert_expiry_timestamp_seconds - time() < 48 * 3600 and hive_agent_cert_expiry_timestamp_seconds > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent certificate on {{ $labels.instance }} expires in under 48h"
+          description: "Certificate expiry at {{ $value | humanizeTimestamp }}."
+
+      - alert: AgentCertificateExpired
+        expr: hive_agent_cert_expiry_timestamp_seconds - time() <= 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Agent certificate on {{ $labels.instance }} has expired"
+          description: "Agents will fail mTLS handshakes with the control plane until renewed."
+
+      # Host filesystem usage per node from cAdvisor root-container stats.
+      - alert: HostDiskUsageHigh
+        expr: 100 * container_fs_usage_bytes{image="",device!~"shm|tmpfs|overlay.*"} / on(instance, device) container_fs_limit_bytes{image="",device!~"shm|tmpfs|overlay.*"} > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage above 85% on {{ $labels.instance }} ({{ $labels.device }})"
+          description: "Filesystem {{ $labels.mountpoint }} on {{ $labels.device }} is at {{ printf \"%.1f\" $value }}%."
+
+      # Any remaining scrape target failing (agent, control-plane, prometheus
+      # itself). cadvisor failures are covered by CadvisorNodeDown above.
+      - alert: PrometheusScrapeFailed
+        expr: up{job!="cadvisor"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Scrape failing for job {{ $labels.job }} target {{ $labels.instance }}"
+          description: "Prometheus could not scrape {{ $labels.instance }} (job {{ $labels.job }}) for more than 5 minutes."

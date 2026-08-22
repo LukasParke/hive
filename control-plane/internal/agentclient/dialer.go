@@ -2,13 +2,8 @@ package agentclient
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
@@ -22,94 +17,81 @@ import (
 	"github.com/luke/hive/proto/gen/agent/v1/agentv1connect"
 )
 
-// Dialer creates mTLS ConnectRPC clients for communicating with agents.
+// Dialer creates ConnectRPC clients for communicating with agents. When
+// mtls is enabled it dials with a client certificate and verifies agent
+// server certificates against the CA; otherwise it dials plaintext (for use
+// on the encrypted hive_internal overlay in dev setups without certs).
 type Dialer struct {
 	authority *ca.Authority
 	tlsCert   tls.Certificate
 	caPool    *x509.CertPool
+	mtls      bool
 	clients   map[string]agentv1connect.AgentServiceClient
-	mu        sync.RWMutex
+	mu        sync.Mutex
 }
 
-// NewDialer creates a new agent dialer. It generates a client certificate
-// signed by the CA for the control-plane to authenticate to agents.
-func NewDialer(authority *ca.Authority) (*Dialer, error) {
-	// Generate control-plane client key
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("generate key: %w", err)
-	}
+// appendCertToPool is a seam so tests can inject trust-root failures.
+var appendCertToPool = func(pool *x509.CertPool, pemCerts []byte) bool {
+	return pool.AppendCertsFromPEM(pemCerts)
+}
 
-	// Create CSR and have the CA sign it
-	csrTemplate := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName: "control-plane",
-		},
-	}
-	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, key)
-	if err != nil {
-		return nil, fmt.Errorf("create csr: %w", err)
-	}
-	csr, err := x509.ParseCertificateRequest(csrDER)
-	if err != nil {
-		return nil, fmt.Errorf("parse csr: %w", err)
-	}
-
-	// Sign with long TTL for the control-plane
-	certPEM, err := authority.SignAgentCSR(csr, "control-plane", 365*24*time.Hour)
-	if err != nil {
-		return nil, fmt.Errorf("sign client cert: %w", err)
-	}
-
-	// Build tls.Certificate from the signed cert + our private key
-	keyDER, err := x509.MarshalECPrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("marshal key: %w", err)
-	}
-	tlsCert, err := tls.X509KeyPair(certPEM, pemEncode("EC PRIVATE KEY", keyDER))
-	if err != nil {
-		return nil, fmt.Errorf("x509 key pair: %w", err)
-	}
-
-	// Build CA pool
-	caPool := x509.NewCertPool()
-	if !caPool.AppendCertsFromPEM(authority.CertPEM()) {
-		return nil, fmt.Errorf("failed to add CA cert to pool")
-	}
-
-	return &Dialer{
+// NewDialer creates a new agent dialer that authenticates with the given
+// control-plane client certificate (see LoadOrCreateClientCert) and, when
+// mtls is true, verifies agent server certificates against the CA pool built
+// from authority.
+func NewDialer(authority *ca.Authority, tlsCert tls.Certificate, mtls bool) (*Dialer, error) {
+	d := &Dialer{
 		authority: authority,
 		tlsCert:   tlsCert,
-		caPool:    caPool,
+		mtls:      mtls,
 		clients:   make(map[string]agentv1connect.AgentServiceClient),
-	}, nil
+	}
+	if mtls {
+		caPool := x509.NewCertPool()
+		if !appendCertToPool(caPool, authority.CertPEM()) {
+			return nil, fmt.Errorf("failed to add CA cert to pool")
+		}
+		d.caPool = caPool
+	}
+	return d, nil
 }
 
-// Client returns (or creates) a ConnectRPC client for the given agent.
-func (d *Dialer) Client(nodeID, addr string) agentv1connect.AgentServiceClient {
-	key := nodeID + "|" + addr
+// agentServerName returns the TLS ServerName for an agent's certificate,
+// matching the "agent-<nodeID>" CN pattern issued by the CA.
+func agentServerName(nodeID string) string {
+	return "agent-" + nodeID
+}
 
-	d.mu.RLock()
-	if c, ok := d.clients[key]; ok {
-		d.mu.RUnlock()
-		return c
+// TLSConfigFor returns the mTLS configuration used when dialing the agent
+// for nodeID: our client certificate, the CA pool as trust root, and a
+// ServerName matching the agent certificate pattern "agent-<nodeID>".
+func (d *Dialer) TLSConfigFor(nodeID string) *tls.Config {
+	return &tls.Config{
+		Certificates: []tls.Certificate{d.tlsCert},
+		RootCAs:      d.caPool,
+		MinVersion:   tls.VersionTLS13,
+		ServerName:   agentServerName(nodeID),
 	}
-	d.mu.RUnlock()
+}
+
+// Client returns (or creates) a ConnectRPC client for the given agent,
+// honoring the dialer's mtls setting. Clients are rare to create and never
+// touched per-request, so a plain exclusive lock is simpler than an
+// RWMutex double-check dance.
+func (d *Dialer) Client(nodeID, addr string) agentv1connect.AgentServiceClient {
+	if !d.mtls {
+		return d.ClientPlaintext(nodeID, addr)
+	}
+	key := nodeID + "|" + addr
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Double-check after acquiring write lock
 	if c, ok := d.clients[key]; ok {
 		return c
 	}
 
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{d.tlsCert},
-		RootCAs:      d.caPool,
-		MinVersion:   tls.VersionTLS13,
-		ServerName:   fmt.Sprintf("agent-%s", nodeID),
-	}
+	tlsConfig := d.TLSConfigFor(nodeID)
 
 	transport := &http2.Transport{
 		TLSClientConfig: tlsConfig,
@@ -133,13 +115,6 @@ func (d *Dialer) Client(nodeID, addr string) agentv1connect.AgentServiceClient {
 func (d *Dialer) ClientPlaintext(nodeID, addr string) agentv1connect.AgentServiceClient {
 	key := "plaintext|" + nodeID + "|" + addr
 
-	d.mu.RLock()
-	if c, ok := d.clients[key]; ok {
-		d.mu.RUnlock()
-		return c
-	}
-	d.mu.RUnlock()
-
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -155,8 +130,4 @@ func (d *Dialer) ClientPlaintext(nodeID, addr string) agentv1connect.AgentServic
 	client := agentv1connect.NewAgentServiceClient(httpClient, baseURL)
 	d.clients[key] = client
 	return client
-}
-
-func pemEncode(blockType string, data []byte) []byte {
-	return pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: data})
 }

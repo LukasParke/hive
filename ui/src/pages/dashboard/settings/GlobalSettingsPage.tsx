@@ -8,7 +8,7 @@ export function GlobalSettingsPage() {
   const { session } = useAuth();
   const toast = useToast();
 
-  const [settings, setSettings] = useState<ItemMap | null>(null);
+  const [, setSettings] = useState<ItemMap | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editJson, setEditJson] = useState("");

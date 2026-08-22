@@ -12,25 +12,53 @@ import (
 )
 
 const createDomain = `-- name: CreateDomain :one
-insert into domains(application_id, hostname, tls_enabled)
-values ($1, $2, $3)
-returning id, application_id, hostname, tls_enabled, created_at
+insert into domains(application_id, hostname, tls_enabled, route_type, path_prefix, strip_prefix, priority)
+values ($1, $2, $3, $4, $5, $6, $7)
+returning id, application_id, hostname, tls_enabled, route_type, path_prefix, strip_prefix, priority, created_at
 `
 
 type CreateDomainParams struct {
 	ApplicationID pgtype.UUID `json:"application_id"`
 	Hostname      string      `json:"hostname"`
 	TlsEnabled    bool        `json:"tls_enabled"`
+	RouteType     string      `json:"route_type"`
+	PathPrefix    string      `json:"path_prefix"`
+	StripPrefix   bool        `json:"strip_prefix"`
+	Priority      pgtype.Int4 `json:"priority"`
 }
 
-func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) (Domain, error) {
-	row := q.db.QueryRow(ctx, createDomain, arg.ApplicationID, arg.Hostname, arg.TlsEnabled)
-	var i Domain
+type CreateDomainRow struct {
+	ID            pgtype.UUID        `json:"id"`
+	ApplicationID pgtype.UUID        `json:"application_id"`
+	Hostname      string             `json:"hostname"`
+	TlsEnabled    bool               `json:"tls_enabled"`
+	RouteType     string             `json:"route_type"`
+	PathPrefix    string             `json:"path_prefix"`
+	StripPrefix   bool               `json:"strip_prefix"`
+	Priority      pgtype.Int4        `json:"priority"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) (CreateDomainRow, error) {
+	row := q.db.QueryRow(ctx, createDomain,
+		arg.ApplicationID,
+		arg.Hostname,
+		arg.TlsEnabled,
+		arg.RouteType,
+		arg.PathPrefix,
+		arg.StripPrefix,
+		arg.Priority,
+	)
+	var i CreateDomainRow
 	err := row.Scan(
 		&i.ID,
 		&i.ApplicationID,
 		&i.Hostname,
 		&i.TlsEnabled,
+		&i.RouteType,
+		&i.PathPrefix,
+		&i.StripPrefix,
+		&i.Priority,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -64,7 +92,7 @@ func (q *Queries) GetApplicationIDForDomain(ctx context.Context, id pgtype.UUID)
 }
 
 const getDomain = `-- name: GetDomain :one
-select d.id, d.application_id, d.hostname, d.tls_enabled, d.created_at
+select d.id, d.application_id, d.hostname, d.tls_enabled, d.route_type, d.path_prefix, d.strip_prefix, d.priority, d.created_at
 from domains d
 join applications a on a.id = d.application_id
 join projects p on p.id = a.project_id
@@ -76,21 +104,37 @@ type GetDomainParams struct {
 	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
-func (q *Queries) GetDomain(ctx context.Context, arg GetDomainParams) (Domain, error) {
+type GetDomainRow struct {
+	ID            pgtype.UUID        `json:"id"`
+	ApplicationID pgtype.UUID        `json:"application_id"`
+	Hostname      string             `json:"hostname"`
+	TlsEnabled    bool               `json:"tls_enabled"`
+	RouteType     string             `json:"route_type"`
+	PathPrefix    string             `json:"path_prefix"`
+	StripPrefix   bool               `json:"strip_prefix"`
+	Priority      pgtype.Int4        `json:"priority"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetDomain(ctx context.Context, arg GetDomainParams) (GetDomainRow, error) {
 	row := q.db.QueryRow(ctx, getDomain, arg.ID, arg.OrganizationID)
-	var i Domain
+	var i GetDomainRow
 	err := row.Scan(
 		&i.ID,
 		&i.ApplicationID,
 		&i.Hostname,
 		&i.TlsEnabled,
+		&i.RouteType,
+		&i.PathPrefix,
+		&i.StripPrefix,
+		&i.Priority,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listDomains = `-- name: ListDomains :many
-select d.id, d.application_id, d.hostname, d.tls_enabled, d.created_at
+select d.id, d.application_id, d.hostname, d.tls_enabled, d.route_type, d.path_prefix, d.strip_prefix, d.priority, d.created_at
 from domains d
 join applications a on a.id = d.application_id
 join projects p on p.id = a.project_id
@@ -98,20 +142,36 @@ where p.organization_id = $1
 order by d.created_at desc
 `
 
-func (q *Queries) ListDomains(ctx context.Context, organizationID pgtype.UUID) ([]Domain, error) {
+type ListDomainsRow struct {
+	ID            pgtype.UUID        `json:"id"`
+	ApplicationID pgtype.UUID        `json:"application_id"`
+	Hostname      string             `json:"hostname"`
+	TlsEnabled    bool               `json:"tls_enabled"`
+	RouteType     string             `json:"route_type"`
+	PathPrefix    string             `json:"path_prefix"`
+	StripPrefix   bool               `json:"strip_prefix"`
+	Priority      pgtype.Int4        `json:"priority"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListDomains(ctx context.Context, organizationID pgtype.UUID) ([]ListDomainsRow, error) {
 	rows, err := q.db.Query(ctx, listDomains, organizationID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Domain
+	var items []ListDomainsRow
 	for rows.Next() {
-		var i Domain
+		var i ListDomainsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ApplicationID,
 			&i.Hostname,
 			&i.TlsEnabled,
+			&i.RouteType,
+			&i.PathPrefix,
+			&i.StripPrefix,
+			&i.Priority,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -125,25 +185,41 @@ func (q *Queries) ListDomains(ctx context.Context, organizationID pgtype.UUID) (
 }
 
 const listDomainsByApplication = `-- name: ListDomainsByApplication :many
-select id, application_id, hostname, tls_enabled, created_at
+select id, application_id, hostname, tls_enabled, route_type, path_prefix, strip_prefix, priority, created_at
 from domains
 where application_id = $1
 `
 
-func (q *Queries) ListDomainsByApplication(ctx context.Context, applicationID pgtype.UUID) ([]Domain, error) {
+type ListDomainsByApplicationRow struct {
+	ID            pgtype.UUID        `json:"id"`
+	ApplicationID pgtype.UUID        `json:"application_id"`
+	Hostname      string             `json:"hostname"`
+	TlsEnabled    bool               `json:"tls_enabled"`
+	RouteType     string             `json:"route_type"`
+	PathPrefix    string             `json:"path_prefix"`
+	StripPrefix   bool               `json:"strip_prefix"`
+	Priority      pgtype.Int4        `json:"priority"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListDomainsByApplication(ctx context.Context, applicationID pgtype.UUID) ([]ListDomainsByApplicationRow, error) {
 	rows, err := q.db.Query(ctx, listDomainsByApplication, applicationID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Domain
+	var items []ListDomainsByApplicationRow
 	for rows.Next() {
-		var i Domain
+		var i ListDomainsByApplicationRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ApplicationID,
 			&i.Hostname,
 			&i.TlsEnabled,
+			&i.RouteType,
+			&i.PathPrefix,
+			&i.StripPrefix,
+			&i.Priority,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -159,7 +235,11 @@ func (q *Queries) ListDomainsByApplication(ctx context.Context, applicationID pg
 const updateDomain = `-- name: UpdateDomain :exec
 update domains d
 set hostname = coalesce(nullif($3, ''), d.hostname),
-    tls_enabled = case when $4 then $5 else d.tls_enabled end
+    tls_enabled = case when $4 then $5 else d.tls_enabled end,
+    route_type = coalesce($6, d.route_type),
+    path_prefix = coalesce($7, d.path_prefix),
+    strip_prefix = coalesce($8, d.strip_prefix),
+    priority = coalesce($9, d.priority)
 from applications a
 join projects p on p.id = a.project_id
 where d.id = $1 and a.id = d.application_id and p.organization_id = $2
@@ -171,6 +251,10 @@ type UpdateDomainParams struct {
 	Column3        interface{} `json:"column_3"`
 	TlsEnabled     bool        `json:"tls_enabled"`
 	TlsEnabled_2   bool        `json:"tls_enabled_2"`
+	RouteType      string      `json:"route_type"`
+	PathPrefix     string      `json:"path_prefix"`
+	StripPrefix    bool        `json:"strip_prefix"`
+	Priority       pgtype.Int4 `json:"priority"`
 }
 
 func (q *Queries) UpdateDomain(ctx context.Context, arg UpdateDomainParams) error {
@@ -180,6 +264,10 @@ func (q *Queries) UpdateDomain(ctx context.Context, arg UpdateDomainParams) erro
 		arg.Column3,
 		arg.TlsEnabled,
 		arg.TlsEnabled_2,
+		arg.RouteType,
+		arg.PathPrefix,
+		arg.StripPrefix,
+		arg.Priority,
 	)
 	return err
 }

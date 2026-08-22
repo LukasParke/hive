@@ -9,12 +9,14 @@ import (
 	"github.com/luke/hive/control-plane/internal/db"
 )
 
+// Hub manages websocket clients and broadcasts notifications to them.
 type Hub struct {
 	upgrader websocket.Upgrader
 	mu       sync.Mutex
 	clients  map[*websocket.Conn]struct{}
 }
 
+// NewHub returns a ready-to-use Hub.
 func NewHub() *Hub {
 	return &Hub{
 		upgrader: websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }},
@@ -22,6 +24,7 @@ func NewHub() *Hub {
 	}
 }
 
+// HandleWS upgrades a request to a websocket client connection.
 func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -62,6 +65,7 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+// Broadcast delivers a notification to every connected client.
 func (h *Hub) Broadcast(n db.Notification) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

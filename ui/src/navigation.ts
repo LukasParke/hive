@@ -26,6 +26,7 @@ export const navGroups: NavGroup[] = [
       { to: "/dashboard/configs", label: "Configs", icon: "◫", keywords: ["configuration"] },
       { to: "/dashboard/networks", label: "Networks", icon: "◯", keywords: ["overlay", "docker network"] },
       { to: "/dashboard/domains", label: "Domains", icon: "◊", keywords: ["routing", "tls", "traefik"] },
+      { to: "/dashboard/tunnels", label: "Tunnels", icon: "⇄", keywords: ["cloudflare", "tunnel", "ingress", "cname"] },
       { to: "/dashboard/security", label: "Security", icon: "◈", keywords: ["rules", "headers", "access"] },
     ],
   },

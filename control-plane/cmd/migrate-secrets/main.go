@@ -13,22 +13,28 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	ctx := context.Background()
 	cfg := config.Load()
 
 	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer pool.Close()
 
 	key, err := os.ReadFile(cfg.MasterKeyFile)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	store, err := secrets.NewStore(pool, []byte(strings.TrimSpace(string(key))))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	roots := map[string]string{
@@ -48,7 +54,7 @@ func main() {
 				continue
 			}
 			path := filepath.Join(root, entry.Name())
-			raw, err := os.ReadFile(path)
+			raw, err := os.ReadFile(path) //nolint:gosec // by-design sweep of the operator-configured secret directories
 			if err != nil {
 				log.Printf("skip %s: %v", path, err)
 				continue
@@ -62,4 +68,5 @@ func main() {
 			}
 		}
 	}
+	return nil
 }

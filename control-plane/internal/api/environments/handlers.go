@@ -11,14 +11,17 @@ import (
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves environment management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns an environment Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// ListEnvironments lists environments for the organization.
 func (h *Handler) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -49,6 +52,7 @@ func (h *Handler) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateEnvironment creates a new environment.
 func (h *Handler) CreateEnvironment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -80,6 +84,7 @@ func (h *Handler) CreateEnvironment(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// GetEnvironment returns a single environment by ID.
 func (h *Handler) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -100,6 +105,7 @@ func (h *Handler) GetEnvironment(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"id": id, "projectId": projectID, "name": name, "slug": slug, "createdAt": createdAt})
 }
 
+// UpdateEnvironment updates an existing environment.
 func (h *Handler) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -132,6 +138,7 @@ func (h *Handler) UpdateEnvironment(w http.ResponseWriter, r *http.Request) {
 	h.GetEnvironment(w, r)
 }
 
+// DeleteEnvironment removes an environment.
 func (h *Handler) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {

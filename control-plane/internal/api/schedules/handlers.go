@@ -7,19 +7,26 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
+	"github.com/luke/hive/control-plane/internal/jobs/riverjobs"
 	"github.com/luke/hive/control-plane/internal/rbac"
+	"github.com/riverqueue/river"
 )
 
+// Handler serves scheduled job endpoints.
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool        *pgxpool.Pool
+	RiverClient *river.Client[pgx.Tx]
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
-	return &Handler{Pool: pool}
+// NewHandler returns a schedule Handler backed by the given pool.
+func NewHandler(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *Handler {
+	return &Handler{Pool: pool, RiverClient: riverClient}
 }
 
+// ListSchedules lists schedules for the organization.
 func (h *Handler) ListSchedules(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -51,6 +58,7 @@ func (h *Handler) ListSchedules(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateSchedule creates a new schedule.
 func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -82,6 +90,7 @@ func (h *Handler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// UpdateSchedule updates an existing schedule.
 func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -123,6 +132,7 @@ func (h *Handler) UpdateSchedule(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// DeleteSchedule removes a schedule.
 func (h *Handler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -140,6 +150,7 @@ func (h *Handler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
+// RunScheduleNow triggers a schedule immediately.
 func (h *Handler) RunScheduleNow(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -160,6 +171,15 @@ func (h *Handler) RunScheduleNow(w http.ResponseWriter, r *http.Request) {
 		`, targetID).Scan(&backupID); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		if h.RiverClient != nil {
+			if _, err := h.RiverClient.Insert(r.Context(), riverjobs.BackupJobArgs{
+				TargetType: "database",
+				TargetID:   targetID,
+			}, nil); err != nil {
+				http.Error(w, `{"message":"failed to enqueue backup"}`, http.StatusInternalServerError)
+				return
+			}
 		}
 		_, _ = h.Pool.Exec(r.Context(), `update schedules set last_run_at = now() where id = $1::uuid`, id)
 		common.WriteJSON(w, http.StatusAccepted, map[string]any{"status": "accepted", "backupId": backupID})

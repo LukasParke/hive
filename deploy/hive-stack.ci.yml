@@ -5,6 +5,13 @@ services:
     image: hive/control-plane:ci
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/hive?sslmode=disable
+      # Integration suite logs in once per test; keep the auth limiter from
+      # tripping on the test run.
+      - AUTH_RATE_LIMIT_PER_MIN=10000
+      - WEBHOOK_RATE_LIMIT_PER_MIN=10000
+      # BuildKit runs as a privileged host-level container seeded by the CI
+      # prereqs script under a CI-specific DNS alias.
+      - BUILDKIT_ADDR=tcp://buildkit-ci:1234
       - MASTER_KEY_FILE=/run/secrets/hive-master-key
       - DOCKER_HOST=unix:///var/run/docker.sock
       - AGENT_BOOTSTRAP_TOKEN=ci-bootstrap-token
@@ -50,14 +57,6 @@ services:
         published: 6432
         protocol: tcp
         mode: host
-
-  buildkit:
-    deploy:
-      mode: replicated
-      replicas: 0
-      placement:
-        constraints:
-          - node.labels.ci == true
 
   registry:
     deploy:

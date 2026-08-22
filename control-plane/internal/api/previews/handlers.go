@@ -8,33 +8,33 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
 	"github.com/luke/hive/control-plane/internal/api/common"
 	dbgen "github.com/luke/hive/control-plane/internal/db/generated"
 	"github.com/luke/hive/control-plane/internal/jobs/riverjobs"
+	"github.com/riverqueue/river"
 )
 
+// Handler serves preview deployment endpoints.
 type Handler struct {
 	Pool        *pgxpool.Pool
 	Q           *dbgen.Queries
 	RiverClient *river.Client[pgx.Tx]
 }
 
+// NewHandler returns a preview Handler wired to the given dependencies.
 func NewHandler(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool), RiverClient: riverClient}
 }
 
+// ListPreviewDeployments lists preview deployments for an application.
 func (h *Handler) ListPreviewDeployments(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
 		return
 	}
 	appIDStr := chi.URLParam(r, "id")
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
-		return
-	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	appUUID, err := common.ToUUID(appIDStr)
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid application id")
@@ -52,6 +52,7 @@ func (h *Handler) ListPreviewDeployments(w http.ResponseWriter, r *http.Request)
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// GetPreviewDeployment returns a single preview deployment by ID.
 func (h *Handler) GetPreviewDeployment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -59,11 +60,8 @@ func (h *Handler) GetPreviewDeployment(w http.ResponseWriter, r *http.Request) {
 	}
 	appIDStr := chi.URLParam(r, "id")
 	previewIDStr := chi.URLParam(r, "previewId")
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
-		return
-	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	appUUID, err := common.ToUUID(appIDStr)
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid application id")
@@ -86,6 +84,7 @@ func (h *Handler) GetPreviewDeployment(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, item)
 }
 
+// CreatePreviewDeployment schedules a new preview deployment.
 func (h *Handler) CreatePreviewDeployment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -101,11 +100,8 @@ func (h *Handler) CreatePreviewDeployment(w http.ResponseWriter, r *http.Request
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid payload")
 		return
 	}
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
-		return
-	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	appUUID, err := common.ToUUID(appIDStr)
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid application id")
@@ -139,6 +135,7 @@ func (h *Handler) CreatePreviewDeployment(w http.ResponseWriter, r *http.Request
 	common.WriteJSON(w, http.StatusAccepted, map[string]string{"id": previewID})
 }
 
+// DeletePreviewDeployment removes a preview deployment and its service.
 func (h *Handler) DeletePreviewDeployment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -146,11 +143,8 @@ func (h *Handler) DeletePreviewDeployment(w http.ResponseWriter, r *http.Request
 	}
 	appIDStr := chi.URLParam(r, "id")
 	previewIDStr := chi.URLParam(r, "previewId")
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
-		return
-	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	appUUID, err := common.ToUUID(appIDStr)
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid application id")

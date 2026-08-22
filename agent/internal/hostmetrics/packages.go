@@ -2,6 +2,7 @@ package hostmetrics
 
 import (
 	"bufio"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,11 +33,11 @@ func collectPackageStatus(hostRoot string) *agentv1.PackageStatusResponse {
 // detectDistro reads /etc/os-release (or host-mounted equivalent) and returns the distro ID.
 func detectDistro(hostRoot string) string {
 	path := filepath.Join(hostRoot, "etc", "os-release")
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path is derived from the trusted hostRoot config
 	if err != nil {
 		return "unknown"
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -58,8 +59,8 @@ func collectAptStatus(hostRoot string) *agentv1.PackageStatusResponse {
 
 	// Count installed packages from dpkg status
 	statusPath := filepath.Join(hostRoot, "var", "lib", "dpkg", "status")
-	if f, err := os.Open(statusPath); err == nil {
-		defer f.Close()
+	if f, err := os.Open(statusPath); err == nil { //nolint:gosec // statusPath is derived from the trusted hostRoot config
+		defer func() { _ = f.Close() }()
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			if strings.HasPrefix(scanner.Text(), "Status: install ok installed") {
@@ -82,7 +83,7 @@ func collectAptStatus(hostRoot string) *agentv1.PackageStatusResponse {
 		}
 	}
 
-	resp.UpgradableCount = int32(len(resp.AvailableUpdates))
+	resp.UpgradableCount = int32(min(len(resp.AvailableUpdates), math.MaxInt32))
 
 	// Count security updates
 	for _, u := range resp.AvailableUpdates {
@@ -136,8 +137,8 @@ func collectApkStatus(hostRoot string) *agentv1.PackageStatusResponse {
 
 	// Count installed packages
 	installedPath := filepath.Join(hostRoot, "lib", "apk", "db", "installed")
-	if f, err := os.Open(installedPath); err == nil {
-		defer f.Close()
+	if f, err := os.Open(installedPath); err == nil { //nolint:gosec // installedPath is derived from the trusted hostRoot config
+		defer func() { _ = f.Close() }()
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			if strings.HasPrefix(scanner.Text(), "P:") {

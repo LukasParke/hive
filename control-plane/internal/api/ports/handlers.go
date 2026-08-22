@@ -10,15 +10,18 @@ import (
 	dbgen "github.com/luke/hive/control-plane/internal/db/generated"
 )
 
+// Handler serves port policy endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 	Q    *dbgen.Queries
 }
 
+// NewHandler returns a port policy Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool)}
 }
 
+// ListPortPolicies lists port policies for the organization.
 func (h *Handler) ListPortPolicies(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -37,6 +40,7 @@ func (h *Handler) ListPortPolicies(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// GetPortPolicy returns a single port policy by ID.
 func (h *Handler) GetPortPolicy(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -60,6 +64,7 @@ func (h *Handler) GetPortPolicy(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, item)
 }
 
+// CreatePortPolicy creates a new port policy.
 func (h *Handler) CreatePortPolicy(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -101,6 +106,7 @@ func (h *Handler) CreatePortPolicy(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// UpdatePortPolicy updates an existing port policy.
 func (h *Handler) UpdatePortPolicy(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -147,6 +153,7 @@ func (h *Handler) UpdatePortPolicy(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"id": chi.URLParam(r, "id")})
 }
 
+// DeletePortPolicy removes a port policy.
 func (h *Handler) DeletePortPolicy(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {

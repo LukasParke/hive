@@ -13,14 +13,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
-	apimiddleware "github.com/luke/hive/control-plane/internal/api/middleware"
+	apicxt "github.com/luke/hive/control-plane/internal/api/ctx"
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves organization membership endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns an org member Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
@@ -38,6 +40,7 @@ func sha256Hex(raw string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// GetInvitationByToken returns invitation details for a token.
 func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
 	token := strings.TrimSpace(chi.URLParam(r, "token"))
 	if token == "" {
@@ -58,8 +61,9 @@ func (h *Handler) GetInvitationByToken(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"id": id, "organizationId": organizationID, "email": email, "role": role, "status": status, "expiresAt": expiresAt})
 }
 
+// AcceptInvitationByToken joins the invited user to the organization.
 func (h *Handler) AcceptInvitationByToken(w http.ResponseWriter, r *http.Request) {
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		common.WriteError(w, http.StatusUnauthorized, "unauthorized", "missing auth")
 		return
@@ -88,6 +92,7 @@ func (h *Handler) AcceptInvitationByToken(w http.ResponseWriter, r *http.Request
 	common.WriteJSON(w, http.StatusOK, map[string]any{"status": "accepted", "organizationId": orgID})
 }
 
+// ListOrganizationMembers lists an organization's members.
 func (h *Handler) ListOrganizationMembers(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -120,6 +125,7 @@ func (h *Handler) ListOrganizationMembers(w http.ResponseWriter, r *http.Request
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// UpdateOrganizationMemberRole changes a member's role.
 func (h *Handler) UpdateOrganizationMemberRole(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner)
 	if !ok {
@@ -150,6 +156,7 @@ func (h *Handler) UpdateOrganizationMemberRole(w http.ResponseWriter, r *http.Re
 	common.WriteJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 }
 
+// ListOrganizationInvitations lists pending invitations.
 func (h *Handler) ListOrganizationInvitations(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -182,8 +189,9 @@ func (h *Handler) ListOrganizationInvitations(w http.ResponseWriter, r *http.Req
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateOrganizationInvitation invites a user to the organization.
 func (h *Handler) CreateOrganizationInvitation(w http.ResponseWriter, r *http.Request) {
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		common.WriteError(w, http.StatusUnauthorized, "unauthorized", "missing auth")
 		return
@@ -232,6 +240,7 @@ func (h *Handler) CreateOrganizationInvitation(w http.ResponseWriter, r *http.Re
 	common.WriteJSON(w, http.StatusCreated, map[string]any{"id": id, "token": token, "status": "pending"})
 }
 
+// DeleteOrganizationInvitation deletes an invitation.
 func (h *Handler) DeleteOrganizationInvitation(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -250,6 +259,7 @@ func (h *Handler) DeleteOrganizationInvitation(w http.ResponseWriter, r *http.Re
 	common.WriteJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 }
 
+// ResendOrganizationInvitation re-sends an invitation email.
 func (h *Handler) ResendOrganizationInvitation(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -283,6 +293,7 @@ func (h *Handler) ResendOrganizationInvitation(w http.ResponseWriter, r *http.Re
 	common.WriteJSON(w, http.StatusOK, map[string]any{"id": inviteID, "token": token, "email": email, "status": "pending"})
 }
 
+// RevokeOrganizationInvitation revokes a pending invitation.
 func (h *Handler) RevokeOrganizationInvitation(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {

@@ -15,12 +15,22 @@ export function DomainsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [appId, setAppId] = useState("");
   const [hostname, setHostname] = useState("");
+  const [routeType, setRouteType] = useState<"host" | "wildcard" | "path">("host");
+  const [pathPrefix, setPathPrefix] = useState("");
+  const [stripPrefix, setStripPrefix] = useState(false);
+  const [priority, setPriority] = useState("");
   const [creating, setCreating] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<ItemMap | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const columns: Column[] = [
+    { key: "routeType", label: "Route", render: (v, row) => {
+        const t = String(v || "host");
+        const prefix = String(row.pathPrefix ?? "");
+        return t === "path" ? `${prefix} → ${t}` : t;
+      } },
+    { key: "priority", label: "Priority", render: (v) => (v ? String(v) : "auto") },
     { key: "hostname", label: "Hostname" },
     { key: "applicationId", label: "Application", render: (v) => { const a = dashboard.applications.find((a) => a.id === v); return String(a?.name ?? v ?? "-"); } },
     { key: "tlsEnabled", label: "TLS", render: (v) => (v ? "Yes" : "No") },
@@ -32,10 +42,22 @@ export function DomainsPage() {
     if (!session || !hostname || !appId) return;
     setCreating(true);
     try {
-      await api.createDomain(session, { applicationId: appId, hostname, tlsEnabled: true });
+      await api.createDomain(session, {
+        applicationId: appId,
+        hostname,
+        tlsEnabled: true,
+        routeType,
+        ...(routeType === "path"
+          ? { pathPrefix, stripPrefix, ...(priority ? { priority: Number(priority) } : {}) }
+          : priority ? { priority: Number(priority) } : {}),
+      });
       toast.success("Domain created");
       setShowCreate(false);
       setHostname("");
+      setRouteType("host");
+      setPathPrefix("");
+      setStripPrefix(false);
+      setPriority("");
       await refreshDomains();
     } catch (err) {
       toast.error((err as Error).message);
@@ -76,7 +98,25 @@ export function DomainsPage() {
             {dashboard.applications.map((a) => <option key={String(a.id)} value={String(a.id)}>{String(a.name)}</option>)}
           </select>
         </label>
-        <label>Hostname<input value={hostname} onChange={(e) => setHostname(e.target.value)} placeholder="app.example.com" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>
+        <label>Hostname<input value={hostname} onChange={(e) => setHostname(e.target.value)} placeholder="app.example.com  (*.example.com for wildcard)" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>
+        <label>
+          Route Type
+          <select value={routeType} onChange={(e) => setRouteType(e.target.value as "host" | "wildcard" | "path")} style={{ width: "100%", padding: "6px 10px", marginTop: 4 }}>
+            <option value="host">host (exact hostname)</option>
+            <option value="wildcard">wildcard (*.example.com)</option>
+            <option value="path">path (host + path prefix)</option>
+          </select>
+        </label>
+        {routeType === "path" && (
+          <label>Path Prefix<input value={pathPrefix} onChange={(e) => setPathPrefix(e.target.value)} placeholder="/api" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>
+        )}
+        {routeType === "path" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="checkbox" checked={stripPrefix} onChange={(e) => setStripPrefix(e.target.checked)} />
+            Strip path prefix before forwarding
+          </label>
+        )}
+        <label>Priority<input type="number" min={0} value={priority} onChange={(e) => setPriority(e.target.value)} placeholder="auto" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>
       </FormDialog>
 
       <ConfirmDialog open={!!deleteTarget} title="Delete Domain" message={`Delete "${String(deleteTarget?.hostname ?? "")}"?`} destructive onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />

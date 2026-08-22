@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/luke/hive/agent/internal/auth"
 	"github.com/luke/hive/agent/internal/docker"
@@ -39,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer dockerOps.Close()
+	defer func() { _ = dockerOps.Close() }()
 
 	// Get node ID from Docker Swarm info
 	nodeID := os.Getenv("AGENT_NODE_ID")
@@ -57,7 +55,7 @@ func main() {
 			}
 		}
 	}
-	log.Printf("agent node ID: %s", nodeID)
+	log.Printf("agent node ID: %s", safeLogValue(nodeID)) //nolint:gosec // nodeID is control-char-sanitized; sourced from env/Docker info, not attacker-controlled
 
 	// Host metrics collector
 	collector := hostmetrics.NewCollector(hostRoot, hostMgmt)
@@ -83,12 +81,13 @@ func main() {
 	// AGENT_MTLS_ENABLED=true; when enabled, a bootstrap failure is fatal
 	// rather than a silent downgrade to unauthenticated plaintext.
 	mtlsEnabled := os.Getenv("AGENT_MTLS_ENABLED") == "true"
+	caFile := getenv("AGENT_CA_FILE", "/hive-ca/ca.pem")
 	bootstrapToken := readSecret("/run/secrets/agent-bootstrap-token")
 	if bootstrapToken == "" {
 		bootstrapToken = os.Getenv("AGENT_BOOTSTRAP_TOKEN")
 	}
 
-	mainServer := startMainServer(ctx, addr, nodeID, controlPlaneURL, certDir, bootstrapToken, mtlsEnabled, mux, metrics)
+	mainServer := startMainServer(ctx, addr, nodeID, controlPlaneURL, certDir, bootstrapToken, caFile, mtlsEnabled, mux, metrics)
 
 	// Metrics + health server on separate port (always plaintext)
 	metricsMux := http.NewServeMux()
@@ -98,8 +97,9 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	metricsServer := &http.Server{
-		Addr:    metricsAddr,
-		Handler: metricsMux,
+		Addr:              metricsAddr,
+		Handler:           metricsMux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 	go func() {
 		log.Printf("metrics listening on %s", metricsAddr)
@@ -125,14 +125,12 @@ func main() {
 // startMainServer serves plaintext h2c by default (intended for the encrypted
 // hive_internal overlay). When mtlsEnabled is true it serves mTLS instead, and
 // a bootstrap failure is fatal — it never silently downgrades to unauthenticated
-// plaintext.
-func startMainServer(ctx context.Context, addr, nodeID, controlPlaneURL, certDir, bootstrapToken string, mtlsEnabled bool, handler http.Handler, metrics *server.Metrics) *http.Server {
+func startMainServer(ctx context.Context, addr, nodeID, controlPlaneURL, certDir, bootstrapToken, caFile string, mtlsEnabled bool, handler http.Handler, metrics *server.Metrics) *http.Server {
 	if mtlsEnabled {
 		if bootstrapToken == "" || controlPlaneURL == "" {
 			log.Fatal("AGENT_MTLS_ENABLED=true requires a bootstrap token and CONTROL_PLANE_URL")
 		}
-		cm := auth.NewCertManager(nodeID, controlPlaneURL, bootstrapToken, certDir)
-
+		cm := auth.NewCertManager(nodeID, controlPlaneURL, bootstrapToken, certDir, caFile)
 		if !cm.LoadExisting() {
 			log.Printf("bootstrapping mTLS certificates...")
 			bootstrapCtx, bootstrapCancel := context.WithTimeout(ctx, 30*time.Second)
@@ -153,13 +151,14 @@ func startMainServer(ctx context.Context, addr, nodeID, controlPlaneURL, certDir
 
 		// Serve with mTLS
 		srv := &http.Server{
-			Addr:      addr,
-			Handler:   handler,
-			TLSConfig: cm.TLSConfig(),
+			Addr:              addr,
+			Handler:           handler,
+			TLSConfig:         cm.TLSConfig(),
+			ReadHeaderTimeout: 10 * time.Second,
 		}
 
 		go func() {
-			log.Printf("agent listening with mTLS on %s (node %s)", addr, nodeID)
+			log.Printf("agent listening with mTLS on %s (node %s)", addr, safeLogValue(nodeID)) //nolint:gosec // nodeID is control-char-sanitized; sourced from env/Docker info, not attacker-controlled
 			if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 				log.Printf("mTLS server error: %v", err)
 			}
@@ -172,13 +171,21 @@ func startMainServer(ctx context.Context, addr, nodeID, controlPlaneURL, certDir
 
 // startPlaintext starts the ConnectRPC server with HTTP/2 cleartext (h2c) for streaming support.
 func startPlaintext(addr, nodeID string, handler http.Handler) *http.Server {
-	h2s := &http2.Server{}
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: h2c.NewHandler(handler, h2s),
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		// Go 1.24+: h2c is expressed via Protocols instead of the
+		// deprecated x/net/http2/h2c wrapper.
+		Protocols: func() *http.Protocols {
+			p := &http.Protocols{}
+			p.SetHTTP1(true)
+			p.SetUnencryptedHTTP2(true)
+			return p
+		}(),
 	}
 	go func() {
-		log.Printf("agent listening on %s (node %s)", addr, nodeID)
+		log.Printf("agent listening on %s (node %s)", addr, safeLogValue(nodeID)) //nolint:gosec // nodeID is control-char-sanitized; sourced from env/Docker info, not attacker-controlled
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
@@ -195,9 +202,19 @@ func getenv(k, fallback string) string {
 }
 
 func readSecret(path string) string {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is a fixed Swarm secret mount path supplied by the caller
 	if err != nil {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
+}
+
+// safeLogValue strips control characters so untrusted fields cannot forge log lines.
+func safeLogValue(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return -1
+		}
+		return r
+	}, s)
 }

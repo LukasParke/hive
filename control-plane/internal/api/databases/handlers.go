@@ -16,15 +16,31 @@ import (
 	dockerswarm "github.com/moby/moby/api/types/swarm"
 )
 
+// SwarmAPI is the narrow slice of the Swarm client the database handler
+// depends on; *swarmclient.Client satisfies it and tests can inject fakes.
+type SwarmAPI interface {
+	CreateService(ctx context.Context, spec dockerswarm.ServiceSpec) (string, error)
+	RemoveService(ctx context.Context, id string) error
+	ListServices(ctx context.Context) ([]dockerswarm.Service, error)
+	ListSecrets(ctx context.Context) ([]dockerswarm.Secret, error)
+}
+
+// Handler serves database service endpoints.
 type Handler struct {
 	Pool  *pgxpool.Pool
-	Swarm *swarmclient.Client
+	Swarm SwarmAPI
 }
 
+// NewHandler returns a database Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool, swarm *swarmclient.Client) *Handler {
-	return &Handler{Pool: pool, Swarm: swarm}
+	var api SwarmAPI
+	if swarm != nil {
+		api = swarm
+	}
+	return &Handler{Pool: pool, Swarm: api}
 }
 
+// ListDatabaseServices lists database services for the organization.
 func (h *Handler) ListDatabaseServices(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -58,6 +74,7 @@ func (h *Handler) ListDatabaseServices(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateDatabaseService creates and deploys a new database service.
 func (h *Handler) CreateDatabaseService(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ProjectID          string `json:"projectId"`
@@ -159,6 +176,7 @@ func (h *Handler) CreateDatabaseService(w http.ResponseWriter, r *http.Request) 
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// GetDatabaseService returns a single database service by ID.
 func (h *Handler) GetDatabaseService(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -183,6 +201,7 @@ func (h *Handler) GetDatabaseService(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DeleteDatabaseService removes a database service.
 func (h *Handler) DeleteDatabaseService(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {

@@ -13,14 +13,17 @@ import (
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves notification target management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns a notification Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// ListNotifications lists notification targets for the organization.
 func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -45,6 +48,7 @@ func (h *Handler) ListNotifications(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateNotification adds a new notification target.
 func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Channel string `json:"channel"`
@@ -67,6 +71,7 @@ func (h *Handler) CreateNotification(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// GetNotification returns a single notification target by ID.
 func (h *Handler) GetNotification(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -88,6 +93,7 @@ func (h *Handler) GetNotification(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateNotification updates an existing notification target.
 func (h *Handler) UpdateNotification(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -125,6 +131,7 @@ func (h *Handler) UpdateNotification(w http.ResponseWriter, r *http.Request) {
 	h.GetNotification(w, r)
 }
 
+// DeleteNotification removes a notification target.
 func (h *Handler) DeleteNotification(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -142,6 +149,7 @@ func (h *Handler) DeleteNotification(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
+// TestNotification sends a test payload to a notification target.
 func (h *Handler) TestNotification(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -168,7 +176,7 @@ func (h *Handler) TestNotification(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"message":"notification test failed: %s"}`, err.Error()), http.StatusBadGateway)
 		return
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode >= 400 {
 		http.Error(w, fmt.Sprintf(`{"message":"notification target responded with status %d"}`, res.StatusCode), http.StatusBadGateway)
 		return

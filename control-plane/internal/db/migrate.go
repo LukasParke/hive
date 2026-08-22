@@ -12,6 +12,7 @@ import (
 	"github.com/riverqueue/river/rivermigrate"
 )
 
+// MigrateRiver runs River's embedded up migrations.
 func MigrateRiver(ctx context.Context, pool *pgxpool.Pool) error {
 	driver := riverpgxv5.New(pool)
 	migrator, err := rivermigrate.New(driver, nil)
@@ -25,6 +26,8 @@ func MigrateRiver(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
+// ApplyMigrations applies every *.up.sql in root exactly once, tracking
+// applied versions in schema_migrations.
 func ApplyMigrations(ctx context.Context, pool *pgxpool.Pool, root fs.FS) error {
 	if _, err := pool.Exec(ctx, `
 		create table if not exists schema_migrations (

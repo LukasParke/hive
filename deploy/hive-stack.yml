@@ -5,12 +5,17 @@ services:
     image: ${HIVE_CONTROL_PLANE_IMAGE:-ghcr.io/lukasparke/hive/control-plane}:${HIVE_IMAGE_TAG:-latest}
     command: ["/control-plane"]
     environment:
-      - DATABASE_URL=postgres://postgres@postgres:5432/hive?sslmode=disable
+      # Pool traffic goes through PgBouncer (transaction mode). The dedicated
+      # LISTEN/NOTIFY connection bypasses it via HIVE_LISTEN_URL: transaction
+      # pooling cannot carry session-level LISTEN.
+      - DATABASE_URL=postgres://postgres@pgbouncer:6432/hive?sslmode=disable
+      - HIVE_LISTEN_URL=postgres://postgres@postgres:5432/hive?sslmode=disable
       - DATABASE_PASSWORD_FILE=/run/secrets/postgres-password
       - MASTER_KEY_FILE=/run/secrets/hive-master-key
       - JWT_SECRET_FILE=/run/secrets/hive-jwt-secret
-      - AGENT_BOOTSTRAP_TOKEN_FILE=/run/secrets/agent-bootstrap-token
       - DOCKER_HOST=unix:///var/run/docker.sock
+      # Control-plane dials agents over mTLS (agents serve TLS only).
+      - AGENT_MTLS_ENABLED=true
     deploy:
       mode: replicated
       replicas: 3
@@ -79,6 +84,12 @@ services:
       - HOST_ROOT=/host
       - HOST_MGMT_ENABLED=${HIVE_HOST_MGMT:-false}
       - CONTROL_PLANE_URL=http://control-plane:3000
+      # Agents serve mTLS only; the CA is pinned via the hive-agent-ca config.
+      - AGENT_MTLS_ENABLED=true
+      - AGENT_CA_FILE=/hive-ca/ca.pem
+    configs:
+      - source: hive-agent-ca
+        target: /hive-ca/ca.pem
     secrets:
       - agent-bootstrap-token
     healthcheck:
@@ -90,11 +101,19 @@ services:
   traefik:
     image: traefik:v3.6
     command:
+      # TLS-ALPN-01 by default. For wildcard certificates (*.example.com) the
+      # DNS-01 challenge is required: set HIVE_ACME_DNS_PROVIDER (e.g.
+      # cloudflare) and HIVE_ACME_DNS_TOKEN, and hivectl/deploy/init.sh
+      # generate a compose overlay that appends the
+      # --certificatesresolvers.letsencrypt.acme.dnschallenge.* flags plus the
+      # provider token env/secret at deploy time.
       - --providers.swarm=true
       - --providers.swarm.exposedByDefault=false
       - --providers.swarm.network=hive_proxy
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.invalid}
       - --certificatesresolvers.letsencrypt.acme.storage=/data/shared/acme.json
       - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
@@ -153,19 +172,19 @@ services:
     # Internal-only; see postgres above.
     networks: [hive_internal]
 
-  buildkit:
-    image: moby/buildkit:latest
-    command: ["buildkitd", "--addr", "tcp://0.0.0.0:1234"]
-    deploy:
-      placement:
-        constraints:
-          - node.labels.builder == true
-    # No published ports: BuildKit has no authentication, so it must never be
-    # reachable off the hive_internal overlay. The control-plane reaches it via
-    # BUILDKIT_ADDR=tcp://buildkit:1234.
-    networks: [hive_internal]
-    volumes:
-      - buildkit-cache:/var/lib/buildkit
+  # BuildKit CANNOT run as a swarm service: services cannot be granted
+  # CAP_SYS_ADMIN, and buildkitd's OCI worker needs mount(2) for its snapshot
+  # mounts (fails with "operation not permitted"). Run one privileged
+  # buildkitd per builder node at the HOST level instead (hivectl install and
+  # deploy/init.sh do this automatically); the control plane reaches it via
+  # BUILDKIT_ADDR=tcp://buildkit:1234. Manual setup:
+  #
+  #   printf '[registry."registry:5000"]\n  http = true\n  insecure = true\n' > /etc/hive/buildkitd.toml
+  #   docker run -d --privileged --restart=unless-stopped \
+  #     --name hive-buildkit --network hive_internal --network-alias buildkit \
+  #     -v /etc/hive/buildkitd.toml:/etc/buildkit/buildkitd.toml:ro \
+  #     -v hive_buildkit-cache:/var/lib/buildkit \
+  #     moby/buildkit:latest --addr tcp://0.0.0.0:1234
 
   registry:
     image: registry:2
@@ -176,6 +195,14 @@ services:
     # No published ports: the registry runs without auth/TLS, so it stays on the
     # hive_internal overlay only. The control-plane reaches it via
     # REGISTRY_ADDR=registry:5000.
+    healthcheck:
+      # registry:2 is Alpine-based and ships busybox wget; /v2/ answers 200
+      # (or 401 when auth is on) as soon as the registry serves requests.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5000/v2/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     networks: [hive_internal]
     volumes:
       - registry-data:/var/lib/registry
@@ -192,10 +219,8 @@ networks:
 volumes:
   pgdata: {}
   shared: {}
-  buildkit-cache: {}
   registry-data: {}
   agent-certs: {}
-
 secrets:
   hive-master-key:
     external: true
@@ -204,4 +229,11 @@ secrets:
   hive-jwt-secret:
     external: true
   agent-bootstrap-token:
+    external: true
+
+# Published by the control-plane at boot (create-or-update of the CA cert).
+# It must exist before the first stack deploy; run the control-plane once
+# (or `docker config create hive-agent-ca ca.pem`) on a fresh cluster.
+configs:
+  hive-agent-ca:
     external: true

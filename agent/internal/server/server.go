@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"runtime"
 	"syscall"
@@ -20,20 +21,21 @@ import (
 	"github.com/luke/hive/proto/gen/agent/v1/agentv1connect"
 )
 
+// Version is the agent's build version, reported in health responses.
 var Version = "dev"
 
 // Server implements the AgentServiceHandler interface.
 type Server struct {
 	agentv1connect.UnimplementedAgentServiceHandler
 
-	docker    docker.DockerOperations
+	docker    docker.Operations
 	collector *hostmetrics.Collector
 	executor  *hostmetrics.Executor
 	metrics   *Metrics
 }
 
 // New creates a new agent server.
-func New(dockerOps docker.DockerOperations, collector *hostmetrics.Collector, executor *hostmetrics.Executor, m *Metrics) *Server {
+func New(dockerOps docker.Operations, collector *hostmetrics.Collector, executor *hostmetrics.Executor, m *Metrics) *Server {
 	return &Server{
 		docker:    dockerOps,
 		collector: collector,
@@ -51,7 +53,7 @@ func (s *Server) Health(ctx context.Context, req *connect.Request[agentv1.Health
 	resp := &agentv1.HealthResponse{
 		AgentVersion: Version,
 		Hostname:     hostname,
-		CpuCount:     int32(runtime.NumCPU()),
+		CpuCount:     int32(min(runtime.NumCPU(), math.MaxInt32)), //nolint:gosec // clamped to MaxInt32; CPU count cannot overflow
 	}
 
 	// Docker info
@@ -69,8 +71,8 @@ func (s *Server) Health(ctx context.Context, req *connect.Request[agentv1.Health
 	// Disk
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs("/", &stat); err == nil {
-		resp.DiskTotal = stat.Blocks * uint64(stat.Bsize)
-		resp.DiskUsed = resp.DiskTotal - (stat.Bfree * uint64(stat.Bsize))
+		resp.DiskTotal = stat.Blocks * uint64(stat.Bsize)                  //nolint:gosec // Bsize is a non-negative filesystem block size
+		resp.DiskUsed = resp.DiskTotal - (stat.Bfree * uint64(stat.Bsize)) //nolint:gosec // Bsize is a non-negative filesystem block size
 	}
 
 	return connect.NewResponse(resp), nil
@@ -132,7 +134,7 @@ func (s *Server) StreamContainerLogs(ctx context.Context, req *connect.Request[a
 		s.metrics.DockerAPIErrors.WithLabelValues("container_logs").Inc()
 		return connect.NewError(connect.CodeInternal, err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Docker multiplexed log format: 8-byte header + payload
 	// Header: [stream_type(1)][0][0][0][size(4 big-endian)]
@@ -214,7 +216,7 @@ func (s *Server) ExecStream(ctx context.Context, stream *connect.BidiStream[agen
 
 	// Initial resize if TTY
 	if startMsg.Tty && startMsg.Rows > 0 && startMsg.Cols > 0 {
-		_ = s.docker.ExecResize(ctx, execID, uint(startMsg.Rows), uint(startMsg.Cols))
+		_ = s.docker.ExecResize(ctx, execID, uint(startMsg.Rows), uint(startMsg.Cols)) //nolint:gosec // Rows and Cols are validated positive above
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -270,7 +272,9 @@ func (s *Server) ExecStream(ctx context.Context, stream *connect.BidiStream[agen
 					return nil
 				}
 			case *agentv1.ExecInput_Resize:
-				_ = s.docker.ExecResize(ctx, execID, uint(body.Resize.Rows), uint(body.Resize.Cols))
+				if body.Resize.Rows > 0 && body.Resize.Cols > 0 {
+					_ = s.docker.ExecResize(ctx, execID, uint(body.Resize.Rows), uint(body.Resize.Cols)) //nolint:gosec // Rows and Cols are validated positive above
+				}
 			}
 		}
 	})
@@ -281,7 +285,7 @@ func (s *Server) ExecStream(ctx context.Context, stream *connect.BidiStream[agen
 	inspect, err := s.docker.ExecInspect(context.Background(), execID)
 	if err == nil {
 		_ = stream.Send(&agentv1.ExecOutput{
-			Body: &agentv1.ExecOutput_ExitCode{ExitCode: int32(inspect.ExitCode)},
+			Body: &agentv1.ExecOutput_ExitCode{ExitCode: int32(inspect.ExitCode)}, //nolint:gosec // Docker exit codes are uint8-range values
 		})
 	}
 

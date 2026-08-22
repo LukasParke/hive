@@ -11,18 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Dispatcher persists notification events and fans them out to targets.
 type Dispatcher struct {
 	pool *pgxpool.Pool
 	http *http.Client
 }
 
+// NewDispatcher returns a Dispatcher backed by the given pool.
 func NewDispatcher(pool *pgxpool.Pool) *Dispatcher {
 	return &Dispatcher{
 		pool: pool,
-			http: &http.Client{Timeout: 8 * time.Second},
+		http: &http.Client{Timeout: 8 * time.Second},
 	}
 }
 
+// Notify records an event occurrence and dispatches it to matching targets.
 func (d *Dispatcher) Notify(ctx context.Context, event string, payload map[string]any) {
 	rows, err := d.pool.Query(ctx, `select channel, target from notifications where enabled = true`)
 	if err != nil {

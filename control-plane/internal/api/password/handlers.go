@@ -12,22 +12,29 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Handler serves password reset endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns a password reset Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// randRead draws randomness for reset tokens. A package variable so tests can
+// inject failures.
+var randRead = rand.Read
+
 func randomToken(size int) (string, error) {
 	buf := make([]byte, size)
-	if _, err := rand.Read(buf); err != nil {
+	if _, err := randRead(buf); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
+// SendResetPassword issues a password reset token for the given email.
 func (h *Handler) SendResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email string `json:"email"`
@@ -54,6 +61,7 @@ func (h *Handler) SendResetPassword(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 }
 
+// ResetPassword sets a new password using a reset token.
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Token       string `json:"token"`

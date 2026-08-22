@@ -13,26 +13,30 @@ import (
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 )
 
+// applySecurityRules is a seam so tests can observe rule application without
+// a swarm cluster; production points at the real proxy applier.
+var applySecurityRules = proxy.ApplySecurityRulesForApplication
+
+// Handler serves security rule management endpoints.
 type Handler struct {
 	Pool  *pgxpool.Pool
 	Q     *dbgen.Queries
 	Swarm *swarmclient.Client
 }
 
+// NewHandler returns a security rules Handler.
 func NewHandler(pool *pgxpool.Pool, swarm *swarmclient.Client) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool), Swarm: swarm}
 }
 
+// ListSecurityRules returns all security rules for the organization.
 func (h *Handler) ListSecurityRules(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
 		return
 	}
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
-		return
-	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	items, err := h.Q.ListSecurityRules(r.Context(), orgUUID)
 	if err != nil {
 		common.WriteError(w, http.StatusInternalServerError, "internal_error", "failed to list security rules")
@@ -41,6 +45,7 @@ func (h *Handler) ListSecurityRules(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// GetSecurityRule returns a single security rule.
 func (h *Handler) GetSecurityRule(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -51,11 +56,8 @@ func (h *Handler) GetSecurityRule(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
 		return
 	}
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
-		return
-	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	item, err := h.Q.GetSecurityRule(r.Context(), dbgen.GetSecurityRuleParams{ID: id, OrganizationID: orgUUID})
 	if err != nil {
 		common.WriteError(w, http.StatusNotFound, "not_found", "security rule not found")
@@ -64,6 +66,7 @@ func (h *Handler) GetSecurityRule(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, item)
 }
 
+// CreateSecurityRule validates and stores a new security rule.
 func (h *Handler) CreateSecurityRule(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -81,11 +84,13 @@ func (h *Handler) CreateSecurityRule(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid payload")
 		return
 	}
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
+	if err := proxy.ValidateSecurityRuleType(req.Type); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
+	var err error
 	appUUID := pgtype.UUID{}
 	if req.ApplicationID != "" {
 		appUUID, err = common.ToUUID(req.ApplicationID)
@@ -112,11 +117,12 @@ func (h *Handler) CreateSecurityRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.ApplicationID != "" && h.Swarm != nil {
-		_ = proxy.ApplySecurityRulesForApplication(r.Context(), h.Pool, h.Swarm, req.ApplicationID)
+		_ = applySecurityRules(r.Context(), h.Pool, h.Swarm, req.ApplicationID)
 	}
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// UpdateSecurityRule replaces a security rule configuration.
 func (h *Handler) UpdateSecurityRule(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -139,11 +145,12 @@ func (h *Handler) UpdateSecurityRule(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid payload")
 		return
 	}
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
+	if err := proxy.ValidateSecurityRuleType(req.Type); err != nil {
+		common.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	appUUID := pgtype.UUID{}
 	if req.ApplicationID != "" {
 		appUUID, err = common.ToUUID(req.ApplicationID)
@@ -170,11 +177,12 @@ func (h *Handler) UpdateSecurityRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.ApplicationID != "" && h.Swarm != nil {
-		_ = proxy.ApplySecurityRulesForApplication(r.Context(), h.Pool, h.Swarm, req.ApplicationID)
+		_ = applySecurityRules(r.Context(), h.Pool, h.Swarm, req.ApplicationID)
 	}
 	common.WriteJSON(w, http.StatusOK, map[string]string{"id": chi.URLParam(r, "id")})
 }
 
+// DeleteSecurityRule removes a security rule.
 func (h *Handler) DeleteSecurityRule(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -185,11 +193,8 @@ func (h *Handler) DeleteSecurityRule(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid id")
 		return
 	}
-	orgUUID, err := common.ToUUID(orgID)
-	if err != nil {
-		common.WriteError(w, http.StatusBadRequest, "bad_request", "invalid organization id")
-		return
-	}
+	// RequireOrgAccess guarantees orgID is a validated organization UUID.
+	orgUUID, _ := common.ToUUID(orgID)
 	// Find application_id before deleting so we can re-apply labels.
 	var appID string
 	_ = h.Pool.QueryRow(r.Context(), `select application_id::text from security_rules where id = $1::uuid and organization_id = $2::uuid`, id, orgUUID).Scan(&appID)
@@ -198,7 +203,7 @@ func (h *Handler) DeleteSecurityRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if appID != "" && h.Swarm != nil {
-		_ = proxy.ApplySecurityRulesForApplication(r.Context(), h.Pool, h.Swarm, appID)
+		_ = applySecurityRules(r.Context(), h.Pool, h.Swarm, appID)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

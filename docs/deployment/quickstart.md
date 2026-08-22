@@ -113,3 +113,11 @@ docker stack deploy -c deploy/hive-stack.yml hive
 Swarm performs a rolling update with `start-first` and auto-rollback on health failure.
 
 For reproducible deployments, always set `HIVE_IMAGE_TAG` to a specific semver tag rather than `latest`.
+
+## Further Reading
+
+- [Production deployment (3 managers + N workers)](production.md)
+- [Patroni HA overlay](patroni-ha.md)
+- [External Postgres, registries, and Traefik](external-services.md)
+- [Cloud provider notes](cloud.md)
+- [Security hardening](../security.md) · [API reference](../api.md)

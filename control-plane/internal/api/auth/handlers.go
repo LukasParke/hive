@@ -5,18 +5,21 @@ import (
 	"net/http"
 
 	"github.com/luke/hive/control-plane/internal/api/common"
-	apimiddleware "github.com/luke/hive/control-plane/internal/api/middleware"
+	apicxt "github.com/luke/hive/control-plane/internal/api/ctx"
 	authservice "github.com/luke/hive/control-plane/internal/auth"
 )
 
+// Handler serves authentication endpoints.
 type Handler struct {
 	Auth *authservice.Service
 }
 
+// NewHandler returns an auth Handler using the given auth service.
 func NewHandler(auth *authservice.Service) *Handler {
 	return &Handler{Auth: auth}
 }
 
+// RegisterUser creates a new user account.
 func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email       string `json:"email"`
@@ -35,6 +38,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// Login authenticates a user and issues tokens.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
@@ -52,6 +56,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"accessToken": access, "refreshToken": refresh})
 }
 
+// Refresh rotates the caller's session tokens.
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refreshToken"`
@@ -68,6 +73,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"accessToken": access, "refreshToken": refresh})
 }
 
+// Logout deletes the caller's session.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		RefreshToken string `json:"refreshToken"`
@@ -83,8 +89,9 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// Me returns the authenticated user's identity.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return

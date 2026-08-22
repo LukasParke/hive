@@ -1,25 +1,43 @@
 package deployments
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
+	"github.com/luke/hive/control-plane/internal/jobs/riverjobs"
 	"github.com/luke/hive/control-plane/internal/rbac"
+	"github.com/riverqueue/river"
 )
 
+// Handler serves deployment endpoints.
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool        *pgxpool.Pool
+	RiverClient *river.Client[pgx.Tx]
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
-	return &Handler{Pool: pool}
+// NewHandler returns a deployment Handler wired to the given dependencies.
+func NewHandler(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *Handler {
+	return &Handler{Pool: pool, RiverClient: riverClient}
 }
 
+// writeEnqueueConflict maps EnqueueBuild's duplicate-active-build error to
+// an HTTP 409 response, returning true when handled.
+func writeEnqueueConflict(w http.ResponseWriter, err error) bool {
+	if !errors.Is(err, riverjobs.ErrBuildAlreadyQueued) {
+		return false
+	}
+	common.WriteError(w, http.StatusConflict, "build_in_progress", err.Error())
+	return true
+}
+
+// EnqueueDeploy queues a deployment job for an application.
 func (h *Handler) EnqueueDeploy(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -30,24 +48,29 @@ func (h *Handler) EnqueueDeploy(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, "invalid_id", "invalid application id")
 		return
 	}
-	cmd, err := h.Pool.Exec(r.Context(), `
-		insert into build_jobs(application_id, trigger, status)
-		select a.id, 'api', 'queued'
-		from applications a
+	if err := h.Pool.QueryRow(r.Context(), `
+		select from applications a
 		join projects p on p.id = a.project_id
 		where a.id = $1::uuid and p.organization_id = $2::uuid
-	`, appID, orgID)
+	`, appID, orgID).Scan(); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			common.WriteError(w, http.StatusNotFound, "not_found", "application not found")
+			return
+		}
+		common.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	buildID, err := riverjobs.EnqueueBuild(r.Context(), h.RiverClient, h.Pool, appID, "api", "")
+	if writeEnqueueConflict(w, err) {
+		return
+	}
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	if cmd.RowsAffected() == 0 {
-		common.WriteError(w, http.StatusNotFound, "not_found", "application not found")
-		return
-	}
-	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted", "buildId": buildID})
 }
-
+// ListApplicationDeployments lists deployments of an application.
 func (h *Handler) ListApplicationDeployments(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -86,6 +109,7 @@ func (h *Handler) ListApplicationDeployments(w http.ResponseWriter, r *http.Requ
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// RollbackApplication redeploys a previous deployment.
 func (h *Handler) RollbackApplication(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -111,24 +135,18 @@ func (h *Handler) RollbackApplication(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, "no_previous_deployment", "no previous deployment found")
 		return
 	}
-	cmd, err := h.Pool.Exec(r.Context(), `
-		insert into build_jobs(application_id, trigger, status, image_tag)
-		select a.id, 'rollback', 'queued', $3
-		from applications a
-		join projects p on p.id = a.project_id
-		where a.id = $1::uuid and p.organization_id = $2::uuid
-	`, appID, orgID, imageTag)
+	buildID, err := riverjobs.EnqueueBuild(r.Context(), h.RiverClient, h.Pool, appID, "rollback", imageTag)
+	if writeEnqueueConflict(w, err) {
+		return
+	}
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
-	if cmd.RowsAffected() == 0 {
-		common.WriteError(w, http.StatusNotFound, "not_found", "application not found")
-		return
-	}
-	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted", "buildId": buildID})
 }
 
+// ApplicationLogs returns recent logs for an application's service.
 func (h *Handler) ApplicationLogs(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -164,6 +182,7 @@ func (h *Handler) ApplicationLogs(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"logs": lines})
 }
 
+// ListDeployments lists the organization's recent deployments.
 func (h *Handler) ListDeployments(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -194,6 +213,7 @@ func (h *Handler) ListDeployments(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// DeleteDeployment removes a deployment record.
 func (h *Handler) DeleteDeployment(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {

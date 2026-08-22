@@ -31,11 +31,12 @@ type Collector struct {
 func NewCollector(hostRoot string, hostMgmt bool) *Collector {
 	// Set gopsutil env vars for host filesystem access
 	if hostRoot != "" {
-		os.Setenv("HOST_PROC", hostRoot+"/proc")
-		os.Setenv("HOST_SYS", hostRoot+"/sys")
-		os.Setenv("HOST_ETC", hostRoot+"/etc")
-		os.Setenv("HOST_VAR", hostRoot+"/var")
-		os.Setenv("HOST_RUN", hostRoot+"/run")
+		// Setenv only fails for malformed keys; these keys are fixed literals.
+		_ = os.Setenv("HOST_PROC", hostRoot+"/proc")
+		_ = os.Setenv("HOST_SYS", hostRoot+"/sys")
+		_ = os.Setenv("HOST_ETC", hostRoot+"/etc")
+		_ = os.Setenv("HOST_VAR", hostRoot+"/var")
+		_ = os.Setenv("HOST_RUN", hostRoot+"/run")
 	}
 	return &Collector{
 		hostRoot:        hostRoot,

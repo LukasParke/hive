@@ -14,19 +14,22 @@ import (
 	"github.com/luke/hive/control-plane/internal/api/common"
 	"github.com/luke/hive/control-plane/internal/deploy"
 	"github.com/luke/hive/control-plane/internal/rbac"
-	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 	dockerswarm "github.com/moby/moby/api/types/swarm"
 )
 
+// Handler serves stack management endpoints. Swarm is the deploy.SwarmStack
+// seam; *swarmclient.Client satisfies it and tests inject fakes.
 type Handler struct {
 	Pool  *pgxpool.Pool
-	Swarm *swarmclient.Client
+	Swarm deploy.SwarmStack
 }
 
-func NewHandler(pool *pgxpool.Pool, swarm *swarmclient.Client) *Handler {
+// NewHandler returns a stack Handler backed by the given pool.
+func NewHandler(pool *pgxpool.Pool, swarm deploy.SwarmStack) *Handler {
 	return &Handler{Pool: pool, Swarm: swarm}
 }
 
+// ListStacks lists deployed stacks.
 func (h *Handler) ListStacks(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -57,6 +60,7 @@ func (h *Handler) ListStacks(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateStack deploys a new stack from a compose file.
 func (h *Handler) CreateStack(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -95,6 +99,7 @@ func (h *Handler) CreateStack(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// GetStack returns a single stack by name.
 func (h *Handler) GetStack(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -118,6 +123,7 @@ func (h *Handler) GetStack(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateStack redeploys a stack with a new compose file.
 func (h *Handler) UpdateStack(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -152,6 +158,7 @@ func (h *Handler) UpdateStack(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// DeleteStack removes a stack and its services.
 func (h *Handler) DeleteStack(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -181,6 +188,7 @@ func (h *Handler) DeleteStack(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// DeployStack redeploys the stack's compose file as-is.
 func (h *Handler) DeployStack(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -209,22 +217,25 @@ func (h *Handler) deployStackByID(ctx context.Context, stackID, orgID string) er
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 	path := filepath.Join(dir, "compose.yml")
 	if err := os.WriteFile(path, []byte(composeContent), 0o600); err != nil {
 		return err
 	}
-	return deploy.DeployStack(ctx, h.Swarm, stackName, path)
+	return deploy.Stack(ctx, h.Swarm, stackName, path)
 }
 
+// StartStack scales all stack services up.
 func (h *Handler) StartStack(w http.ResponseWriter, r *http.Request) {
 	h.scaleStack(w, r, 1)
 }
 
+// StopStack scales all stack services to zero.
 func (h *Handler) StopStack(w http.ResponseWriter, r *http.Request) {
 	h.scaleStack(w, r, 0)
 }
 
+// RestartStack forces a rolling restart of stack services.
 func (h *Handler) RestartStack(w http.ResponseWriter, r *http.Request) {
 	h.scaleStack(w, r, 1)
 }

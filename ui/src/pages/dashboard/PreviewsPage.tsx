@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, type PreviewDeployment, type Session } from "../../api/client";
+import { api, type PreviewDeployment } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { DataTable, type Column } from "../../components/DataTable";

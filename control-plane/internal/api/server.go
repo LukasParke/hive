@@ -29,6 +29,7 @@ import (
 	"github.com/luke/hive/control-plane/internal/api/infrastructure"
 	apimiddleware "github.com/luke/hive/control-plane/internal/api/middleware"
 	"github.com/luke/hive/control-plane/internal/api/mounts"
+	"github.com/luke/hive/control-plane/internal/api/nodeops"
 	"github.com/luke/hive/control-plane/internal/api/notifications"
 	"github.com/luke/hive/control-plane/internal/api/organizations"
 	"github.com/luke/hive/control-plane/internal/api/orgmembers"
@@ -43,11 +44,16 @@ import (
 	"github.com/luke/hive/control-plane/internal/api/security"
 	"github.com/luke/hive/control-plane/internal/api/settings"
 	"github.com/luke/hive/control-plane/internal/api/stacks"
+	tunnelsapi "github.com/luke/hive/control-plane/internal/api/tunnels"
 	"github.com/luke/hive/control-plane/internal/api/update"
 	"github.com/luke/hive/control-plane/internal/api/volumebackups"
 	"github.com/luke/hive/control-plane/internal/api/webhooks"
+	"github.com/luke/hive/control-plane/internal/apispec"
 	"github.com/luke/hive/control-plane/internal/auth"
+	"github.com/luke/hive/control-plane/internal/leader"
+
 	"github.com/luke/hive/control-plane/internal/ca"
+	"github.com/luke/hive/control-plane/internal/cloudflare"
 	"github.com/luke/hive/control-plane/internal/realtime"
 	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 	"github.com/luke/hive/control-plane/internal/updater"
@@ -55,6 +61,7 @@ import (
 	"github.com/riverqueue/river"
 )
 
+// Server aggregates all HTTP handlers and dependencies for the control-plane API.
 type Server struct {
 	Pool           *pgxpool.Pool
 	Swarm          *swarmclient.Client
@@ -66,8 +73,17 @@ type Server struct {
 	BootstrapToken string
 	Initialized    func() bool
 	Updater        *updater.Updater
+	// Elector optionally reports leadership on /api/v1/health; nil omits
+	// the field (wiring without HA, e.g. unit tests).
+	Elector *leader.Elector
+	// AuthRateLimitPerMin / WebhookRateLimitPerMin override the public
+	// endpoint rate limits (requests per minute per IP). Zero uses the
+	// production defaults.
+	AuthRateLimitPerMin    int
+	WebhookRateLimitPerMin int
 }
 
+// Router builds the full HTTP routing table for the API.
 func (s *Server) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
@@ -80,15 +96,15 @@ func (s *Server) Router() http.Handler {
 	orgHandler := organizations.NewHandler(s.Pool)
 	apiKeyHandler := apikeys.NewHandler(s.Pool)
 	orgMemberHandler := orgmembers.NewHandler(s.Pool)
-	schedulesHandler := schedules.NewHandler(s.Pool)
+	schedulesHandler := schedules.NewHandler(s.Pool, s.RiverClient)
 	backupsHandler := backups.NewHandler(s.Pool)
 	databasesHandler := databases.NewHandler(s.Pool, s.Swarm)
 	gitProvidersHandler := gitproviders.NewHandler(s.Pool)
 	projectsHandler := projects.NewHandler(s.Pool)
 	environmentsHandler := environments.NewHandler(s.Pool)
 	applicationsHandler := applications.NewHandler(s.Pool, s.Swarm)
-	deploymentsHandler := deployments.NewHandler(s.Pool)
-	buildsHandler := builds.NewHandler(s.Pool)
+	deploymentsHandler := deployments.NewHandler(s.Pool, s.RiverClient)
+	buildsHandler := builds.NewHandler(s.Pool, s.RiverClient)
 	domainsHandler := domains.NewHandler(s.Pool, s.Swarm)
 	registriesHandler := registries.NewHandler(s.Pool)
 	stacksHandler := stacks.NewHandler(s.Pool, s.Swarm)
@@ -96,6 +112,7 @@ func (s *Server) Router() http.Handler {
 	passwordHandler := password.NewHandler(s.Pool)
 	eventsHandler := events.NewHandler(s.Pool, s.Auth, s.Hub)
 	agentsHandler := agents.NewHandler(s.Pool, s.Swarm, s.AgentDialer, s.Authority, s.BootstrapToken)
+	nodeOpsHandler := nodeops.NewHandler(s.Pool, s.Swarm)
 	settingsHandler := settings.NewHandler(s.Pool)
 	webhooksHandler := webhooks.NewHandler(s.Pool, s.RiverClient)
 	infraHandler := infrastructure.NewHandler(s.Pool, s.Swarm)
@@ -107,15 +124,30 @@ func (s *Server) Router() http.Handler {
 	profileHandler := profile.NewHandler(s.Pool)
 	securityHandler := security.NewHandler(s.Pool, s.Swarm)
 	updateHandler := update.NewHandler(s.Updater)
+	// Cloudflare tunnels (additive block): real REST v4 client built per
+	// request token; credentials stored encrypted via secrets runtime.
+	tunnelsHandler := tunnelsapi.NewHandler(s.Pool, s.Swarm, func(apiToken string) cloudflare.API {
+		return cloudflare.NewClient(apiToken)
+	})
 
 	r.Get("/api/v1/health", s.health)
 	r.Get("/api/v1/ready", s.ready)
 	r.Get("/api/v1/metrics", s.metrics)
 	r.Get("/metrics", promhttp.Handler().ServeHTTP)
+	r.Get("/api/v1/openapi.yaml", apispec.Spec())
+	r.Get("/docs/api", apispec.Docs())
 
 	// Rate-limited public endpoints
-	authRateLimiter := apimiddleware.NewRateLimiter(10, time.Minute)
-	webhookRateLimiter := apimiddleware.NewRateLimiter(60, time.Minute)
+	authLimit := s.AuthRateLimitPerMin
+	if authLimit <= 0 {
+		authLimit = 10 // production default: 10 auth attempts/min/IP
+	}
+	webhookLimit := s.WebhookRateLimitPerMin
+	if webhookLimit <= 0 {
+		webhookLimit = 60
+	}
+	authRateLimiter := apimiddleware.NewRateLimiter(authLimit, time.Minute)
+	webhookRateLimiter := apimiddleware.NewRateLimiter(webhookLimit, time.Minute)
 
 	r.With(authRateLimiter.Handler).Post("/api/v1/auth/register", authHandler.RegisterUser)
 	r.With(authRateLimiter.Handler).Post("/api/v1/auth/login", authHandler.Login)
@@ -175,6 +207,11 @@ func (s *Server) Router() http.Handler {
 		pr.Get("/api/v1/nodes/{id}/packages", agentsHandler.GetNodePackages)
 		pr.Post("/api/v1/nodes/{id}/packages/check", agentsHandler.TriggerPackageCheck)
 		pr.Post("/api/v1/nodes/{id}/maintain", agentsHandler.TriggerNodeMaintenance)
+		pr.Put("/api/v1/nodes/{id}/labels", nodeOpsHandler.UpdateNodeLabels)
+		pr.Post("/api/v1/nodes/{id}/drain", nodeOpsHandler.DrainNode)
+		pr.Post("/api/v1/nodes/{id}/promote", nodeOpsHandler.PromoteNode)
+		pr.Post("/api/v1/nodes/{id}/demote", nodeOpsHandler.DemoteNode)
+		pr.Delete("/api/v1/nodes/{id}", nodeOpsHandler.RemoveNode)
 		pr.Get("/api/v1/cluster/resources", agentsHandler.GetClusterResources)
 
 		pr.Get("/api/v1/organizations", orgHandler.ListOrganizations)
@@ -217,6 +254,12 @@ func (s *Server) Router() http.Handler {
 		pr.Post("/api/v1/configs", infraHandler.CreateConfig)
 		pr.Get("/api/v1/networks", infraHandler.ListNetworks)
 		pr.Post("/api/v1/networks", infraHandler.CreateNetwork)
+		pr.Put("/api/v1/secrets/{id}", infraHandler.UpdateSecret)
+		pr.Delete("/api/v1/secrets/{id}", infraHandler.DeleteSecret)
+		pr.Post("/api/v1/secrets/{id}/rotate", infraHandler.RotateSecret)
+		pr.Put("/api/v1/configs/{id}", infraHandler.UpdateConfig)
+		pr.Delete("/api/v1/configs/{id}", infraHandler.DeleteConfig)
+		pr.Delete("/api/v1/networks/{id}", infraHandler.DeleteNetwork)
 		pr.Get("/api/v1/redirects", redirectsHandler.ListRedirects)
 		pr.Post("/api/v1/redirects", redirectsHandler.CreateRedirect)
 		pr.Get("/api/v1/redirects/{id}", redirectsHandler.GetRedirect)
@@ -251,6 +294,7 @@ func (s *Server) Router() http.Handler {
 		pr.Get("/api/v1/builds/queue", buildsHandler.ListBuildQueue)
 		pr.Post("/api/v1/builds/{id}/cancel", buildsHandler.CancelBuild)
 		pr.Post("/api/v1/builds/{id}/retry", buildsHandler.RetryBuild)
+		pr.Get("/api/v1/builds/{id}/logs", buildsHandler.GetBuildLogs)
 		pr.Get("/api/v1/settings", settingsHandler.GetSettings)
 		pr.Put("/api/v1/settings", settingsHandler.PutSettings)
 		pr.Get("/api/v1/settings/servers", agentsHandler.ListServers)
@@ -289,6 +333,13 @@ func (s *Server) Router() http.Handler {
 		pr.Post("/api/v1/notifications/{id}/test", notificationsHandler.TestNotification)
 		pr.Get("/api/v1/system/update", updateHandler.GetStatus)
 		pr.Post("/api/v1/system/update", updateHandler.TriggerUpdate)
+
+		// Cloudflare tunnels
+		pr.Get("/api/v1/tunnels", tunnelsHandler.ListTunnels)
+		pr.Post("/api/v1/tunnels", tunnelsHandler.CreateTunnel)
+		pr.Get("/api/v1/tunnels/{id}", tunnelsHandler.GetTunnel)
+		pr.Put("/api/v1/tunnels/{id}/ingress", tunnelsHandler.UpdateTunnelIngress)
+		pr.Delete("/api/v1/tunnels/{id}", tunnelsHandler.DeleteTunnel)
 	})
 
 	// Serve UI static files if they exist. BrowserRouter-based SPA routes (for
@@ -338,7 +389,11 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"docker unhealthy"}`, http.StatusServiceUnavailable)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	body := map[string]any{"status": "ok"}
+	if s.Elector != nil {
+		body["leader"] = s.Elector.IsLeader()
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
@@ -371,11 +426,4 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	writeJSON(w, status, map[string]string{
-		"error":   code,
-		"message": message,
-	})
 }

@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -18,13 +19,13 @@ returning id::text
 `
 
 type CreateSecurityRuleParams struct {
-	OrganizationID pgtype.UUID `json:"organization_id"`
-	ApplicationID  pgtype.UUID `json:"application_id"`
-	Name           string      `json:"name"`
-	Type           string      `json:"type"`
-	Config         []byte      `json:"config"`
-	Priority       int32       `json:"priority"`
-	Enabled        bool        `json:"enabled"`
+	OrganizationID pgtype.UUID     `json:"organization_id"`
+	ApplicationID  pgtype.UUID     `json:"application_id"`
+	Name           string          `json:"name"`
+	Type           string          `json:"type"`
+	Config         json.RawMessage `json:"config"`
+	Priority       int32           `json:"priority"`
+	Enabled        bool            `json:"enabled"`
 }
 
 func (q *Queries) CreateSecurityRule(ctx context.Context, arg CreateSecurityRuleParams) (string, error) {
@@ -73,7 +74,7 @@ type GetSecurityRuleRow struct {
 	ApplicationID string             `json:"application_id"`
 	Name          string             `json:"name"`
 	Type          string             `json:"type"`
-	Config        []byte             `json:"config"`
+	Config        json.RawMessage    `json:"config"`
 	Priority      int32              `json:"priority"`
 	Enabled       bool               `json:"enabled"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
@@ -109,7 +110,7 @@ type ListSecurityRulesRow struct {
 	ApplicationID string             `json:"application_id"`
 	Name          string             `json:"name"`
 	Type          string             `json:"type"`
-	Config        []byte             `json:"config"`
+	Config        json.RawMessage    `json:"config"`
 	Priority      int32              `json:"priority"`
 	Enabled       bool               `json:"enabled"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
@@ -162,7 +163,7 @@ type ListSecurityRulesByApplicationRow struct {
 	ID        string             `json:"id"`
 	Name      string             `json:"name"`
 	Type      string             `json:"type"`
-	Config    []byte             `json:"config"`
+	Config    json.RawMessage    `json:"config"`
 	Priority  int32              `json:"priority"`
 	Enabled   bool               `json:"enabled"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
@@ -205,14 +206,14 @@ where id = $7::uuid and organization_id = $8::uuid
 `
 
 type UpdateSecurityRuleParams struct {
-	ApplicationID  pgtype.UUID `json:"application_id"`
-	Name           string      `json:"name"`
-	Type           string      `json:"type"`
-	Config         []byte      `json:"config"`
-	Priority       int32       `json:"priority"`
-	Enabled        bool        `json:"enabled"`
-	ID             pgtype.UUID `json:"id"`
-	OrganizationID pgtype.UUID `json:"organization_id"`
+	ApplicationID  pgtype.UUID     `json:"application_id"`
+	Name           string          `json:"name"`
+	Type           string          `json:"type"`
+	Config         json.RawMessage `json:"config"`
+	Priority       int32           `json:"priority"`
+	Enabled        bool            `json:"enabled"`
+	ID             pgtype.UUID     `json:"id"`
+	OrganizationID pgtype.UUID     `json:"organization_id"`
 }
 
 func (q *Queries) UpdateSecurityRule(ctx context.Context, arg UpdateSecurityRuleParams) error {

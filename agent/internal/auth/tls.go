@@ -28,16 +28,25 @@ type CertManager struct {
 	controlPlaneURL string
 	bootstrapToken  string
 	certDir         string
+	caFile          string
 	key             *ecdsa.PrivateKey
+
+	// tickInterval overrides the renewal loop's check period; zero means the
+	// production default of one hour. Set only in tests.
+	tickInterval time.Duration
 }
 
-// NewCertManager creates a new certificate manager.
-func NewCertManager(nodeID, controlPlaneURL, bootstrapToken, certDir string) *CertManager {
+// NewCertManager creates a new certificate manager. caFile is an optional
+// path to a pinned CA certificate (e.g. the hive-agent-ca Swarm config mounted
+// at /hive-ca/ca.pem); when readable it takes precedence over the CA returned
+// by the control plane during bootstrap.
+func NewCertManager(nodeID, controlPlaneURL, bootstrapToken, certDir, caFile string) *CertManager {
 	return &CertManager{
 		nodeID:          nodeID,
 		controlPlaneURL: controlPlaneURL,
 		bootstrapToken:  bootstrapToken,
 		certDir:         certDir,
+		caFile:          caFile,
 	}
 }
 
@@ -78,7 +87,7 @@ func (cm *CertManager) Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("register request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("register failed: status %d", resp.StatusCode)
@@ -108,9 +117,20 @@ func (cm *CertManager) Bootstrap(ctx context.Context) error {
 		PrivateKey:  key,
 	}
 
+	// Prefer the pinned CA (mounted Swarm config) over the response value:
+	// a compromised control plane or MITM cannot swap the trust root.
+	caPEM := []byte(result.CACert)
+	if cm.caFile != "" {
+		if pinned, err := os.ReadFile(cm.caFile); err == nil && len(bytes.TrimSpace(pinned)) > 0 {
+			caPEM = pinned
+		} else {
+			log.Printf("AGENT_CA_FILE %s not readable, using CA from control-plane response", cm.caFile)
+		}
+	}
+
 	// Parse CA cert
 	caPool := x509.NewCertPool()
-	if !caPool.AppendCertsFromPEM([]byte(result.CACert)) {
+	if !caPool.AppendCertsFromPEM(caPEM) {
 		return fmt.Errorf("failed to parse CA cert")
 	}
 
@@ -126,10 +146,10 @@ func (cm *CertManager) Bootstrap(ctx context.Context) error {
 	if err := os.WriteFile(filepath.Join(cm.certDir, "agent.key"), keyPEM, 0o600); err != nil {
 		return fmt.Errorf("write key: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(cm.certDir, "agent.crt"), []byte(result.Cert), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(cm.certDir, "agent.crt"), []byte(result.Cert), 0o600); err != nil {
 		return fmt.Errorf("write cert: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(cm.certDir, "ca.crt"), []byte(result.CACert), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(cm.certDir, "ca.crt"), caPEM, 0o600); err != nil { //nolint:gosec // certDir comes from trusted AGENT_CERT_DIR config, fixed filename
 		return fmt.Errorf("write ca cert: %w", err)
 	}
 
@@ -150,15 +170,20 @@ func (cm *CertManager) LoadExisting() bool {
 	keyPath := filepath.Join(cm.certDir, "agent.key")
 	caPath := filepath.Join(cm.certDir, "ca.crt")
 
-	certPEM, err := os.ReadFile(certPath)
+	certPEM, err := os.ReadFile(certPath) //nolint:gosec // certPath is built from the trusted AGENT_CERT_DIR config
 	if err != nil {
 		return false
 	}
-	keyPEM, err := os.ReadFile(keyPath)
+	keyPEM, err := os.ReadFile(keyPath) //nolint:gosec // keyPath is built from the trusted AGENT_CERT_DIR config
 	if err != nil {
 		return false
 	}
-	caPEM, err := os.ReadFile(caPath)
+	// Load the CA: prefer the cached copy written at bootstrap; fall back
+	// to the pinned CA file (cm.caFile) when no cached copy exists yet.
+	caPEM, err := os.ReadFile(caPath) //nolint:gosec // caPath is built from trusted AGENT_CERT_DIR / pinned CA config
+	if err != nil && cm.caFile != "" {
+		caPEM, err = os.ReadFile(cm.caFile)
+	}
 	if err != nil {
 		return false
 	}
@@ -177,7 +202,6 @@ func (cm *CertManager) LoadExisting() bool {
 		log.Printf("cert expires in less than 24h (%s), will re-bootstrap", leaf.NotAfter)
 		return false
 	}
-
 	caPool := x509.NewCertPool()
 	if !caPool.AppendCertsFromPEM(caPEM) {
 		return false
@@ -233,7 +257,11 @@ func (cm *CertManager) CertExpiresAt() time.Time {
 // RunRenewalLoop checks for certificate expiry and re-bootstraps when needed.
 // For a 72h cert, renewal triggers at NotAfter - 24h (i.e., 48h into the cert's life).
 func (cm *CertManager) RunRenewalLoop(ctx context.Context) {
-	ticker := time.NewTicker(time.Hour)
+	interval := cm.tickInterval
+	if interval <= 0 {
+		interval = time.Hour
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {

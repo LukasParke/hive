@@ -12,7 +12,7 @@ ARG VERSION=dev
 RUN go mod download && go build -ldflags="-s -w -X github.com/luke/hive/control-plane/internal/version.Current=${VERSION}" -o /out/control-plane ./control-plane/cmd/control-plane
 
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates wget
+RUN apk add --no-cache ca-certificates wget git openssh-client
 COPY --from=go-builder /out/control-plane /control-plane
 COPY --from=ui-builder /ui/dist /ui/dist
 COPY control-plane/internal/db/migrations /internal/db/migrations

@@ -1,0 +1,68 @@
+name: Integration (Patroni HA)
+
+# Weekly HA drill plus manual dispatch. Deliberately NOT gated on pull
+# requests: the PR path stays on integration-swarm.yml only.
+on:
+  workflow_dispatch:
+  schedule:
+    # Mondays 04:00 UTC
+    - cron: "0 4 * * 1"
+
+concurrency:
+  group: patroni-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  patroni-failover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DIND_MANAGER_HOST: tcp://127.0.0.1:2375
+      DIND_MANAGERS: "3"
+      HIVE_DOMAIN: ci.local
+      ACME_EMAIL: ci@example.com
+      STACK_NAME: hive
+      PATRONI_STACK_NAME: patroni
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start dind swarm (3 managers)
+        run: ./tests/integration/scripts/start_dind_swarm.sh
+
+      - name: Build CI images in dind manager
+        run: |
+          docker --host "$DIND_MANAGER_HOST" build -f control-plane/Dockerfile -t hive/control-plane:ci .
+          docker --host "$DIND_MANAGER_HOST" build -f agent/Dockerfile -t hive/agent:ci .
+
+      - name: Seed swarm prerequisites
+        run: ./tests/integration/scripts/seed_swarm_prereqs.sh
+
+      - name: Deploy base stack
+        run: |
+          docker --host "$DIND_MANAGER_HOST" stack deploy \
+            -c deploy/hive-stack.yml \
+            -c deploy/hive-stack.ci.yml \
+            "$STACK_NAME"
+
+      - name: Wait for base stack readiness
+        run: ./tests/integration/scripts/wait_for_stack_ready.sh
+
+      - name: Deploy patroni stack
+        run: |
+          docker --host "$DIND_MANAGER_HOST" stack deploy \
+            -c deploy/patroni-stack.yml \
+            "$PATRONI_STACK_NAME"
+
+      - name: Run patroni failover check
+        run: ./tests/integration/scripts/patroni_failover_check.sh
+
+      - name: Collect debug artifacts on failure
+        if: failure()
+        run: ./tests/integration/scripts/collect_debug_artifacts.sh
+
+      - name: Upload debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patroni-integration-debug
+          path: tests/integration/artifacts

@@ -9,16 +9,16 @@ import (
 
 // rateLimitEntry tracks requests per client.
 type rateLimitEntry struct {
-	count    int
+	count       int
 	windowStart time.Time
 }
 
 // RateLimiter is a simple in-memory rate limiter.
 type RateLimiter struct {
-	requests   int
-	window     time.Duration
-	clients    map[string]*rateLimitEntry
-	mu         sync.RWMutex
+	requests int
+	window   time.Duration
+	clients  map[string]*rateLimitEntry
+	mu       sync.RWMutex
 }
 
 // NewRateLimiter creates a rate limiter allowing `requests` per `window` per client IP.

@@ -42,6 +42,7 @@ const BackupDestinationsPage = lazy(() => import("./pages/dashboard/settings/Bac
 const SchedulesPage = lazy(() => import("./pages/dashboard/settings/SchedulesPage").then((m) => ({ default: m.SchedulesPage })));
 const GitProvidersPage = lazy(() => import("./pages/dashboard/settings/GitProvidersPage").then((m) => ({ default: m.GitProvidersPage })));
 const GlobalSettingsPage = lazy(() => import("./pages/dashboard/settings/GlobalSettingsPage").then((m) => ({ default: m.GlobalSettingsPage })));
+const TunnelsPage = lazy(() => import("./pages/dashboard/TunnelsPage").then((m) => ({ default: m.TunnelsPage })));
 
 function PageFallback() {
   return (
@@ -95,6 +96,7 @@ function DashboardRoutes() {
           <Route path="/dashboard/configs" element={<ConfigsPage />} />
           <Route path="/dashboard/networks" element={<NetworksPage />} />
           <Route path="/dashboard/domains" element={<DomainsPage />} />
+          <Route path="/dashboard/tunnels" element={<TunnelsPage />} />
           <Route path="/dashboard/security" element={<SecurityPage />} />
           <Route path="/dashboard/environments" element={<EnvironmentHierarchyPage />} />
           <Route path="/dashboard/settings" element={<SettingsPage />} />

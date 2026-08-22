@@ -1,10 +1,12 @@
-name: Nightly Release
+name: Release
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   schedule:
     - cron: '17 2 * * *'  # 02:17 UTC nightly (offset to avoid herd traffic)
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,13 +16,17 @@ env:
   REGISTRY: ghcr.io
   CP_IMAGE: ghcr.io/lukasparke/hive/control-plane
   AGENT_IMAGE: ghcr.io/lukasparke/hive/agent
+  PATRONI_IMAGE: ghcr.io/lukasparke/hive/postgres-patroni
 
 jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
+      # Release identifier: v-tag on tag pushes, nightly-YYYYMMDD-sha otherwise.
       tag: ${{ steps.version.outputs.tag }}
-      nightly_tag: ${{ steps.version.outputs.nightly_tag }}
+      # Image tag pushed to GHCR for every image.
+      image_tag: ${{ steps.version.outputs.image_tag }}
+      is_release: ${{ steps.version.outputs.is_release }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,14 +35,48 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          DATE=$(date -u +%Y%m%d)
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          echo "tag=nightly-${DATE}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "nightly_tag=nightly" >> "$GITHUB_OUTPUT"
+          case "${GITHUB_REF}" in
+            refs/tags/v*)
+              {
+                echo "tag=${GITHUB_REF_NAME}"
+                echo "image_tag=${GITHUB_REF_NAME#v}"
+                echo "is_release=true"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              DATE=$(date -u +%Y%m%d)
+              SHORT_SHA=$(git rev-parse --short HEAD)
+              {
+                echo "tag=nightly-${DATE}-${SHORT_SHA}"
+                echo "image_tag=nightly-${DATE}-${SHORT_SHA}"
+                echo "is_release=false"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
   images:
     runs-on: ubuntu-latest
     needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: control-plane
+            dockerfile: ./control-plane/Dockerfile
+            image: ghcr.io/lukasparke/hive/control-plane
+            cache_scope: cp-release
+            version_arg: true
+          - name: agent
+            dockerfile: ./agent/Dockerfile
+            image: ghcr.io/lukasparke/hive/agent
+            cache_scope: agent-release
+            version_arg: true
+          - name: postgres-patroni
+            dockerfile: ./images/postgres-patroni/Dockerfile
+            image: ghcr.io/lukasparke/hive/postgres-patroni
+            cache_scope: patroni-release
+            version_arg: false
+    name: Images (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
 
@@ -50,44 +90,122 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push control-plane
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ needs.version.outputs.image_tag }}
+            type=raw,value=nightly,enable=${{ needs.version.outputs.is_release != 'true' }}
+
+      - name: Build and push ${{ matrix.name }}
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./control-plane/Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
-          tags: |
-            ${{ env.CP_IMAGE }}:${{ needs.version.outputs.tag }}
-            ${{ env.CP_IMAGE }}:${{ needs.version.outputs.nightly_tag }}
-          build-args: |
-            VERSION=${{ needs.version.outputs.tag }}
-          cache-from: type=gha,scope=cp-release
-          cache-to: type=gha,mode=max,scope=cp-release
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.version_arg == true && format('VERSION={0}', needs.version.outputs.image_tag) || '' }}
+          cache-from: type=gha,scope=${{ matrix.cache_scope }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.cache_scope }}
 
-      - name: Build and push agent
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./agent/Dockerfile
-          push: true
-          tags: |
-            ${{ env.AGENT_IMAGE }}:${{ needs.version.outputs.tag }}
-            ${{ env.AGENT_IMAGE }}:${{ needs.version.outputs.nightly_tag }}
-          build-args: |
-            VERSION=${{ needs.version.outputs.tag }}
-          cache-from: type=gha,scope=agent-release
-          cache-to: type=gha,mode=max,scope=agent-release
-
-  release:
+  # Tagged releases only. integration-swarm.yml is not workflow_call-compatible
+  # (no workflow_call trigger), so the essential dind steps are duplicated here;
+  # it exercises the exact code at the tag by building :ci images in dind.
+  integration:
     runs-on: ubuntu-latest
     needs: [version, images]
+    if: needs.version.outputs.is_release == 'true'
+    timeout-minutes: 30
+    env:
+      DIND_MANAGER_HOST: tcp://127.0.0.1:2375
+      HIVE_DOMAIN: ci.local
+      ACME_EMAIL: ci@example.com
+      STACK_NAME: hive
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Start dind swarm
+        run: ./tests/integration/scripts/start_dind_swarm.sh
+
+      - name: Build CI images in dind manager
+        run: |
+          docker --host "$DIND_MANAGER_HOST" build -f control-plane/Dockerfile -t hive/control-plane:ci .
+          docker --host "$DIND_MANAGER_HOST" build -f agent/Dockerfile -t hive/agent:ci .
+
+      - name: Seed swarm prerequisites
+        run: ./tests/integration/scripts/seed_swarm_prereqs.sh
+
+      - name: Deploy stack
+        run: |
+          docker --host "$DIND_MANAGER_HOST" stack deploy \
+            -c deploy/hive-stack.yml \
+            -c deploy/hive-stack.ci.yml \
+            "$STACK_NAME"
+
+      - name: Wait for stack readiness
+        run: ./tests/integration/scripts/wait_for_stack_ready.sh
+
+      - name: Run integration tests
+        run: |
+          set -o pipefail
+          mkdir -p tests/integration/artifacts
+          cd control-plane
+          HIVE_API_BASE_URL="http://127.0.0.1:3000" \
+          HIVE_DOCKER_HOST="$DIND_MANAGER_HOST" \
+          HIVE_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:6432/hive?sslmode=disable" \
+          go test -tags integration -v ./tests/integration -count=1 -timeout 20m \
+            | tee ../tests/integration/artifacts/go-test-output.txt
+
+      - name: Collect debug artifacts on failure
+        if: failure()
+        run: ./tests/integration/scripts/collect_debug_artifacts.sh
+
+      - name: Upload debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swarm-integration-debug-${{ needs.version.outputs.tag }}
+          path: tests/integration/artifacts
+
+  github-release:
+    runs-on: ubuntu-latest
+    needs: [version, images, integration]
+    if: needs.version.outputs.is_release == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package deploy artifacts
+        run: |
+          tar -czf "/tmp/hive-deploy-${{ needs.version.outputs.tag }}.tar.gz" \
+            deploy/*.yml deploy/init.sh hivectl
+          ls -l /tmp/hive-deploy-*.tar.gz
+
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ needs.version.outputs.tag }}
+          name: ${{ needs.version.outputs.tag }}
+          generateReleaseNotes: true
+          artifacts: /tmp/hive-deploy-*.tar.gz,deploy/*.yml,deploy/init.sh,hivectl
+          makeLatest: true
+          prerelease: false
+
+  nightly-release:
+    runs-on: ubuntu-latest
+    needs: [version, images]
+    if: needs.version.outputs.is_release != 'true'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Generate changelog
-        id: changelog
         run: |
           TAG="${{ needs.version.outputs.tag }}"
           echo "## Changes since last nightly" > /tmp/changelog.md
@@ -95,8 +213,8 @@ jobs:
           git log --pretty=format:'- %s (%h)' --no-merges -20 >> /tmp/changelog.md || true
           echo "" >> /tmp/changelog.md
           echo "## Images" >> /tmp/changelog.md
-          echo "- \`${{ env.CP_IMAGE }}:${TAG}\`" >> /tmp/changelog.md
-          echo "- \`${{ env.AGENT_IMAGE }}:${TAG}\`" >> /tmp/changelog.md
+          echo "- \`${CP_IMAGE}:${TAG}\`" >> /tmp/changelog.md
+          echo "- \`${AGENT_IMAGE}:${TAG}\`" >> /tmp/changelog.md
           echo "" >> /tmp/changelog.md
           echo "**Note:** This is an automated nightly release for testing." >> /tmp/changelog.md
 

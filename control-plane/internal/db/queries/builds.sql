@@ -38,43 +38,74 @@ join applications a on a.id = b.application_id
 join projects p on p.id = a.project_id
 where b.id = $1 and p.organization_id = $2;
 
--- name: GetBuildJobForWorker :one
-select id::text, trigger
+-- name: GetBuildStatus :one
+select status::text
 from build_jobs
-where status = 'queued'
-order by created_at asc
-for update skip locked
-limit 1;
+where id = sqlc.arg(build_id)::uuid;
 
--- name: ClaimBuildJob :exec
+-- name: MarkBuildRunning :exec
 update build_jobs
-set status = 'building', started_at = now()
-where id = $1::uuid;
+set status = 'building', started_at = now(), error_message = null
+where id = sqlc.arg(build_id)::uuid;
 
--- name: FailBuildJob :exec
+-- name: MarkBuildFailed :exec
 update build_jobs
-set status = case when retries < 3 then 'queued' else 'failed' end,
-    retries = retries + 1,
-    error_message = $2,
-    completed_at = case when retries >= 3 then now() else completed_at end
-where id = $1::uuid;
+set status = 'failed', error_message = sqlc.arg(error_message), completed_at = now()
+where id = sqlc.arg(build_id)::uuid;
+
+-- name: SetBuildImageTag :exec
+update build_jobs set image_tag = sqlc.arg(image_tag) where id = sqlc.arg(build_id)::uuid;
+
+-- name: SetBuildGitSha :exec
+update build_jobs set git_sha = sqlc.arg(git_sha) where id = sqlc.arg(build_id)::uuid;
 
 -- name: CompleteBuildJob :exec
 update build_jobs
-set status = 'complete', completed_at = now(), image_tag = $2
-where id = $1::uuid;
+set status = 'complete', completed_at = now(), image_tag = sqlc.arg(image_tag)
+where id = sqlc.arg(build_id)::uuid;
 
 -- name: AppendBuildLog :exec
 update build_jobs
-set logs = logs || $2
-where id = $1::uuid;
+set logs = logs || sqlc.arg(chunk)
+where id = sqlc.arg(build_id)::uuid;
 
--- name: GetBuildJobDetails :one
-select bj.application_id::text, a.source_type::text, bj.trigger, a.name, a.project_id::text,
-       coalesce(a.image, ''), coalesce(bj.image_tag, ''), coalesce(a.repository_url, ''), coalesce(a.git_ref, 'main'), coalesce(a.container_port, 3000)
+-- name: ResetBuildForRetry :one
+update build_jobs b
+set status = 'queued', retries = 0, error_message = null,
+    started_at = null, completed_at = null
+from applications a, projects p
+where b.id = sqlc.arg(build_id)::uuid and a.id = b.application_id and p.id = a.project_id
+  and p.organization_id = sqlc.arg(organization_id)::uuid and b.status not in ('queued', 'building')
+returning b.id::text;
+
+-- name: GetBuildLog :one
+select b.logs
+from build_jobs b
+join applications a on a.id = b.application_id
+join projects p on p.id = a.project_id
+where b.id = sqlc.arg(build_id)::uuid and p.organization_id = sqlc.arg(organization_id)::uuid;
+
+-- name: GetBuildForExecution :one
+select bj.id::text as build_id, bj.status::text as status,
+       bj.application_id::text as application_id, a.source_type::text as source_type,
+       bj.trigger, a.name, a.project_id::text as project_id,
+       coalesce(a.image, '') as image, coalesce(bj.image_tag, '') as requested_image_tag,
+       coalesce(a.repository_url, '') as repository_url, coalesce(a.git_ref, 'main') as git_ref,
+       coalesce(a.container_port, 3000) as container_port,
+       a.registry_id, a.service_spec, coalesce(bj.git_sha, '') as git_sha
 from build_jobs bj
 join applications a on a.id = bj.application_id
-where bj.id = $1::uuid;
+where bj.id = sqlc.arg(build_id)::uuid;
+
+-- name: PruneBuildHistory :exec
+delete from build_jobs b
+where (
+  select count(*)
+  from build_jobs newer
+  where newer.application_id = b.application_id
+    and (newer.created_at > b.created_at
+         or (newer.created_at = b.created_at and newer.id::text > b.id::text))
+) >= $1::int;
 
 -- name: CountQueuedBuilds :one
 select count(*) from build_jobs where status in ('queued', 'building');
@@ -96,3 +127,19 @@ where application_id = $1
 order by created_at desc
 offset 1
 limit 1;
+
+-- name: CreatePendingDeployment :one
+insert into deployments(application_id, image_tag, status, trigger)
+values (sqlc.arg(application_id)::uuid, sqlc.arg(image_tag), 'pending', sqlc.arg(trigger))
+returning id::text;
+
+-- name: GetDeploymentForExecution :one
+select d.id::text as id, d.application_id::text as application_id,
+       d.image_tag, d.trigger, a.name, a.project_id::text as project_id,
+       coalesce(a.container_port, 3000) as container_port
+from deployments d
+join applications a on a.id = d.application_id
+where d.id = sqlc.arg(deployment_id)::uuid;
+
+-- name: MarkDeploymentStatus :exec
+update deployments set status = sqlc.arg(status) where id = sqlc.arg(deployment_id)::uuid;

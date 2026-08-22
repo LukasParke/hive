@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { api } from "../../api/client";
+import { api, type ItemMap } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { useAppData } from "../../contexts/AppContext";
 import { useToast } from "../../contexts/ToastContext";
 import { DataTable, type Column } from "../../components/DataTable";
 import { FormDialog } from "../../components/FormDialog";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 export function NetworksPage() {
   const { session } = useAuth();
@@ -14,12 +15,36 @@ export function NetworksPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ItemMap | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const columns: Column[] = [
     { key: "name", label: "Name" },
     { key: "driver", label: "Driver", render: (v) => String(v ?? "overlay") },
     { key: "id", label: "ID", render: (v) => String(v ?? "").slice(0, 12) },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_v, row) => (
+        <button style={{ fontSize: 12, color: "var(--danger, #c0392b)" }} onClick={() => setDeleteTarget(row)}>Delete</button>
+      ),
+    },
   ];
+
+  async function handleDelete() {
+    if (!session || !deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.deleteNetwork(session, String(deleteTarget.id));
+      toast.success("Network deleted");
+      setDeleteTarget(null);
+      await refreshNetworks();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleCreate() {
     if (!session || !name) return;
@@ -46,6 +71,8 @@ export function NetworksPage() {
         </button>
       </div>
       <DataTable columns={columns} rows={dashboard.networks} loading={dashboard.loading} emptyMessage="No networks yet." />
+
+      <ConfirmDialog open={!!deleteTarget} title="Delete Network" destructive message={`Delete "${String(deleteTarget?.name ?? "")}"? Services attached to it block deletion.`} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />
 
       <FormDialog open={showCreate} title="Create Network" onClose={() => setShowCreate(false)} onSubmit={handleCreate} loading={creating}>
         <label>Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-network" style={{ width: "100%", padding: "6px 10px", marginTop: 4 }} /></label>

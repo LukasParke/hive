@@ -12,21 +12,26 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
-	apimiddleware "github.com/luke/hive/control-plane/internal/api/middleware"
+	apicxt "github.com/luke/hive/control-plane/internal/api/ctx"
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves API key management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns an API key Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// randomBytes is swappable so tests can exercise token-generation failures.
+var randomBytes = rand.Read
+
 func randomToken(size int) (string, error) {
 	buf := make([]byte, size)
-	if _, err := rand.Read(buf); err != nil {
+	if _, err := randomBytes(buf); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(buf), nil
@@ -37,8 +42,9 @@ func sha256Hex(raw string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// CreateAPIKey issues a new API key.
 func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -70,6 +76,7 @@ func (h *Handler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"token": raw})
 }
 
+// ListAPIKeys lists the caller's API keys.
 func (h *Handler) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -103,6 +110,7 @@ func (h *Handler) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// DeleteAPIKey revokes an API key.
 func (h *Handler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -125,6 +133,7 @@ func (h *Handler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 }
 
+// RegenerateAPIKey replaces an API key's secret.
 func (h *Handler) RegenerateAPIKey(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {

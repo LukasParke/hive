@@ -5,21 +5,24 @@ import (
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/luke/hive/control-plane/internal/api/common"
 	apicxt "github.com/luke/hive/control-plane/internal/api/ctx"
 	dbgen "github.com/luke/hive/control-plane/internal/db/generated"
+	"golang.org/x/crypto/bcrypt"
 )
 
+// Handler serves user profile endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 	Q    *dbgen.Queries
 }
 
+// NewHandler returns a profile Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool)}
 }
 
+// GetProfile returns the authenticated user's profile.
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
@@ -39,6 +42,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, profile)
 }
 
+// UpdateProfile updates the authenticated user's profile.
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
@@ -72,6 +76,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, profile)
 }
 
+// ChangePassword sets a new password after verifying the current one.
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {

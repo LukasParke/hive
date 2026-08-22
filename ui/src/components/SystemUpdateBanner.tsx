@@ -13,20 +13,19 @@ export function SystemUpdateBanner() {
     if (!session) return;
     let cancelled = false;
 
-    let id: number | undefined;
-    const check = async () => {
+    const check = async (timerId: number | undefined) => {
       try {
         const s = await api.getUpdateStatus(session);
         if (!cancelled) setStatus(s);
       } catch (err) {
-        if (isAuthError(err) && id !== undefined) {
-          clearInterval(id);
+        if (isAuthError(err) && timerId !== undefined) {
+          clearInterval(timerId);
         }
       }
     };
 
-    check();
-    id = window.setInterval(check, 60000); // check every minute
+    check(undefined); // immediate first check, before any timer exists
+    const id = window.setInterval(() => void check(id), 60000); // check every minute
     return () => {
       cancelled = true;
       if (id !== undefined) clearInterval(id);

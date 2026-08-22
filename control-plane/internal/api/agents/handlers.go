@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,20 +19,35 @@ import (
 	"github.com/luke/hive/control-plane/internal/agentclient"
 	"github.com/luke/hive/control-plane/internal/api/common"
 	"github.com/luke/hive/control-plane/internal/ca"
-	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 	agentv1 "github.com/luke/hive/proto/gen/agent/v1"
 	"github.com/luke/hive/proto/gen/agent/v1/agentv1connect"
+	dockerswarm "github.com/moby/moby/api/types/swarm"
 )
 
+// SwarmClient is the slice of the swarm API the agent handlers need;
+// *swarmclient.Client satisfies it and tests inject fakes.
+type SwarmClient interface {
+	ListNodes(ctx context.Context) ([]dockerswarm.Node, error)
+	ListServices(ctx context.Context) ([]dockerswarm.Service, error)
+	ListAllTasks(ctx context.Context) ([]dockerswarm.Task, error)
+	ServiceTaskIPOnNetwork(ctx context.Context, labelKey, labelValue, nodeID, networkNameSuffix string) (string, error)
+}
+
+// Handler serves agent and node management endpoints.
 type Handler struct {
 	Pool           *pgxpool.Pool
-	Swarm          *swarmclient.Client
+	Swarm          SwarmClient
 	AgentDialer    *agentclient.Dialer
 	Authority      *ca.Authority
 	BootstrapToken string
+
+	// agentClientOverride is a test-only seam: when set, resolveAgentClient
+	// returns it instead of dialing through the swarm/dialer path.
+	agentClientOverride agentv1connect.AgentServiceClient
 }
 
-func NewHandler(pool *pgxpool.Pool, swarm *swarmclient.Client, agentDialer *agentclient.Dialer, authority *ca.Authority, bootstrapToken string) *Handler {
+// NewHandler returns an agent Handler wired to the given dependencies.
+func NewHandler(pool *pgxpool.Pool, swarm SwarmClient, agentDialer *agentclient.Dialer, authority *ca.Authority, bootstrapToken string) *Handler {
 	return &Handler{
 		Pool:           pool,
 		Swarm:          swarm,
@@ -41,6 +57,7 @@ func NewHandler(pool *pgxpool.Pool, swarm *swarmclient.Client, agentDialer *agen
 	}
 }
 
+// ListServers lists swarm nodes with their agent status.
 func (h *Handler) ListServers(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `select id::text, name, host, ssh_port, description, created_at from servers order by created_at desc`)
 	if err != nil {
@@ -60,6 +77,7 @@ func (h *Handler) ListServers(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateServer registers a new agent bootstrap token.
 func (h *Handler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name        string `json:"name"`
@@ -87,6 +105,7 @@ func (h *Handler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]any{"id": id})
 }
 
+// ClusterInfo returns a summary of the swarm cluster.
 func (h *Handler) ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	nodes, err := h.Swarm.ListNodes(r.Context())
 	if err != nil {
@@ -97,6 +116,7 @@ func (h *Handler) ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"nodeCount": len(nodes), "serviceCount": len(services), "nodes": nodes})
 }
 
+// ListNodes lists swarm nodes known to the cluster.
 func (h *Handler) ListNodes(w http.ResponseWriter, r *http.Request) {
 	items, err := h.Swarm.ListNodes(r.Context())
 	if err != nil {
@@ -115,6 +135,7 @@ func (h *Handler) ListNodes(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// ListServices lists services deployed on a node.
 func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 	items, err := h.Swarm.ListServices(r.Context())
 	if err != nil {
@@ -132,6 +153,7 @@ func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// GetNodeMetrics returns live resource metrics for a node.
 func (h *Handler) GetNodeMetrics(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "id")
 	client, err := h.resolveAgentClient(r.Context(), nodeID)
@@ -149,6 +171,7 @@ func (h *Handler) GetNodeMetrics(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, resp.Msg)
 }
 
+// GetNodePackages returns the packages installed on a node.
 func (h *Handler) GetNodePackages(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "id")
 	client, err := h.resolveAgentClient(r.Context(), nodeID)
@@ -166,6 +189,7 @@ func (h *Handler) GetNodePackages(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, resp.Msg)
 }
 
+// TriggerPackageCheck queues a package check job for a node.
 func (h *Handler) TriggerPackageCheck(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "id")
 	client, err := h.resolveAgentClient(r.Context(), nodeID)
@@ -185,6 +209,7 @@ func (h *Handler) TriggerPackageCheck(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, resp.Msg)
 }
 
+// TriggerNodeMaintenance queues a maintenance job for a node.
 func (h *Handler) TriggerNodeMaintenance(w http.ResponseWriter, r *http.Request) {
 	nodeID := chi.URLParam(r, "id")
 
@@ -257,6 +282,7 @@ func (h *Handler) TriggerNodeMaintenance(w http.ResponseWriter, r *http.Request)
 	common.WriteJSON(w, http.StatusOK, map[string]any{"results": results})
 }
 
+// GetClusterResources returns aggregated cluster resource usage.
 func (h *Handler) GetClusterResources(w http.ResponseWriter, r *http.Request) {
 	nodes, err := h.Swarm.ListNodes(r.Context())
 	if err != nil {
@@ -292,7 +318,7 @@ func (h *Handler) GetClusterResources(w http.ResponseWriter, r *http.Request) {
 			if err == nil {
 				if resp, err := client.GetHostMetrics(r.Context(), connect.NewRequest(&agentv1.HostMetricsRequest{})); err == nil {
 					m := resp.Msg
-					nr.CPUCores = int32(len(m.CpuCores))
+					nr.CPUCores = int32(len(m.CpuCores)) //nolint:gosec // core count of one host, domain far below int32 max
 					nr.CPUPercent = m.CpuTotalPercent
 					nr.MemTotal = m.MemoryTotal
 					nr.MemUsed = m.MemoryUsed
@@ -328,6 +354,7 @@ func (h *Handler) GetClusterResources(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// RegisterAgent exchanges a bootstrap token for agent credentials.
 func (h *Handler) RegisterAgent(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		NodeID         string `json:"nodeId"`
@@ -364,6 +391,9 @@ func (h *Handler) RegisterAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) resolveAgentClient(ctx context.Context, nodeID string) (agentv1connect.AgentServiceClient, error) {
+	if h.agentClientOverride != nil {
+		return h.agentClientOverride, nil
+	}
 	if h.AgentDialer == nil {
 		return nil, fmt.Errorf("agent dialer not configured")
 	}
@@ -376,9 +406,10 @@ func (h *Handler) resolveAgentClient(ctx context.Context, nodeID string) (agentv
 		return nil, fmt.Errorf("resolve agent address: %w", err)
 	}
 	addr := ip + ":9090"
-	return h.AgentDialer.ClientPlaintext(nodeID, addr), nil
+	return h.AgentDialer.Client(nodeID, addr), nil
 }
 
+// WsTerminal upgrades the request to an interactive terminal websocket.
 func (h *Handler) WsTerminal(w http.ResponseWriter, r *http.Request) {
 	containerID := chi.URLParam(r, "containerID")
 	shell := r.URL.Query().Get("shell")
@@ -404,7 +435,7 @@ func (h *Handler) WsTerminal(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	rows := 24
 	cols := 80
@@ -492,6 +523,7 @@ func (h *Handler) WsTerminal(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// WsLogs upgrades the request to a websocket streaming container logs.
 func (h *Handler) WsLogs(w http.ResponseWriter, r *http.Request) {
 	containerID := chi.URLParam(r, "containerID")
 
@@ -510,8 +542,8 @@ func (h *Handler) WsLogs(w http.ResponseWriter, r *http.Request) {
 	follow := r.URL.Query().Get("follow") == "true"
 	tail := int32(200)
 	if v := r.URL.Query().Get("tail"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			tail = int32(n)
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= math.MaxInt32 {
+			tail = int32(n) //nolint:gosec // bounded by n <= math.MaxInt32 above
 		}
 	}
 
@@ -520,7 +552,7 @@ func (h *Handler) WsLogs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
@@ -566,8 +598,4 @@ func (h *Handler) resolveContainerNode(ctx context.Context, containerID string) 
 		}
 	}
 	return "", fmt.Errorf("container %s not found on any node", containerID)
-}
-
-func ptrUint64(v uint64) *uint64 {
-	return &v
 }

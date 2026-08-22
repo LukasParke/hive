@@ -10,15 +10,18 @@ import (
 	dbgen "github.com/luke/hive/control-plane/internal/db/generated"
 )
 
+// Handler serves volume backup endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 	Q    *dbgen.Queries
 }
 
+// NewHandler returns a volume backup Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool)}
 }
 
+// ListVolumeBackups lists volume backups for the organization.
 func (h *Handler) ListVolumeBackups(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -37,6 +40,7 @@ func (h *Handler) ListVolumeBackups(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// GetVolumeBackup returns a single volume backup by ID.
 func (h *Handler) GetVolumeBackup(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -60,6 +64,7 @@ func (h *Handler) GetVolumeBackup(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, item)
 }
 
+// CreateVolumeBackup schedules a new volume backup.
 func (h *Handler) CreateVolumeBackup(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -95,6 +100,7 @@ func (h *Handler) CreateVolumeBackup(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusAccepted, map[string]string{"id": id})
 }
 
+// DeleteVolumeBackup removes a volume backup.
 func (h *Handler) DeleteVolumeBackup(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {

@@ -12,14 +12,17 @@ import (
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves backup management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns a backup Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// ListBackups lists backup runs for the organization.
 func (h *Handler) ListBackups(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -51,6 +54,7 @@ func (h *Handler) ListBackups(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateBackup schedules a new backup run.
 func (h *Handler) CreateBackup(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		TargetType    string `json:"targetType"`
@@ -73,6 +77,7 @@ func (h *Handler) CreateBackup(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// RestoreBackup queues a restore from a backup artifact.
 func (h *Handler) RestoreBackup(w http.ResponseWriter, r *http.Request) {
 	backupID := chi.URLParam(r, "id")
 	var req struct {
@@ -94,6 +99,7 @@ func (h *Handler) RestoreBackup(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
+// ListBackupDestinations lists configured backup destinations.
 func (h *Handler) ListBackupDestinations(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -118,6 +124,7 @@ func (h *Handler) ListBackupDestinations(w http.ResponseWriter, r *http.Request)
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateBackupDestination adds a new backup destination.
 func (h *Handler) CreateBackupDestination(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name   string         `json:"name"`
@@ -140,6 +147,7 @@ func (h *Handler) CreateBackupDestination(w http.ResponseWriter, r *http.Request
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// GetBackupDestination returns a single backup destination by ID.
 func (h *Handler) GetBackupDestination(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -161,6 +169,7 @@ func (h *Handler) GetBackupDestination(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateBackupDestination updates an existing backup destination.
 func (h *Handler) UpdateBackupDestination(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -198,6 +207,7 @@ func (h *Handler) UpdateBackupDestination(w http.ResponseWriter, r *http.Request
 	h.GetBackupDestination(w, r)
 }
 
+// DeleteBackupDestination removes a backup destination.
 func (h *Handler) DeleteBackupDestination(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -215,6 +225,7 @@ func (h *Handler) DeleteBackupDestination(w http.ResponseWriter, r *http.Request
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
+// TestBackupDestination verifies a backup destination with a live check.
 func (h *Handler) TestBackupDestination(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { api, type ItemMap, type Session } from "../../api/client";
+import { api, type ItemMap } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { useAppData } from "../../contexts/AppContext";

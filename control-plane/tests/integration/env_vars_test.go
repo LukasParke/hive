@@ -212,7 +212,7 @@ func TestAppEnvVarCRUD(t *testing.T) {
 	// 13. Invalid key returns error.
 	invalidErr := authedPostJSONWithHeaders(baseURL+"/api/v1/applications/"+appID+"/env", auth.AccessToken, headers,
 		map[string]any{"key": "123BAD", "value": "x", "isSecret": false}, &map[string]any{}, http.StatusBadRequest)
-	if invalidErr == nil {
-		t.Fatalf("expected invalid key to return 400")
+	if invalidErr != nil {
+		t.Fatalf("expected invalid key to return 400, got: %v", invalidErr)
 	}
 }

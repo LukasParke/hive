@@ -10,15 +10,18 @@ import (
 	dbgen "github.com/luke/hive/control-plane/internal/db/generated"
 )
 
+// Handler serves mount management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 	Q    *dbgen.Queries
 }
 
+// NewHandler returns a mount Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool)}
 }
 
+// ListMounts lists mounts for the organization.
 func (h *Handler) ListMounts(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -37,6 +40,7 @@ func (h *Handler) ListMounts(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// GetMount returns a single mount by ID.
 func (h *Handler) GetMount(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -60,6 +64,7 @@ func (h *Handler) GetMount(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, item)
 }
 
+// CreateMount creates a new mount.
 func (h *Handler) CreateMount(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -101,6 +106,7 @@ func (h *Handler) CreateMount(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// UpdateMount updates an existing mount.
 func (h *Handler) UpdateMount(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -147,6 +153,7 @@ func (h *Handler) UpdateMount(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"id": chi.URLParam(r, "id")})
 }
 
+// DeleteMount removes a mount.
 func (h *Handler) DeleteMount(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {

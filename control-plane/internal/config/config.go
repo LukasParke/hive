@@ -6,11 +6,18 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 )
 
+// Config holds all control-plane runtime configuration from the environment.
 type Config struct {
-	DatabaseURL       string
+	DatabaseURL string
+	// ListenDatabaseURL optionally points at Postgres DIRECTLY (bypassing
+	// PgBouncer) for the dedicated LISTEN/NOTIFY connection: PgBouncer in
+	// transaction pooling mode does not support session-level LISTEN.
+	// Empty means "use DatabaseURL" (single-node/dev setups).
+	ListenDatabaseURL string
 	HTTPAddr          string
 	DockerHost        string
 	BuildkitAddr      string
@@ -18,21 +25,35 @@ type Config struct {
 	MasterKeyFile     string
 	AgentBootstrapKey string
 	JWTSecret         string
+	// AgentMTLSEnabled mirrors the agent's AGENT_MTLS_ENABLED: when true the
+	// control-plane dials agents over mTLS instead of plaintext.
+	AgentMTLSEnabled bool
+	// Public-endpoint rate limits (requests/min/IP). Zero = built-in prod
+	// defaults; CI/test deployments raise them via env.
+	AuthRateLimitPerMin    int
+	WebhookRateLimitPerMin int
 }
 
+// Load reads configuration from environment variables (with _FILE variants
+// for secrets) and applies defaults.
 func Load() Config {
 	cfg := Config{
-		DatabaseURL:       getenvOrFile("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/hive?sslmode=disable"),
-		HTTPAddr:          getenv("HTTP_ADDR", ":3000"),
-		DockerHost:        getenv("DOCKER_HOST", "unix:///var/run/docker.sock"),
-		BuildkitAddr:      getenv("BUILDKIT_ADDR", "tcp://buildkit:1234"),
-		RegistryAddr:      getenv("REGISTRY_ADDR", "registry:5000"),
-		MasterKeyFile:     getenv("MASTER_KEY_FILE", "/run/secrets/hive-master-key"),
-		AgentBootstrapKey: getenvOrFile("AGENT_BOOTSTRAP_TOKEN", ""),
-		JWTSecret:         getenvOrFile("JWT_SECRET", "dev-jwt-secret-change-me"),
+		DatabaseURL:            getenvOrFile("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/hive?sslmode=disable"),
+		ListenDatabaseURL:      getenvOrFile("HIVE_LISTEN_URL", ""),
+		HTTPAddr:               getenv("HTTP_ADDR", ":3000"),
+		DockerHost:             getenv("DOCKER_HOST", "unix:///var/run/docker.sock"),
+		BuildkitAddr:           getenv("BUILDKIT_ADDR", "tcp://buildkit:1234"),
+		RegistryAddr:           getenv("REGISTRY_ADDR", "registry:5000"),
+		MasterKeyFile:          getenv("MASTER_KEY_FILE", "/run/secrets/hive-master-key"),
+		AgentBootstrapKey:      getenvOrFile("AGENT_BOOTSTRAP_TOKEN", ""),
+		JWTSecret:              getenvOrFile("JWT_SECRET", "dev-jwt-secret-change-me"),
+		AgentMTLSEnabled:       os.Getenv("AGENT_MTLS_ENABLED") == "true",
+		AuthRateLimitPerMin:    atoiDefault(os.Getenv("AUTH_RATE_LIMIT_PER_MIN"), 0),
+		WebhookRateLimitPerMin: atoiDefault(os.Getenv("WEBHOOK_RATE_LIMIT_PER_MIN"), 0),
 	}
 	if pw := fileValue("DATABASE_PASSWORD_FILE"); pw != "" {
 		cfg.DatabaseURL = urlWithPassword(cfg.DatabaseURL, pw)
+		cfg.ListenDatabaseURL = urlWithPassword(cfg.ListenDatabaseURL, pw)
 	}
 	return cfg
 }
@@ -80,9 +101,9 @@ func fileValue(key string) string {
 	if path == "" {
 		return ""
 	}
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // path comes from the operator's own env var by design
 	if err != nil {
-		log.Fatalf("config: reading %s (%s): %v", key, path, err)
+		log.Fatalf("config: reading %s (%s): %v", key, path, err) //nolint:gosec // operator-supplied env path echoed in a fatal startup log
 	}
 	return strings.TrimSpace(string(b))
 }
@@ -99,4 +120,17 @@ func urlWithPassword(dbURL, password string) string {
 	}
 	u.User = url.UserPassword(user, password)
 	return u.String()
+}
+
+// atoiDefault parses s as an int, returning def when empty or malformed.
+func atoiDefault(s string, def int) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return def
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return n
 }

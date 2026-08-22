@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteSecretsByNames = `-- name: DeleteSecretsByNames :execrows
+delete from secrets_store
+where name = any($1::text[])
+`
+
+func (q *Queries) DeleteSecretsByNames(ctx context.Context, dollar_1 []string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSecretsByNames, dollar_1)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getSecretByName = `-- name: GetSecretByName :one
 select id, name, type::text, encrypted_value, created_at, updated_at
 from secrets_store

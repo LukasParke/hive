@@ -12,23 +12,34 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
-	apimiddleware "github.com/luke/hive/control-plane/internal/api/middleware"
+	apicxt "github.com/luke/hive/control-plane/internal/api/ctx"
 	"github.com/luke/hive/control-plane/internal/rbac"
-	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 	dockerswarm "github.com/moby/moby/api/types/swarm"
 )
 
-type Handler struct {
-	Pool  *pgxpool.Pool
-	Swarm *swarmclient.Client
+// SwarmAPI is the subset of the swarm client used by this handler.
+type SwarmAPI interface {
+	CreateSecret(ctx context.Context, spec dockerswarm.SecretSpec) (string, error)
+	RemoveSecret(ctx context.Context, id string) error
+	ListServices(ctx context.Context) ([]dockerswarm.Service, error)
+	UpdateService(ctx context.Context, id string, version uint64, spec dockerswarm.ServiceSpec) error
+	ListAllTasks(ctx context.Context) ([]dockerswarm.Task, error)
 }
 
-func NewHandler(pool *pgxpool.Pool, swarm *swarmclient.Client) *Handler {
+// Handler serves application management endpoints.
+type Handler struct {
+	Pool  *pgxpool.Pool
+	Swarm SwarmAPI
+}
+
+// NewHandler returns an application Handler backed by the given pool.
+func NewHandler(pool *pgxpool.Pool, swarm SwarmAPI) *Handler {
 	return &Handler{Pool: pool, Swarm: swarm}
 }
 
+// ListApplications lists applications for the organization.
 func (h *Handler) ListApplications(w http.ResponseWriter, r *http.Request) {
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -86,6 +97,7 @@ func (h *Handler) ListApplications(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateApplication creates and deploys a new application.
 func (h *Handler) CreateApplication(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ProjectID     string   `json:"projectId"`
@@ -122,7 +134,7 @@ func (h *Handler) CreateApplication(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"repositoryUrl is required for git applications"}`, http.StatusBadRequest)
 		return
 	}
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -174,6 +186,7 @@ func (h *Handler) CreateApplication(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetApplication returns a single application by ID.
 func (h *Handler) GetApplication(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -203,6 +216,7 @@ func (h *Handler) GetApplication(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateApplication redeploys an application with new settings.
 func (h *Handler) UpdateApplication(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -241,6 +255,7 @@ func (h *Handler) UpdateApplication(w http.ResponseWriter, r *http.Request) {
 	h.GetApplication(w, r)
 }
 
+// DeleteApplication removes an application and its service.
 func (h *Handler) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -283,6 +298,7 @@ func (h *Handler) DeleteApplication(w http.ResponseWriter, r *http.Request) {
 
 // ── App Env Vars ──
 
+// ListAppEnvVars lists an application's environment variables.
 func (h *Handler) ListAppEnvVars(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -324,6 +340,7 @@ func (h *Handler) ListAppEnvVars(w http.ResponseWriter, r *http.Request) {
 
 var envKeyRegexp = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
+// CreateAppEnvVar adds an environment variable to an application.
 func (h *Handler) CreateAppEnvVar(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -404,6 +421,7 @@ func (h *Handler) CreateAppEnvVar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateAppEnvVar updates an application environment variable.
 func (h *Handler) UpdateAppEnvVar(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -476,6 +494,7 @@ func (h *Handler) UpdateAppEnvVar(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 }
 
+// DeleteAppEnvVar removes an application environment variable.
 func (h *Handler) DeleteAppEnvVar(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -511,14 +530,17 @@ func (h *Handler) DeleteAppEnvVar(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
+// StartApplication scales an application's service up.
 func (h *Handler) StartApplication(w http.ResponseWriter, r *http.Request) {
 	h.updateAppService(w, r, 1, false)
 }
 
+// StopApplication scales an application's service to zero.
 func (h *Handler) StopApplication(w http.ResponseWriter, r *http.Request) {
 	h.updateAppService(w, r, 0, false)
 }
 
+// RestartApplication forces a rolling restart of the application.
 func (h *Handler) RestartApplication(w http.ResponseWriter, r *http.Request) {
 	h.updateAppService(w, r, 1, true)
 }

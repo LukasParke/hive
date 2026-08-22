@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -69,8 +70,8 @@ select type, config from backup_destinations where id = $1
 `
 
 type GetBackupDestinationConfigRow struct {
-	Type   string `json:"type"`
-	Config []byte `json:"config"`
+	Type   string          `json:"type"`
+	Config json.RawMessage `json:"config"`
 }
 
 func (q *Queries) GetBackupDestinationConfig(ctx context.Context, id pgtype.UUID) (GetBackupDestinationConfigRow, error) {

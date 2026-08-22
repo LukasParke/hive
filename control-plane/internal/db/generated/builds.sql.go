@@ -7,23 +7,24 @@ package dbgen
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const appendBuildLog = `-- name: AppendBuildLog :exec
 update build_jobs
-set logs = logs || $2
-where id = $1::uuid
+set logs = logs || $1
+where id = $2::uuid
 `
 
 type AppendBuildLogParams struct {
-	Column1 pgtype.UUID `json:"column_1"`
-	Logs    string      `json:"logs"`
+	Chunk   string      `json:"chunk"`
+	BuildID pgtype.UUID `json:"build_id"`
 }
 
 func (q *Queries) AppendBuildLog(ctx context.Context, arg AppendBuildLogParams) error {
-	_, err := q.db.Exec(ctx, appendBuildLog, arg.Column1, arg.Logs)
+	_, err := q.db.Exec(ctx, appendBuildLog, arg.Chunk, arg.BuildID)
 	return err
 }
 
@@ -45,30 +46,19 @@ func (q *Queries) CancelBuild(ctx context.Context, arg CancelBuildParams) error 
 	return err
 }
 
-const claimBuildJob = `-- name: ClaimBuildJob :exec
-update build_jobs
-set status = 'building', started_at = now()
-where id = $1::uuid
-`
-
-func (q *Queries) ClaimBuildJob(ctx context.Context, dollar_1 pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, claimBuildJob, dollar_1)
-	return err
-}
-
 const completeBuildJob = `-- name: CompleteBuildJob :exec
 update build_jobs
-set status = 'complete', completed_at = now(), image_tag = $2
-where id = $1::uuid
+set status = 'complete', completed_at = now(), image_tag = $1
+where id = $2::uuid
 `
 
 type CompleteBuildJobParams struct {
-	Column1  pgtype.UUID `json:"column_1"`
 	ImageTag pgtype.Text `json:"image_tag"`
+	BuildID  pgtype.UUID `json:"build_id"`
 }
 
 func (q *Queries) CompleteBuildJob(ctx context.Context, arg CompleteBuildJobParams) error {
-	_, err := q.db.Exec(ctx, completeBuildJob, arg.Column1, arg.ImageTag)
+	_, err := q.db.Exec(ctx, completeBuildJob, arg.ImageTag, arg.BuildID)
 	return err
 }
 
@@ -97,6 +87,25 @@ type CreateDeploymentParams struct {
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) error {
 	_, err := q.db.Exec(ctx, createDeployment, arg.ApplicationID, arg.ImageTag, arg.Trigger)
 	return err
+}
+
+const createPendingDeployment = `-- name: CreatePendingDeployment :one
+insert into deployments(application_id, image_tag, status, trigger)
+values ($1::uuid, $2, 'pending', $3)
+returning id::text
+`
+
+type CreatePendingDeploymentParams struct {
+	ApplicationID pgtype.UUID `json:"application_id"`
+	ImageTag      string      `json:"image_tag"`
+	Trigger       string      `json:"trigger"`
+}
+
+func (q *Queries) CreatePendingDeployment(ctx context.Context, arg CreatePendingDeploymentParams) (string, error) {
+	row := q.db.QueryRow(ctx, createPendingDeployment, arg.ApplicationID, arg.ImageTag, arg.Trigger)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const enqueueBuild = `-- name: EnqueueBuild :one
@@ -132,25 +141,6 @@ func (q *Queries) EnqueueBuild(ctx context.Context, arg EnqueueBuildParams) (Enq
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const failBuildJob = `-- name: FailBuildJob :exec
-update build_jobs
-set status = case when retries < 3 then 'queued' else 'failed' end,
-    retries = retries + 1,
-    error_message = $2,
-    completed_at = case when retries >= 3 then now() else completed_at end
-where id = $1::uuid
-`
-
-type FailBuildJobParams struct {
-	Column1      pgtype.UUID `json:"column_1"`
-	ErrorMessage pgtype.Text `json:"error_message"`
-}
-
-func (q *Queries) FailBuildJob(ctx context.Context, arg FailBuildJobParams) error {
-	_, err := q.db.Exec(ctx, failBuildJob, arg.Column1, arg.ErrorMessage)
-	return err
 }
 
 const getBuild = `-- name: GetBuild :one
@@ -204,63 +194,124 @@ func (q *Queries) GetBuildApplicationID(ctx context.Context, arg GetBuildApplica
 	return b_application_id, err
 }
 
-const getBuildJobDetails = `-- name: GetBuildJobDetails :one
-select bj.application_id::text, a.source_type::text, bj.trigger, a.name, a.project_id::text,
-       coalesce(a.image, ''), coalesce(bj.image_tag, ''), coalesce(a.repository_url, ''), coalesce(a.git_ref, 'main'), coalesce(a.container_port, 3000)
+const getBuildForExecution = `-- name: GetBuildForExecution :one
+select bj.id::text as build_id, bj.status::text as status,
+       bj.application_id::text as application_id, a.source_type::text as source_type,
+       bj.trigger, a.name, a.project_id::text as project_id,
+       coalesce(a.image, '') as image, coalesce(bj.image_tag, '') as requested_image_tag,
+       coalesce(a.repository_url, '') as repository_url, coalesce(a.git_ref, 'main') as git_ref,
+       coalesce(a.container_port, 3000) as container_port,
+       a.registry_id, a.service_spec, coalesce(bj.git_sha, '') as git_sha
 from build_jobs bj
 join applications a on a.id = bj.application_id
 where bj.id = $1::uuid
 `
 
-type GetBuildJobDetailsRow struct {
-	BjApplicationID string `json:"bj_application_id"`
-	ASourceType     string `json:"a_source_type"`
-	Trigger         string `json:"trigger"`
-	Name            string `json:"name"`
-	AProjectID      string `json:"a_project_id"`
-	Image           string `json:"image"`
-	ImageTag        string `json:"image_tag"`
-	RepositoryUrl   string `json:"repository_url"`
-	GitRef          string `json:"git_ref"`
-	ContainerPort   int32  `json:"container_port"`
+type GetBuildForExecutionRow struct {
+	BuildID           string          `json:"build_id"`
+	Status            string          `json:"status"`
+	ApplicationID     string          `json:"application_id"`
+	SourceType        string          `json:"source_type"`
+	Trigger           string          `json:"trigger"`
+	Name              string          `json:"name"`
+	ProjectID         string          `json:"project_id"`
+	Image             string          `json:"image"`
+	RequestedImageTag string          `json:"requested_image_tag"`
+	RepositoryUrl     string          `json:"repository_url"`
+	GitRef            string          `json:"git_ref"`
+	ContainerPort     int32           `json:"container_port"`
+	RegistryID        pgtype.UUID     `json:"registry_id"`
+	ServiceSpec       json.RawMessage `json:"service_spec"`
+	GitSha            string          `json:"git_sha"`
 }
 
-func (q *Queries) GetBuildJobDetails(ctx context.Context, dollar_1 pgtype.UUID) (GetBuildJobDetailsRow, error) {
-	row := q.db.QueryRow(ctx, getBuildJobDetails, dollar_1)
-	var i GetBuildJobDetailsRow
+func (q *Queries) GetBuildForExecution(ctx context.Context, buildID pgtype.UUID) (GetBuildForExecutionRow, error) {
+	row := q.db.QueryRow(ctx, getBuildForExecution, buildID)
+	var i GetBuildForExecutionRow
 	err := row.Scan(
-		&i.BjApplicationID,
-		&i.ASourceType,
+		&i.BuildID,
+		&i.Status,
+		&i.ApplicationID,
+		&i.SourceType,
 		&i.Trigger,
 		&i.Name,
-		&i.AProjectID,
+		&i.ProjectID,
 		&i.Image,
-		&i.ImageTag,
+		&i.RequestedImageTag,
 		&i.RepositoryUrl,
 		&i.GitRef,
 		&i.ContainerPort,
+		&i.RegistryID,
+		&i.ServiceSpec,
+		&i.GitSha,
 	)
 	return i, err
 }
 
-const getBuildJobForWorker = `-- name: GetBuildJobForWorker :one
-select id::text, trigger
-from build_jobs
-where status = 'queued'
-order by created_at asc
-for update skip locked
-limit 1
+const getBuildLog = `-- name: GetBuildLog :one
+select b.logs
+from build_jobs b
+join applications a on a.id = b.application_id
+join projects p on p.id = a.project_id
+where b.id = $1::uuid and p.organization_id = $2::uuid
 `
 
-type GetBuildJobForWorkerRow struct {
-	ID      string `json:"id"`
-	Trigger string `json:"trigger"`
+type GetBuildLogParams struct {
+	BuildID        pgtype.UUID `json:"build_id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
-func (q *Queries) GetBuildJobForWorker(ctx context.Context) (GetBuildJobForWorkerRow, error) {
-	row := q.db.QueryRow(ctx, getBuildJobForWorker)
-	var i GetBuildJobForWorkerRow
-	err := row.Scan(&i.ID, &i.Trigger)
+func (q *Queries) GetBuildLog(ctx context.Context, arg GetBuildLogParams) (string, error) {
+	row := q.db.QueryRow(ctx, getBuildLog, arg.BuildID, arg.OrganizationID)
+	var logs string
+	err := row.Scan(&logs)
+	return logs, err
+}
+
+const getBuildStatus = `-- name: GetBuildStatus :one
+select status::text
+from build_jobs
+where id = $1::uuid
+`
+
+func (q *Queries) GetBuildStatus(ctx context.Context, buildID pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getBuildStatus, buildID)
+	var status string
+	err := row.Scan(&status)
+	return status, err
+}
+
+const getDeploymentForExecution = `-- name: GetDeploymentForExecution :one
+select d.id::text as id, d.application_id::text as application_id,
+       d.image_tag, d.trigger, a.name, a.project_id::text as project_id,
+       coalesce(a.container_port, 3000) as container_port
+from deployments d
+join applications a on a.id = d.application_id
+where d.id = $1::uuid
+`
+
+type GetDeploymentForExecutionRow struct {
+	ID            string `json:"id"`
+	ApplicationID string `json:"application_id"`
+	ImageTag      string `json:"image_tag"`
+	Trigger       string `json:"trigger"`
+	Name          string `json:"name"`
+	ProjectID     string `json:"project_id"`
+	ContainerPort int32  `json:"container_port"`
+}
+
+func (q *Queries) GetDeploymentForExecution(ctx context.Context, deploymentID pgtype.UUID) (GetDeploymentForExecutionRow, error) {
+	row := q.db.QueryRow(ctx, getDeploymentForExecution, deploymentID)
+	var i GetDeploymentForExecutionRow
+	err := row.Scan(
+		&i.ID,
+		&i.ApplicationID,
+		&i.ImageTag,
+		&i.Trigger,
+		&i.Name,
+		&i.ProjectID,
+		&i.ContainerPort,
+	)
 	return i, err
 }
 
@@ -404,4 +455,111 @@ func (q *Queries) ListDeploymentsByApplication(ctx context.Context, applicationI
 		return nil, err
 	}
 	return items, nil
+}
+
+const markBuildFailed = `-- name: MarkBuildFailed :exec
+update build_jobs
+set status = 'failed', error_message = $1, completed_at = now()
+where id = $2::uuid
+`
+
+type MarkBuildFailedParams struct {
+	ErrorMessage pgtype.Text `json:"error_message"`
+	BuildID      pgtype.UUID `json:"build_id"`
+}
+
+func (q *Queries) MarkBuildFailed(ctx context.Context, arg MarkBuildFailedParams) error {
+	_, err := q.db.Exec(ctx, markBuildFailed, arg.ErrorMessage, arg.BuildID)
+	return err
+}
+
+const markBuildRunning = `-- name: MarkBuildRunning :exec
+update build_jobs
+set status = 'building', started_at = now(), error_message = null
+where id = $1::uuid
+`
+
+func (q *Queries) MarkBuildRunning(ctx context.Context, buildID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markBuildRunning, buildID)
+	return err
+}
+
+const markDeploymentStatus = `-- name: MarkDeploymentStatus :exec
+update deployments set status = $1 where id = $2::uuid
+`
+
+type MarkDeploymentStatusParams struct {
+	Status       string      `json:"status"`
+	DeploymentID pgtype.UUID `json:"deployment_id"`
+}
+
+func (q *Queries) MarkDeploymentStatus(ctx context.Context, arg MarkDeploymentStatusParams) error {
+	_, err := q.db.Exec(ctx, markDeploymentStatus, arg.Status, arg.DeploymentID)
+	return err
+}
+
+const pruneBuildHistory = `-- name: PruneBuildHistory :exec
+delete from build_jobs b
+where (
+  select count(*)
+  from build_jobs newer
+  where newer.application_id = b.application_id
+    and (newer.created_at > b.created_at
+         or (newer.created_at = b.created_at and newer.id::text > b.id::text))
+) >= $1::int
+`
+
+func (q *Queries) PruneBuildHistory(ctx context.Context, dollar_1 int32) error {
+	_, err := q.db.Exec(ctx, pruneBuildHistory, dollar_1)
+	return err
+}
+
+const resetBuildForRetry = `-- name: ResetBuildForRetry :one
+update build_jobs b
+set status = 'queued', retries = 0, error_message = null,
+    started_at = null, completed_at = null
+from applications a, projects p
+where b.id = $1::uuid and a.id = b.application_id and p.id = a.project_id
+  and p.organization_id = $2::uuid and b.status not in ('queued', 'building')
+returning b.id::text
+`
+
+type ResetBuildForRetryParams struct {
+	BuildID        pgtype.UUID `json:"build_id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
+}
+
+func (q *Queries) ResetBuildForRetry(ctx context.Context, arg ResetBuildForRetryParams) (string, error) {
+	row := q.db.QueryRow(ctx, resetBuildForRetry, arg.BuildID, arg.OrganizationID)
+	var b_id string
+	err := row.Scan(&b_id)
+	return b_id, err
+}
+
+const setBuildGitSha = `-- name: SetBuildGitSha :exec
+update build_jobs set git_sha = $1 where id = $2::uuid
+`
+
+type SetBuildGitShaParams struct {
+	GitSha  pgtype.Text `json:"git_sha"`
+	BuildID pgtype.UUID `json:"build_id"`
+}
+
+func (q *Queries) SetBuildGitSha(ctx context.Context, arg SetBuildGitShaParams) error {
+	_, err := q.db.Exec(ctx, setBuildGitSha, arg.GitSha, arg.BuildID)
+	return err
+}
+
+const setBuildImageTag = `-- name: SetBuildImageTag :exec
+update build_jobs set image_tag = $1 where id = $2::uuid
+`
+
+type SetBuildImageTagParams struct {
+	ImageTag pgtype.Text `json:"image_tag"`
+	BuildID  pgtype.UUID `json:"build_id"`
+}
+
+func (q *Queries) SetBuildImageTag(ctx context.Context, arg SetBuildImageTagParams) error {
+	_, err := q.db.Exec(ctx, setBuildImageTag, arg.ImageTag, arg.BuildID)
+	return err
 }

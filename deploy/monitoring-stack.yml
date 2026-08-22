@@ -1,8 +1,37 @@
 version: "3.9"
 
+# Monitoring stack: Prometheus + Grafana + cAdvisor.
+#
+# Configs are external swarm configs, created ahead of deploy (same model as
+# the hive-agent-ca config in hive-stack.yml). From the repo root:
+#
+#   docker config create monitoring-prometheus-yml \
+#     deploy/monitoring/prometheus/prometheus.yml
+#   docker config create monitoring-alerts-yml \
+#     deploy/monitoring/prometheus/alerts.yml
+#   docker config create monitoring-grafana-datasources \
+#     deploy/monitoring/grafana/provisioning/datasources/prometheus.yml
+#   docker config create monitoring-grafana-dashboards-provider \
+#     deploy/monitoring/grafana/provisioning/dashboards/provider.yml
+#   for d in cluster-overview services build-pipeline control-plane-health; do
+#     docker config create "monitoring-dashboard-$d" \
+#       "deploy/monitoring/dashboards/$d.json"
+#   done
+
 services:
   prometheus:
     image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - prometheus-data:/prometheus
+    configs:
+      - source: monitoring-prometheus-yml
+        target: /etc/prometheus/prometheus.yml
+      - source: monitoring-alerts-yml
+        target: /etc/prometheus/alerts.yml
     deploy:
       placement:
         constraints:
@@ -11,13 +40,33 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    networks: [hive_internal, hive_proxy]
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      # Dashboards are bind-mounted as configs into a subdirectory of the
+      # same path as the data volume; the nested mount takes precedence.
+      - grafana-data:/var/lib/grafana
+    configs:
+      - source: monitoring-grafana-datasources
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: monitoring-grafana-dashboards-provider
+        target: /etc/grafana/provisioning/dashboards/provider.yml
+      - source: monitoring-dashboard-cluster-overview
+        target: /var/lib/grafana/dashboards/cluster-overview.json
+      - source: monitoring-dashboard-services
+        target: /var/lib/grafana/dashboards/services.json
+      - source: monitoring-dashboard-build-pipeline
+        target: /var/lib/grafana/dashboards/build-pipeline.json
+      - source: monitoring-dashboard-control-plane-health
+        target: /var/lib/grafana/dashboards/control-plane-health.json
     deploy:
       labels:
         - traefik.enable=true
         - traefik.http.routers.grafana.rule=Host(`grafana.${HIVE_DOMAIN}`)
         - traefik.http.routers.grafana.entrypoints=websecure
         - traefik.http.routers.grafana.tls.certresolver=letsencrypt
+    networks: [hive_internal, hive_proxy]
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -34,4 +83,26 @@ networks:
   hive_internal:
     external: true
   hive_proxy:
+    external: true
+
+volumes:
+  prometheus-data: {}
+  grafana-data: {}
+
+configs:
+  monitoring-prometheus-yml:
+    external: true
+  monitoring-alerts-yml:
+    external: true
+  monitoring-grafana-datasources:
+    external: true
+  monitoring-grafana-dashboards-provider:
+    external: true
+  monitoring-dashboard-cluster-overview:
+    external: true
+  monitoring-dashboard-services:
+    external: true
+  monitoring-dashboard-build-pipeline:
+    external: true
+  monitoring-dashboard-control-plane-health:
     external: true

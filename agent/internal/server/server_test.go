@@ -18,12 +18,27 @@ import (
 	agentv1 "github.com/luke/hive/proto/gen/agent/v1"
 )
 
-// mockDocker implements docker.DockerOperations for testing.
+// mockDocker implements docker.Operations for testing.
 type mockDocker struct {
 	infoResult  system.Info
 	infoErr     error
 	statsResult []*docker.ContainerStat
 	statsErr    error
+
+	streamLogsFn   func(id string, follow bool, tail int32, timestamps bool) (io.ReadCloser, error)
+	streamLogsErr  error
+	execCreateFn   func(id string, cmd []string, tty bool) (string, error)
+	execAttachResp dockerclient.HijackedResponse
+	execAttachErr  error
+	resizeCalls    []resizeCall
+	execInspect    dockerclient.ExecInspectResult
+	execInspectErr error
+}
+
+type resizeCall struct {
+	execID string
+	rows   uint
+	cols   uint
 }
 
 func (m *mockDocker) Info(ctx context.Context) (system.Info, error) {
@@ -35,23 +50,30 @@ func (m *mockDocker) ContainerStats(ctx context.Context, ids []string) ([]*docke
 }
 
 func (m *mockDocker) StreamLogs(ctx context.Context, id string, follow bool, tail int32, timestamps bool) (io.ReadCloser, error) {
-	return io.NopCloser(strings.NewReader("")), nil
+	if m.streamLogsFn != nil {
+		return m.streamLogsFn(id, follow, tail, timestamps)
+	}
+	return io.NopCloser(strings.NewReader("")), m.streamLogsErr
 }
 
 func (m *mockDocker) ExecCreate(ctx context.Context, id string, cmd []string, tty bool) (string, error) {
+	if m.execCreateFn != nil {
+		return m.execCreateFn(id, cmd, tty)
+	}
 	return "exec-123", nil
 }
 
 func (m *mockDocker) ExecAttach(ctx context.Context, execID string, tty bool) (dockerclient.HijackedResponse, error) {
-	return dockerclient.HijackedResponse{}, nil
+	return m.execAttachResp, m.execAttachErr
 }
 
 func (m *mockDocker) ExecResize(ctx context.Context, execID string, rows, cols uint) error {
+	m.resizeCalls = append(m.resizeCalls, resizeCall{execID: execID, rows: rows, cols: cols})
 	return nil
 }
 
 func (m *mockDocker) ExecInspect(ctx context.Context, execID string) (dockerclient.ExecInspectResult, error) {
-	return dockerclient.ExecInspectResult{ExitCode: 0}, nil
+	return m.execInspect, m.execInspectErr
 }
 
 func (m *mockDocker) ListContainers(ctx context.Context) ([]container.Summary, error) {

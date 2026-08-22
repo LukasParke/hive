@@ -96,9 +96,11 @@ func (q *Queries) DeleteApplication(ctx context.Context, arg DeleteApplicationPa
 }
 
 const getApplication = `-- name: GetApplication :one
-select a.id, a.project_id, a.name, a.source_type::text, a.image, a.repository_url, a.git_ref, a.container_port, a.watch_paths, a.created_at
+select a.id, a.project_id, a.name, a.source_type::text, a.image, a.repository_url, a.git_ref, a.container_port, a.watch_paths, a.created_at,
+       a.registry_id, r.name as registry_name, r.url as registry_url
 from applications a
 join projects p on p.id = a.project_id
+left join registries r on r.id = a.registry_id
 where a.id = $1 and p.organization_id = $2
 `
 
@@ -118,6 +120,9 @@ type GetApplicationRow struct {
 	ContainerPort pgtype.Int4        `json:"container_port"`
 	WatchPaths    []string           `json:"watch_paths"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	RegistryID    pgtype.UUID        `json:"registry_id"`
+	RegistryName  pgtype.Text        `json:"registry_name"`
+	RegistryUrl   pgtype.Text        `json:"registry_url"`
 }
 
 func (q *Queries) GetApplication(ctx context.Context, arg GetApplicationParams) (GetApplicationRow, error) {
@@ -134,14 +139,58 @@ func (q *Queries) GetApplication(ctx context.Context, arg GetApplicationParams) 
 		&i.ContainerPort,
 		&i.WatchPaths,
 		&i.CreatedAt,
+		&i.RegistryID,
+		&i.RegistryName,
+		&i.RegistryUrl,
 	)
 	return i, err
 }
 
-const listApplicationsByOrganization = `-- name: ListApplicationsByOrganization :many
-select a.id, a.project_id, a.name, a.source_type::text, a.image, a.repository_url, a.git_ref, a.container_port, a.watch_paths, a.created_at
+const getApplicationSSHKey = `-- name: GetApplicationSSHKey :one
+select k.id::text as key_id, k.name, k.private_key
+from applications a
+join ssh_keys k on k.id = a.ssh_key_id
+where a.id = $1::uuid
+`
+
+type GetApplicationSSHKeyRow struct {
+	KeyID      string `json:"key_id"`
+	Name       string `json:"name"`
+	PrivateKey string `json:"private_key"`
+}
+
+// Resolves the application's linked SSH key for private repo clones.
+// No row when the application has no ssh_key_id (sqlc emits :one; callers
+// treat pgx.ErrNoRows as "no key configured").
+func (q *Queries) GetApplicationSSHKey(ctx context.Context, dollar_1 pgtype.UUID) (GetApplicationSSHKeyRow, error) {
+	row := q.db.QueryRow(ctx, getApplicationSSHKey, dollar_1)
+	var i GetApplicationSSHKeyRow
+	err := row.Scan(&i.KeyID, &i.Name, &i.PrivateKey)
+	return i, err
+}
+
+const getProjectNameForApplication = `-- name: GetProjectNameForApplication :one
+select p.name
 from applications a
 join projects p on p.id = a.project_id
+where a.id = $1::uuid
+`
+
+// Project name doubles as the project-network slug (sanitized by the
+// network manager when creating hive_project_{slug}).
+func (q *Queries) GetProjectNameForApplication(ctx context.Context, dollar_1 pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getProjectNameForApplication, dollar_1)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
+const listApplicationsByOrganization = `-- name: ListApplicationsByOrganization :many
+select a.id, a.project_id, a.name, a.source_type::text, a.image, a.repository_url, a.git_ref, a.container_port, a.watch_paths, a.created_at,
+       a.registry_id, r.name as registry_name, r.url as registry_url
+from applications a
+join projects p on p.id = a.project_id
+left join registries r on r.id = a.registry_id
 where p.organization_id = $1
 order by a.created_at desc
 `
@@ -157,6 +206,9 @@ type ListApplicationsByOrganizationRow struct {
 	ContainerPort pgtype.Int4        `json:"container_port"`
 	WatchPaths    []string           `json:"watch_paths"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	RegistryID    pgtype.UUID        `json:"registry_id"`
+	RegistryName  pgtype.Text        `json:"registry_name"`
+	RegistryUrl   pgtype.Text        `json:"registry_url"`
 }
 
 func (q *Queries) ListApplicationsByOrganization(ctx context.Context, organizationID pgtype.UUID) ([]ListApplicationsByOrganizationRow, error) {
@@ -179,6 +231,9 @@ func (q *Queries) ListApplicationsByOrganization(ctx context.Context, organizati
 			&i.ContainerPort,
 			&i.WatchPaths,
 			&i.CreatedAt,
+			&i.RegistryID,
+			&i.RegistryName,
+			&i.RegistryUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -191,8 +246,10 @@ func (q *Queries) ListApplicationsByOrganization(ctx context.Context, organizati
 }
 
 const listApplicationsByProject = `-- name: ListApplicationsByProject :many
-select a.id, a.project_id, a.name, a.source_type::text, a.image, a.repository_url, a.git_ref, a.container_port, a.watch_paths, a.created_at
+select a.id, a.project_id, a.name, a.source_type::text, a.image, a.repository_url, a.git_ref, a.container_port, a.watch_paths, a.created_at,
+       a.registry_id, r.name as registry_name, r.url as registry_url
 from applications a
+left join registries r on r.id = a.registry_id
 where a.project_id = $1
 order by a.created_at desc
 `
@@ -208,6 +265,9 @@ type ListApplicationsByProjectRow struct {
 	ContainerPort pgtype.Int4        `json:"container_port"`
 	WatchPaths    []string           `json:"watch_paths"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	RegistryID    pgtype.UUID        `json:"registry_id"`
+	RegistryName  pgtype.Text        `json:"registry_name"`
+	RegistryUrl   pgtype.Text        `json:"registry_url"`
 }
 
 func (q *Queries) ListApplicationsByProject(ctx context.Context, projectID pgtype.UUID) ([]ListApplicationsByProjectRow, error) {
@@ -230,6 +290,9 @@ func (q *Queries) ListApplicationsByProject(ctx context.Context, projectID pgtyp
 			&i.ContainerPort,
 			&i.WatchPaths,
 			&i.CreatedAt,
+			&i.RegistryID,
+			&i.RegistryName,
+			&i.RegistryUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -239,6 +302,24 @@ func (q *Queries) ListApplicationsByProject(ctx context.Context, projectID pgtyp
 		return nil, err
 	}
 	return items, nil
+}
+
+const setApplicationRegistry = `-- name: SetApplicationRegistry :exec
+update applications a
+set registry_id = $3
+from projects p
+where a.id = $1 and p.id = a.project_id and p.organization_id = $2
+`
+
+type SetApplicationRegistryParams struct {
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	RegistryID     pgtype.UUID `json:"registry_id"`
+}
+
+func (q *Queries) SetApplicationRegistry(ctx context.Context, arg SetApplicationRegistryParams) error {
+	_, err := q.db.Exec(ctx, setApplicationRegistry, arg.ID, arg.OrganizationID, arg.RegistryID)
+	return err
 }
 
 const updateApplication = `-- name: UpdateApplication :exec

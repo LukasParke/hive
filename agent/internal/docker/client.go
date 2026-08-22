@@ -22,8 +22,8 @@ var allowedShells = map[string]bool{
 	"/bin/ash":  true,
 }
 
-// DockerOperations defines the interface for Docker interactions (enables mock testing).
-type DockerOperations interface {
+// Operations defines the interface for Docker interactions (enables mock testing).
+type Operations interface {
 	Info(ctx context.Context) (system.Info, error)
 	ContainerStats(ctx context.Context, ids []string) ([]*ContainerStat, error)
 	StreamLogs(ctx context.Context, id string, follow bool, tail int32, timestamps bool) (io.ReadCloser, error)
@@ -48,16 +48,30 @@ type ContainerStat struct {
 	BlockWrite  uint64
 }
 
-// Client implements DockerOperations using the Docker SDK.
+// apiClient is the subset of the Docker SDK client used by Client. It exists
+// so tests can stub the daemon interaction; *dockerclient.Client satisfies it
+// structurally.
+type apiClient interface {
+	Close() error
+	Info(ctx context.Context, opts dockerclient.InfoOptions) (dockerclient.SystemInfoResult, error)
+	ContainerList(ctx context.Context, opts dockerclient.ContainerListOptions) (dockerclient.ContainerListResult, error)
+	ContainerStats(ctx context.Context, containerID string, opts dockerclient.ContainerStatsOptions) (dockerclient.ContainerStatsResult, error)
+	ContainerLogs(ctx context.Context, containerID string, opts dockerclient.ContainerLogsOptions) (dockerclient.ContainerLogsResult, error)
+	ExecCreate(ctx context.Context, containerID string, opts dockerclient.ExecCreateOptions) (dockerclient.ExecCreateResult, error)
+	ExecAttach(ctx context.Context, execID string, opts dockerclient.ExecAttachOptions) (dockerclient.ExecAttachResult, error)
+	ExecResize(ctx context.Context, execID string, opts dockerclient.ExecResizeOptions) (dockerclient.ExecResizeResult, error)
+	ExecInspect(ctx context.Context, execID string, opts dockerclient.ExecInspectOptions) (dockerclient.ExecInspectResult, error)
+}
+
+// Client implements Operations using the Docker SDK.
 type Client struct {
-	raw *dockerclient.Client
+	raw apiClient
 }
 
 // NewClient creates a new Docker client.
 func NewClient(host string) (*Client, error) {
-	cli, err := dockerclient.NewClientWithOpts(
+	cli, err := dockerclient.New(
 		dockerclient.WithHost(host),
-		dockerclient.WithAPIVersionNegotiation(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("docker client: %w", err)
@@ -65,6 +79,7 @@ func NewClient(host string) (*Client, error) {
 	return &Client{raw: cli}, nil
 }
 
+// Close releases the underlying Docker client resources.
 func (c *Client) Close() error {
 	return c.raw.Close()
 }
@@ -96,11 +111,13 @@ func allowedShellsList() []string {
 	return out
 }
 
+// Info returns Docker daemon system info.
 func (c *Client) Info(ctx context.Context) (system.Info, error) {
 	result, err := c.raw.Info(ctx, dockerclient.InfoOptions{})
 	return result.Info, err
 }
 
+// ListContainers returns all containers known to the daemon.
 func (c *Client) ListContainers(ctx context.Context) ([]container.Summary, error) {
 	result, err := c.raw.ContainerList(ctx, dockerclient.ContainerListOptions{})
 	return result.Items, err
@@ -138,7 +155,7 @@ func (c *Client) containerStatsOneShot(ctx context.Context, id string) (*Contain
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var v struct {
 		ID   string `json:"id"`
@@ -222,6 +239,7 @@ func calculateCPUPercent(preCPU, curCPU, preSystem, curSystem, onlineCPUs uint64
 	return (cpuDelta / systemDelta) * float64(onlineCPUs) * 100.0
 }
 
+// StreamLogs returns a reader over the container's multiplexed log stream.
 func (c *Client) StreamLogs(ctx context.Context, id string, follow bool, tail int32, timestamps bool) (io.ReadCloser, error) {
 	if err := ValidateContainerID(id); err != nil {
 		return nil, err
@@ -242,6 +260,7 @@ func (c *Client) StreamLogs(ctx context.Context, id string, follow bool, tail in
 	})
 }
 
+// ExecCreate creates an exec instance in the given container and returns its ID.
 func (c *Client) ExecCreate(ctx context.Context, id string, cmd []string, tty bool) (string, error) {
 	if err := ValidateContainerID(id); err != nil {
 		return "", err
@@ -259,6 +278,7 @@ func (c *Client) ExecCreate(ctx context.Context, id string, cmd []string, tty bo
 	return resp.ID, nil
 }
 
+// ExecAttach attaches to a created exec instance, hijacking the connection.
 func (c *Client) ExecAttach(ctx context.Context, execID string, tty bool) (dockerclient.HijackedResponse, error) {
 	resp, err := c.raw.ExecAttach(ctx, execID, dockerclient.ExecAttachOptions{
 		TTY: tty,
@@ -266,6 +286,7 @@ func (c *Client) ExecAttach(ctx context.Context, execID string, tty bool) (docke
 	return resp.HijackedResponse, err
 }
 
+// ExecResize resizes the TTY of the given exec instance.
 func (c *Client) ExecResize(ctx context.Context, execID string, rows, cols uint) error {
 	_, err := c.raw.ExecResize(ctx, execID, dockerclient.ExecResizeOptions{
 		Height: rows,
@@ -274,6 +295,7 @@ func (c *Client) ExecResize(ctx context.Context, execID string, rows, cols uint)
 	return err
 }
 
+// ExecInspect returns low-level information about an exec instance.
 func (c *Client) ExecInspect(ctx context.Context, execID string) (dockerclient.ExecInspectResult, error) {
 	resp, err := c.raw.ExecInspect(ctx, execID, dockerclient.ExecInspectOptions{})
 	if err != nil {

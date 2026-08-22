@@ -6,6 +6,7 @@ package dbgen
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"net/netip"
 
@@ -105,12 +106,14 @@ func (ns NullMemberRole) Value() (driver.Value, error) {
 type SecretType string
 
 const (
-	SecretTypeSshKey     SecretType = "ssh_key"
-	SecretTypeTlsCert    SecretType = "tls_cert"
-	SecretTypeTlsKey     SecretType = "tls_key"
-	SecretTypeSigningKey SecretType = "signing_key"
-	SecretTypeCaKey      SecretType = "ca_key"
-	SecretTypeCaCert     SecretType = "ca_cert"
+	SecretTypeSshKey           SecretType = "ssh_key"
+	SecretTypeTlsCert          SecretType = "tls_cert"
+	SecretTypeTlsKey           SecretType = "tls_key"
+	SecretTypeSigningKey       SecretType = "signing_key"
+	SecretTypeCaKey            SecretType = "ca_key"
+	SecretTypeCaCert           SecretType = "ca_cert"
+	SecretTypeRegistryPassword SecretType = "registry_password"
+	SecretTypeTunnelCredential SecretType = "tunnel_credential"
 )
 
 func (e *SecretType) Scan(src interface{}) error {
@@ -214,7 +217,7 @@ type AppEnvVar struct {
 
 type AppSetting struct {
 	Key       string             `json:"key"`
-	Value     []byte             `json:"value"`
+	Value     json.RawMessage    `json:"value"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
@@ -224,13 +227,15 @@ type Application struct {
 	Name          string             `json:"name"`
 	SourceType    SourceType         `json:"source_type"`
 	Image         pgtype.Text        `json:"image"`
-	ServiceSpec   []byte             `json:"service_spec"`
+	ServiceSpec   json.RawMessage    `json:"service_spec"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	RepositoryUrl pgtype.Text        `json:"repository_url"`
 	GitRef        pgtype.Text        `json:"git_ref"`
 	ContainerPort pgtype.Int4        `json:"container_port"`
 	AutoDeploy    bool               `json:"auto_deploy"`
 	WatchPaths    []string           `json:"watch_paths"`
+	RegistryID    pgtype.UUID        `json:"registry_id"`
+	SshKeyID      pgtype.UUID        `json:"ssh_key_id"`
 }
 
 type AuditLog struct {
@@ -239,7 +244,7 @@ type AuditLog struct {
 	Action       string             `json:"action"`
 	ResourceType string             `json:"resource_type"`
 	ResourceID   string             `json:"resource_id"`
-	Details      []byte             `json:"details"`
+	Details      json.RawMessage    `json:"details"`
 	IpAddress    *netip.Addr        `json:"ip_address"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
@@ -248,7 +253,7 @@ type BackupDestination struct {
 	ID        pgtype.UUID        `json:"id"`
 	Name      string             `json:"name"`
 	Type      string             `json:"type"`
-	Config    []byte             `json:"config"`
+	Config    json.RawMessage    `json:"config"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -260,7 +265,7 @@ type BackupRun struct {
 	Status        string             `json:"status"`
 	StartedAt     pgtype.Timestamptz `json:"started_at"`
 	CompletedAt   pgtype.Timestamptz `json:"completed_at"`
-	Details       []byte             `json:"details"`
+	Details       json.RawMessage    `json:"details"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	ArtifactPath  pgtype.Text        `json:"artifact_path"`
 	ErrorMessage  pgtype.Text        `json:"error_message"`
@@ -321,6 +326,10 @@ type Domain struct {
 	Hostname      string             `json:"hostname"`
 	TlsEnabled    bool               `json:"tls_enabled"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	RouteType     string             `json:"route_type"`
+	PathPrefix    string             `json:"path_prefix"`
+	StripPrefix   bool               `json:"strip_prefix"`
+	Priority      pgtype.Int4        `json:"priority"`
 }
 
 type Environment struct {
@@ -455,7 +464,7 @@ type RequestEvent struct {
 	ID        pgtype.UUID        `json:"id"`
 	Category  string             `json:"category"`
 	Message   string             `json:"message"`
-	Payload   []byte             `json:"payload"`
+	Payload   json.RawMessage    `json:"payload"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -485,7 +494,7 @@ type SecurityRule struct {
 	ApplicationID  pgtype.UUID        `json:"application_id"`
 	Name           string             `json:"name"`
 	Type           string             `json:"type"`
-	Config         []byte             `json:"config"`
+	Config         json.RawMessage    `json:"config"`
 	Priority       int32              `json:"priority"`
 	Enabled        bool               `json:"enabled"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
@@ -523,6 +532,69 @@ type Stack struct {
 	Name           string             `json:"name"`
 	ComposeContent string             `json:"compose_content"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type SwarmCacheConfig struct {
+	SwarmID   string             `json:"swarm_id"`
+	Name      string             `json:"name"`
+	Spec      json.RawMessage    `json:"spec"`
+	Status    json.RawMessage    `json:"status"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SwarmCacheNetwork struct {
+	SwarmID   string             `json:"swarm_id"`
+	Name      string             `json:"name"`
+	Spec      json.RawMessage    `json:"spec"`
+	Status    json.RawMessage    `json:"status"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SwarmCacheNode struct {
+	SwarmID   string             `json:"swarm_id"`
+	Name      string             `json:"name"`
+	Spec      json.RawMessage    `json:"spec"`
+	Status    json.RawMessage    `json:"status"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SwarmCacheSecret struct {
+	SwarmID   string             `json:"swarm_id"`
+	Name      string             `json:"name"`
+	Spec      json.RawMessage    `json:"spec"`
+	Status    json.RawMessage    `json:"status"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SwarmCacheService struct {
+	SwarmID   string             `json:"swarm_id"`
+	Name      string             `json:"name"`
+	Spec      json.RawMessage    `json:"spec"`
+	Status    json.RawMessage    `json:"status"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SwarmCacheTask struct {
+	SwarmID   string             `json:"swarm_id"`
+	Name      string             `json:"name"`
+	Spec      json.RawMessage    `json:"spec"`
+	Status    json.RawMessage    `json:"status"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Tunnel struct {
+	ID                   pgtype.UUID        `json:"id"`
+	Name                 string             `json:"name"`
+	CfTunnelID           string             `json:"cf_tunnel_id"`
+	AccountID            string             `json:"account_id"`
+	ZoneID               pgtype.Text        `json:"zone_id"`
+	CredentialSecretName string             `json:"credential_secret_name"`
+	Ingress              json.RawMessage    `json:"ingress"`
+	DnsRecords           json.RawMessage    `json:"dns_records"`
+	Status               string             `json:"status"`
+	ErrorMessage         pgtype.Text        `json:"error_message"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {

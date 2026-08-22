@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const settingsLinks = [
   { to: "/dashboard/settings/notifications", label: "Notifications", desc: "Configure notification channels" },

@@ -15,22 +15,25 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/riverqueue/river"
 	"github.com/luke/hive/control-plane/internal/api/common"
 	dbgen "github.com/luke/hive/control-plane/internal/db/generated"
 	"github.com/luke/hive/control-plane/internal/jobs/riverjobs"
+	"github.com/riverqueue/river"
 )
 
+// Handler serves git provider webhook endpoints.
 type Handler struct {
 	Pool        *pgxpool.Pool
 	Q           *dbgen.Queries
 	RiverClient *river.Client[pgx.Tx]
 }
 
+// NewHandler returns a webhook Handler wired to the given dependencies.
 func NewHandler(pool *pgxpool.Pool, riverClient *river.Client[pgx.Tx]) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool), RiverClient: riverClient}
 }
 
+// GithubWebhook handles GitHub push and PR events.
 func (h *Handler) GithubWebhook(w http.ResponseWriter, r *http.Request) {
 	event := r.Header.Get("X-GitHub-Event")
 	switch event {
@@ -43,6 +46,7 @@ func (h *Handler) GithubWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GitlabWebhook handles GitLab push and MR events.
 func (h *Handler) GitlabWebhook(w http.ResponseWriter, r *http.Request) {
 	event := r.Header.Get("X-Gitlab-Event")
 	switch event {
@@ -55,6 +59,7 @@ func (h *Handler) GitlabWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// BitbucketWebhook handles Bitbucket push and PR events.
 func (h *Handler) BitbucketWebhook(w http.ResponseWriter, r *http.Request) {
 	event := strings.TrimSpace(r.Header.Get("X-Event-Key"))
 	switch {
@@ -67,6 +72,7 @@ func (h *Handler) BitbucketWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GiteaWebhook handles Gitea push and PR events.
 func (h *Handler) GiteaWebhook(w http.ResponseWriter, r *http.Request) {
 	event := strings.TrimSpace(r.Header.Get("X-Gitea-Event"))
 	switch {
@@ -166,7 +172,7 @@ func (h *Handler) handleWebhook(w http.ResponseWriter, r *http.Request, provider
 		if !matchesWatchPaths(watchPaths, modifiedFiles) {
 			continue
 		}
-		if _, err := h.Pool.Exec(r.Context(), `insert into build_jobs(application_id, trigger, status) values ($1::uuid, 'webhook', 'queued')`, appID); err == nil {
+		if _, err := riverjobs.EnqueueBuild(r.Context(), h.RiverClient, h.Pool, appID, "webhook", ""); err == nil {
 			count++
 		}
 	}
@@ -187,9 +193,9 @@ type prPayload struct {
 		LastCommit   struct {
 			ID string `json:"id"`
 		} `json:"last_commit"`
-		Iid       int32  `json:"iid"`
-		State     string `json:"state"`
-		Action    string `json:"action"`
+		Iid    int32  `json:"iid"`
+		State  string `json:"state"`
+		Action string `json:"action"`
 	} `json:"object_attributes"`
 	Repository struct {
 		CloneURL string `json:"clone_url"`
@@ -353,11 +359,6 @@ func (h *Handler) handlePRClosed(ctx context.Context, w http.ResponseWriter, pro
 			ApplicationID:  appUUID,
 			OrganizationID: orgUUID,
 		})
-		// Also remove the Swarm service if it exists.
-		services, _ := h.Pool.Query(ctx, `select id::text from preview_deployments where id = $1::uuid`, previewUUID)
-		if services != nil {
-			services.Close()
-		}
 		count++
 	}
 	common.WriteJSON(w, http.StatusAccepted, map[string]any{"status": "accepted", "removed": count})

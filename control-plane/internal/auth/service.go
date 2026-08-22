@@ -15,21 +15,32 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Claims are the JWT claims carried by access tokens.
 type Claims struct {
 	UserID string `json:"uid"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
+// Service implements user registration, login, and session management.
 type Service struct {
 	pool      *pgxpool.Pool
 	jwtSecret []byte
 }
 
+// Indirection seams so tests can inject token-minting failures; production
+// always uses the real implementations assigned here.
+var (
+	issueAccessTokenFn = (*Service).issueAccessToken
+	randomTokenFn      = randomToken
+)
+
+// NewService returns a Service backed by the given pool and JWT secret.
 func NewService(pool *pgxpool.Pool, jwtSecret string) *Service {
 	return &Service{pool: pool, jwtSecret: []byte(jwtSecret)}
 }
 
+// Register creates a user with a bcrypt-hashed password and returns its ID.
 func (s *Service) Register(ctx context.Context, email, password, displayName string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -44,6 +55,7 @@ func (s *Service) Register(ctx context.Context, email, password, displayName str
 	return id, err
 }
 
+// Login verifies credentials and returns a fresh access/refresh token pair.
 func (s *Service) Login(ctx context.Context, email, password string) (string, string, error) {
 	var id string
 	var pwHash string
@@ -59,11 +71,11 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, st
 		return "", "", errors.New("invalid credentials")
 	}
 
-	accessToken, err := s.issueAccessToken(id, email)
+	accessToken, err := issueAccessTokenFn(s, id, email)
 	if err != nil {
 		return "", "", err
 	}
-	refreshToken, err := randomToken(48)
+	refreshToken, err := randomTokenFn(48)
 	if err != nil {
 		return "", "", err
 	}
@@ -77,6 +89,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, st
 	return accessToken, refreshToken, nil
 }
 
+// Refresh rotates the session's refresh token and returns a new token pair.
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (string, string, error) {
 	hash := sha256Hex(refreshToken)
 	var userID string
@@ -92,11 +105,11 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (string, str
 		return "", "", err
 	}
 
-	accessToken, err := s.issueAccessToken(userID, email)
+	accessToken, err := issueAccessTokenFn(s, userID, email)
 	if err != nil {
 		return "", "", err
 	}
-	nextRefresh, err := randomToken(48)
+	nextRefresh, err := randomTokenFn(48)
 	if err != nil {
 		return "", "", err
 	}
@@ -111,11 +124,13 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (string, str
 	return accessToken, nextRefresh, nil
 }
 
+// Logout deletes the session identified by the given refresh token.
 func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 	_, err := s.pool.Exec(ctx, `delete from sessions where refresh_token_hash = $1`, sha256Hex(refreshToken))
 	return err
 }
 
+// ParseAccessToken validates a signed access token and returns its claims.
 func (s *Service) ParseAccessToken(tokenRaw string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenRaw, &Claims{}, func(token *jwt.Token) (any, error) {
 		return s.jwtSecret, nil

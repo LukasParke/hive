@@ -40,6 +40,9 @@ export type Profile = components["schemas"]["Profile"];
 export type SecurityRule = components["schemas"]["SecurityRule"];
 export type UpdateStatus = components["schemas"]["UpdateStatus"];
 export type StatusResponse = components["schemas"]["StatusResponse"];
+export type Tunnel = components["schemas"]["Tunnel"];
+export type TunnelIngressRule = components["schemas"]["TunnelIngressRule"];
+export type TunnelConnectorStatus = components["schemas"]["TunnelConnectorStatus"];
 
 // Backward-compatible generic map type for gradual migration
 export type ItemMap = Record<string, unknown>;
@@ -210,6 +213,16 @@ export const api = {
     request<ItemMap>(`/api/v1/nodes/${id}/packages/check`, { method: "POST", body: "{}" }, session),
   triggerNodeMaintenance: (session: Session, id: string, body: components["schemas"]["NodeMaintenanceRequest"]) =>
     request<ItemMap>(`/api/v1/nodes/${id}/maintain`, { method: "POST", body: JSON.stringify(body) }, session),
+  updateNodeLabels: (session: Session, id: string, body: components["schemas"]["UpdateNodeLabelsRequest"]) =>
+    request<Node>(`/api/v1/nodes/${id}/labels`, { method: "PUT", body: JSON.stringify(body) }, session),
+  drainNode: (session: Session, id: string) =>
+    request<StatusResponse>(`/api/v1/nodes/${id}/drain`, { method: "POST", body: "{}" }, session),
+  promoteNode: (session: Session, id: string) =>
+    request<StatusResponse>(`/api/v1/nodes/${id}/promote`, { method: "POST", body: "{}" }, session),
+  demoteNode: (session: Session, id: string) =>
+    request<StatusResponse>(`/api/v1/nodes/${id}/demote`, { method: "POST", body: "{}" }, session),
+  removeNode: (session: Session, id: string, force = false) =>
+    request<StatusResponse>(`/api/v1/nodes/${id}?force=${force}`, { method: "DELETE" }, session),
 
   // ── Services ──
   listServices: (session: Session) => request<{ items: Service[] }>("/api/v1/services", undefined, session),
@@ -267,17 +280,28 @@ export const api = {
   listSecrets: (session: Session) => request<{ items: SwarmSecret[] }>("/api/v1/secrets", undefined, session),
   createSecret: (session: Session, body: ItemMap) =>
     request<ItemMap>("/api/v1/secrets", { method: "POST", body: JSON.stringify(body) }, session),
+  updateSecret: (session: Session, id: string, body: components["schemas"]["UpdateSecretRequest"]) =>
+    request<StatusResponse>(`/api/v1/secrets/${id}`, { method: "PUT", body: JSON.stringify(body) }, session),
+  deleteSecret: (session: Session, id: string) =>
+    request<StatusResponse>(`/api/v1/secrets/${id}`, { method: "DELETE" }, session),
+  rotateSecret: (session: Session, id: string, body: components["schemas"]["UpdateSecretRequest"]) =>
+    request<StatusResponse>(`/api/v1/secrets/${id}/rotate`, { method: "POST", body: JSON.stringify(body) }, session),
 
   // ── Configs ──
   listConfigs: (session: Session) => request<{ items: SwarmConfig[] }>("/api/v1/configs", undefined, session),
   createConfig: (session: Session, body: ItemMap) =>
     request<ItemMap>("/api/v1/configs", { method: "POST", body: JSON.stringify(body) }, session),
+  updateConfig: (session: Session, id: string, body: components["schemas"]["UpdateConfigRequest"]) =>
+    request<StatusResponse>(`/api/v1/configs/${id}`, { method: "PUT", body: JSON.stringify(body) }, session),
+  deleteConfig: (session: Session, id: string) =>
+    request<StatusResponse>(`/api/v1/configs/${id}`, { method: "DELETE" }, session),
 
   // ── Networks ──
   listNetworks: (session: Session) => request<{ items: Network[] }>("/api/v1/networks", undefined, session),
   createNetwork: (session: Session, body: ItemMap) =>
     request<ItemMap>("/api/v1/networks", { method: "POST", body: JSON.stringify(body) }, session),
-
+  deleteNetwork: (session: Session, id: string) =>
+    request<StatusResponse>(`/api/v1/networks/${id}`, { method: "DELETE" }, session),
   // ── Backups ──
   listBackups: (session: Session) => request<{ items: ItemMap[] }>("/api/v1/backups", undefined, session),
   createBackup: (session: Session, body: ItemMap) =>
@@ -363,4 +387,14 @@ export const api = {
   createCertificate: (session: Session, body: ItemMap) =>
     request<ItemMap>("/api/v1/settings/certificates", { method: "POST", body: JSON.stringify(body) }, session),
   listRequestEvents: (session: Session) => request<{ items: ItemMap[] }>("/api/v1/settings/requests", undefined, session),
+
+  // ── Tunnels ──
+  listTunnels: (session: Session) => request<{ items: Tunnel[] }>("/api/v1/tunnels", undefined, session),
+  createTunnel: (session: Session, body: components["schemas"]["CreateTunnelRequest"]) =>
+    request<Tunnel>("/api/v1/tunnels", { method: "POST", body: JSON.stringify(body) }, session),
+  getTunnel: (session: Session, id: string) => request<Tunnel>(`/api/v1/tunnels/${id}`, undefined, session),
+  updateTunnelIngress: (session: Session, id: string, body: components["schemas"]["UpdateTunnelIngressRequest"]) =>
+    request<Tunnel>(`/api/v1/tunnels/${id}/ingress`, { method: "PUT", body: JSON.stringify(body) }, session),
+  deleteTunnel: (session: Session, id: string) =>
+    request<StatusResponse>(`/api/v1/tunnels/${id}`, { method: "DELETE" }, session),
 };

@@ -17,7 +17,18 @@ jobs:
         with:
           go-version: "1.25"
       - run: go vet ./...
-      - run: go test -race ./...
+      - run: go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -vE "internal/testdb|internal/db/generated|cmd/")
+      - name: Enforce coverage floor (95% on internal packages)
+        run: |
+          pct=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%",""); print $3}')
+          floor=95
+          # ratchet: raise as coverage grows. internal/testdb is a test
+          # harness (container bootstrap paths) and is excluded from scope.
+          awk -v p="$pct" -v t="$floor" 'BEGIN { if (p+0 < t) { printf "coverage %.2f%% is below floor %d%%\n", p, t; exit 1 } }'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: control-plane-coverage
+          path: control-plane/coverage.out
   agent:
     runs-on: ubuntu-latest
     defaults:
@@ -28,8 +39,15 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
-      - run: go vet ./...
-      - run: go test -race ./...
+      - run: go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v internal/testdb)
+      - name: Enforce coverage floor (95% on internal packages)
+        run: |
+          pct=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%",""); print $3}')
+          floor=95
+          # ratchet: raise as coverage grows. internal/testdb is a test
+          # harness (container bootstrap paths) and is excluded from scope.
+          awk -v p="$pct" -v t="$floor" 'BEGIN { if (p+0 < t) { printf "coverage %.2f%% is below floor %d%%\n", p, t; exit 1 } }'
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -38,17 +56,15 @@ jobs:
         with:
           go-version: "1.25"
       - name: golangci-lint control-plane
-        uses: golangci/golangci-lint-action@v6
-        continue-on-error: true # golangci-lint releases may lag the repo's Go toolchain.
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.13.1
           working-directory: control-plane
           args: --timeout=5m
       - name: golangci-lint agent
-        uses: golangci/golangci-lint-action@v6
-        continue-on-error: true # Keep vet/test authoritative when the linter binary lags Go.
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.13.1
           working-directory: agent
           args: --timeout=5m
   proto-check:

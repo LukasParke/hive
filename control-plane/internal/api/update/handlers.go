@@ -2,19 +2,28 @@
 package update
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/luke/hive/control-plane/internal/updater"
 )
 
+// Service is the updater seam the handler depends on; *updater.Updater
+// satisfies it and tests inject fakes.
+type Service interface {
+	Status() updater.Status
+	CheckNow(ctx context.Context) error
+	Update(ctx context.Context) error
+}
+
 // Handler exposes update status and triggers.
 type Handler struct {
-	Updater *updater.Updater
+	Updater Service
 }
 
 // NewHandler creates an update handler.
-func NewHandler(u *updater.Updater) *Handler {
+func NewHandler(u Service) *Handler {
 	return &Handler{Updater: u}
 }
 

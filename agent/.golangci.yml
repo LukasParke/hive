@@ -1,29 +1,44 @@
+version: "2"
+
 run:
   timeout: 5m
   go: "1.25"
 
 linters:
+  # gosimple was merged into staticcheck in golangci-lint v2 (S* checks run via staticcheck).
+  default: standard
   enable:
     - errcheck
-    - gosimple
+    - gosec
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gosec
     - gocritic
     - revive
-
-linters-settings:
-  gosec:
-    excludes:
-      - G104 # Auditing of errors is handled separately
-  revive:
-    rules:
-      - name: exported
-        arguments: ["checkPrivateReceivers", "sayRepetitiveInsteadOfStutters"]
-
+  settings:
+    gosec:
+      excludes:
+        - G104 # Auditing of errors is handled separately
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+            - sayRepetitiveInsteadOfStutters
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 50
   max-same-issues: 10
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

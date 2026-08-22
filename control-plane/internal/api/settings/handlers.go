@@ -8,14 +8,17 @@ import (
 	"github.com/luke/hive/control-plane/internal/api/common"
 )
 
+// Handler serves application settings endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns a settings Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// GetSettings returns the current application settings.
 func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.Pool.Query(r.Context(), `select key, value from app_settings order by key`)
 	if err != nil {
@@ -38,6 +41,7 @@ func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// PutSettings replaces the application settings.
 func (h *Handler) PutSettings(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

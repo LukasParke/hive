@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -56,6 +57,10 @@ func NewHandler(dialer *agentclient.Dialer, sw *swarm.Client) *Handler {
 	}
 }
 
+// agentAddrPort is appended to the resolved agent overlay IP; overridable in
+// tests so a fake agent can listen on an ephemeral port.
+var agentAddrPort = ":9090"
+
 // Execute runs a maintenance job on a single node.
 func (h *Handler) Execute(ctx context.Context, job NodeMaintenanceJob) (*Result, error) {
 	result := &Result{
@@ -73,7 +78,7 @@ func (h *Handler) Execute(ctx context.Context, job NodeMaintenanceJob) (*Result,
 		result.Error = fmt.Sprintf("resolve agent address: %v", err)
 		return result, err
 	}
-	client := h.dialer.ClientPlaintext(job.NodeID, addr)
+	client := h.dialer.Client(job.NodeID, addr)
 
 	// Pre-flight: check node health
 	_, err = client.Health(ctx, connect.NewRequest(&agentv1.HealthRequest{}))
@@ -168,9 +173,10 @@ func (h *Handler) resolveAgentAddr(ctx context.Context, nodeID string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("resolve agent address: %w", err)
 	}
-	return ip + ":9090", nil
+	return ip + agentAddrPort, nil
 }
 
+// ExecuteRolling performs rolling maintenance across cluster nodes.
 func (h *Handler) ExecuteRolling(ctx context.Context, job NodeMaintenanceJob) ([]Result, error) {
 	nodes, err := h.swarm.ListNodes(ctx)
 	if err != nil {
@@ -187,7 +193,7 @@ func (h *Handler) ExecuteRolling(ctx context.Context, job NodeMaintenanceJob) ([
 		}
 	}
 
-	ordered := append(workers, managers...)
+	ordered := slices.Concat(workers, managers)
 	var results []Result
 
 	for _, nodeID := range ordered {

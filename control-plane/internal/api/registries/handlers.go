@@ -13,14 +13,17 @@ import (
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves registry management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns a registry Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// ListRegistries lists the configured image registries.
 func (h *Handler) ListRegistries(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -45,6 +48,7 @@ func (h *Handler) ListRegistries(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateRegistry adds a new image registry.
 func (h *Handler) CreateRegistry(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name       string `json:"name"`
@@ -69,6 +73,7 @@ func (h *Handler) CreateRegistry(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// GetRegistry returns a single registry by ID.
 func (h *Handler) GetRegistry(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -89,6 +94,7 @@ func (h *Handler) GetRegistry(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateRegistry updates an existing registry.
 func (h *Handler) UpdateRegistry(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -130,6 +136,7 @@ func (h *Handler) UpdateRegistry(w http.ResponseWriter, r *http.Request) {
 	h.GetRegistry(w, r)
 }
 
+// DeleteRegistry removes a registry.
 func (h *Handler) DeleteRegistry(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -147,6 +154,7 @@ func (h *Handler) DeleteRegistry(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
+// TestRegistry verifies registry credentials with a live check.
 func (h *Handler) TestRegistry(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin); !ok {
 		return
@@ -172,7 +180,7 @@ func (h *Handler) TestRegistry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf(`{"message":"registry check failed: %s"}`, err.Error()), http.StatusBadGateway)
 		return
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode >= 400 {
 		http.Error(w, fmt.Sprintf(`{"message":"registry responded with status %d"}`, res.StatusCode), http.StatusBadGateway)
 		return

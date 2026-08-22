@@ -18,10 +18,13 @@ import (
 )
 
 const (
-	githubAPIURL  = "https://api.github.com/repos/LukasParke/hive/releases/latest"
-	ghcrBase      = "ghcr.io/lukasparke/hive"
-	checkInterval = 15 * time.Minute
+	githubAPIURL = "https://api.github.com/repos/LukasParke/hive/releases/latest"
+	ghcrBase     = "ghcr.io/lukasparke/hive"
 )
+
+// checkInterval is a var only so tests can shrink the polling loop; it is
+// never mutated in production.
+var checkInterval = 15 * time.Minute
 
 // Status describes whether an update is available.
 type Status struct {
@@ -35,6 +38,7 @@ type Status struct {
 type Updater struct {
 	swarm      *swarmclient.Client
 	httpClient *http.Client
+	releaseURL string // GitHub releases endpoint; overridable in tests
 	status     Status
 }
 
@@ -45,6 +49,7 @@ func New(sw *swarmclient.Client) *Updater {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		releaseURL: githubAPIURL,
 		status: Status{
 			CurrentVersion: version.Current,
 		},
@@ -146,11 +151,7 @@ func (u *Updater) updateServiceByImagePrefix(ctx context.Context, imagePrefix, n
 
 		svc.Spec.TaskTemplate.ContainerSpec.Image = newImage
 
-		// Also update the swarm.Version to force the update
 		version := svc.Version.Index
-		if svc.Meta.Version.Index > version {
-			version = svc.Meta.Version.Index
-		}
 
 		if err := u.swarm.UpdateService(ctx, svc.ID, version, svc.Spec); err != nil {
 			return fmt.Errorf("update service %s: %w", svc.Spec.Name, err)
@@ -165,7 +166,7 @@ func (u *Updater) updateServiceByImagePrefix(ctx context.Context, imagePrefix, n
 
 // fetchLatestRelease queries the GitHub API for the latest release tag name.
 func (u *Updater) fetchLatestRelease(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, githubAPIURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.releaseURL, nil)
 	if err != nil {
 		return "", err
 	}
@@ -176,7 +177,7 @@ func (u *Updater) fetchLatestRelease(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

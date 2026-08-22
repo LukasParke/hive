@@ -16,3 +16,7 @@ on conflict (name) do update set
     encrypted_value = excluded.encrypted_value,
     updated_at = now()
 returning id, name, type::text, created_at, updated_at;
+
+-- name: DeleteSecretsByNames :execrows
+delete from secrets_store
+where name = any($1::text[]);

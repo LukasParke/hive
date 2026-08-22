@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/moby/moby/api/types/swarm"
 	dockerclient "github.com/moby/moby/client"
 )
 
@@ -666,7 +668,7 @@ func TestApplicationStartStopRestart(t *testing.T) {
 	}
 
 	// Wait for deploy to complete
-	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:6432/hive?sslmode=disable")
+	dbURL := getenv("HIVE_DATABASE_URL", "postgres://postgres:postgres@127.0.0.1:5432/hive?sslmode=disable")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	pool, err := pgxpool.New(ctx, dbURL)
@@ -704,6 +706,166 @@ func TestApplicationStartStopRestart(t *testing.T) {
 	restartRes := map[string]any{}
 	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/applications/"+appID+"/restart", auth.AccessToken, headers, map[string]any{}, &restartRes, http.StatusOK); err != nil {
 		t.Fatalf("restart app failed: %v", err)
+	}
+}
+
+// TestSecretRotationEndToEnd deploys an app, attaches a secret to its
+// swarm service, rotates the secret through the API, and verifies the
+// service now references the successor secret while the old secret is gone
+// from the swarm entirely.
+func TestSecretRotationEndToEnd(t *testing.T) {
+	baseURL := getenv("HIVE_API_BASE_URL", "http://127.0.0.1:3000")
+	auth := bootstrapAuthContext(t, baseURL)
+	cli := dindClient(t)
+	headers := map[string]string{"X-Organization-Id": auth.OrganizationID}
+	ctx := context.Background()
+
+	projectRes := map[string]any{}
+	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/projects", auth.AccessToken, headers, map[string]any{
+		"name": fmt.Sprintf("rotate-project-%d", time.Now().UnixNano()),
+	}, &projectRes, http.StatusCreated); err != nil {
+		t.Fatalf("create project failed: %v", err)
+	}
+	projectID := asString(projectRes["id"])
+
+	appRes := map[string]any{}
+	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/applications", auth.AccessToken, headers, map[string]any{
+		"projectId":  projectID,
+		"name":       "rotate-app-" + fmt.Sprintf("%d", time.Now().UnixNano()),
+		"sourceType": "image",
+		"image":      "alpine:3.21",
+	}, &appRes, http.StatusCreated); err != nil {
+		t.Fatalf("create app failed: %v", err)
+	}
+	appID := asString(appRes["id"])
+	t.Cleanup(func() {
+		_, _ = authedDeleteWithHeaders(baseURL+"/api/v1/applications/"+appID, auth.AccessToken, headers)
+	})
+
+	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/applications/"+appID+"/deploy", auth.AccessToken, headers, map[string]any{}, &map[string]any{}, http.StatusAccepted); err != nil {
+		t.Fatalf("enqueue deploy failed: %v", err)
+	}
+
+	var svcID, svcName string
+	pollUntil(t, 90*time.Second, 2*time.Second, "app service created in swarm", func() error {
+		services, err := cli.ServiceList(ctx, dockerServiceListOptions())
+		if err != nil {
+			return err
+		}
+		for _, svc := range services.Items {
+			if svc.Spec.Labels["hive.app.id"] == appID {
+				svcID, svcName = svc.ID, svc.Spec.Name
+				return nil
+			}
+		}
+		return fmt.Errorf("no service labeled hive.app.id=%s", appID)
+	})
+	t.Cleanup(func() {
+		_, _ = cli.ServiceRemove(ctx, svcID, dockerclient.ServiceRemoveOptions{})
+	})
+
+	// Attach the secret to the deployed service via a SecretReference.
+	secretName := fmt.Sprintf("ci-rotate-secret-%d", time.Now().UnixNano())
+	secretRes := map[string]any{}
+	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/secrets", auth.AccessToken, headers, map[string]any{
+		"name": secretName,
+		"data": "rotate-me-original",
+	}, &secretRes, http.StatusCreated); err != nil {
+		t.Fatalf("create secret failed: %v", err)
+	}
+	oldSecretID := asString(secretRes["id"])
+	if oldSecretID == "" {
+		t.Fatalf("secret id missing in response: %#v", secretRes)
+	}
+	t.Cleanup(func() {
+		_, _ = authedDeleteWithHeaders(baseURL+"/api/v1/secrets/"+oldSecretID, auth.AccessToken, headers)
+	})
+
+	inspect, err := cli.ServiceInspect(ctx, svcID, dockerclient.ServiceInspectOptions{})
+	if err != nil {
+		t.Fatalf("service inspect failed: %v", err)
+	}
+	spec := inspect.Service.Spec
+	if spec.TaskTemplate.ContainerSpec == nil {
+		t.Fatalf("service %s has no container spec", svcName)
+	}
+	containerSpec := *spec.TaskTemplate.ContainerSpec
+	containerSpec.Secrets = append(containerSpec.Secrets, &swarm.SecretReference{
+		SecretName: secretName,
+		SecretID:   oldSecretID,
+		File: &swarm.SecretReferenceFileTarget{
+			Name: "rotated-secret",
+			UID:  "0",
+			GID:  "0",
+			Mode: 0o400,
+		},
+	})
+	spec.TaskTemplate.ContainerSpec = &containerSpec
+	if _, err := cli.ServiceUpdate(ctx, svcID, dockerclient.ServiceUpdateOptions{
+		Version: inspect.Service.Version,
+		Spec:    spec,
+	}); err != nil {
+		t.Fatalf("attach secret to service failed: %v", err)
+	}
+
+	// Rotate through the API: the handler creates a versioned successor,
+	// re-points referencing services, and deletes the old secret.
+	if err := authedPostJSONWithHeaders(baseURL+"/api/v1/secrets/"+oldSecretID+"/rotate", auth.AccessToken, headers, map[string]any{
+		"data": "rotate-me-rotated",
+	}, &map[string]any{}, http.StatusOK); err != nil {
+		t.Fatalf("rotate secret failed: %v", err)
+	}
+
+	// Locate the successor secret (name is prefixed with the old name).
+	var newSecretID string
+	pollUntil(t, 30*time.Second, 2*time.Second, "successor secret present", func() error {
+		secrets, err := cli.SecretList(ctx, dockerSecretListOptions())
+		if err != nil {
+			return err
+		}
+		for _, s := range secrets.Items {
+			if s.ID == oldSecretID {
+				return fmt.Errorf("old secret %s still exists", oldSecretID)
+			}
+			if strings.HasPrefix(s.Spec.Name, secretName+"-r") {
+				newSecretID = s.ID
+			}
+		}
+		if newSecretID == "" {
+			return fmt.Errorf("no successor named %s-r*", secretName)
+		}
+		return nil
+	})
+
+	// The referencing service must now point at the new secret only.
+	fresh, err := cli.ServiceInspect(ctx, svcID, dockerclient.ServiceInspectOptions{})
+	if err != nil {
+		t.Fatalf("service inspect after rotate failed: %v", err)
+	}
+	referenced := map[string]bool{}
+	if fresh.Service.Spec.TaskTemplate.ContainerSpec != nil {
+		for _, ref := range fresh.Service.Spec.TaskTemplate.ContainerSpec.Secrets {
+			if ref != nil {
+				referenced[ref.SecretID] = true
+			}
+		}
+	}
+	if !referenced[newSecretID] {
+		t.Fatalf("service %s does not reference rotated secret %s (refs: %v)", svcName, newSecretID, referenced)
+	}
+	if referenced[oldSecretID] {
+		t.Fatalf("service %s still references old secret %s", svcName, oldSecretID)
+	}
+
+	// The old secret must be gone from the swarm.
+	secrets, err := cli.SecretList(ctx, dockerSecretListOptions())
+	if err != nil {
+		t.Fatalf("secret list after rotate failed: %v", err)
+	}
+	for _, s := range secrets.Items {
+		if s.ID == oldSecretID {
+			t.Fatalf("old secret %s still present in swarm after rotation", oldSecretID)
+		}
 	}
 }
 

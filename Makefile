@@ -1,4 +1,4 @@
-.PHONY: test build ui images lint proto
+.PHONY: test build ui images lint proto apispec
 
 VERSION ?= dev
 REGISTRY ?= ghcr.io/lukasparke/hive
@@ -26,3 +26,8 @@ lint:
 
 proto:
 	cd proto && buf generate
+
+# Sync api/openapi.yaml (source of truth) into the go:embed copy served at
+# /api/v1/openapi.yaml. Run after every spec change; CI fails on drift.
+apispec:
+	cp api/openapi.yaml control-plane/internal/apispec/openapi.yaml

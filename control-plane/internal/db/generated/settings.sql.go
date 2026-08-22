@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"encoding/json"
 )
 
 const getSettings = `-- name: GetSettings :many
@@ -16,8 +17,8 @@ order by key
 `
 
 type GetSettingsRow struct {
-	Key   string `json:"key"`
-	Value []byte `json:"value"`
+	Key   string          `json:"key"`
+	Value json.RawMessage `json:"value"`
 }
 
 func (q *Queries) GetSettings(ctx context.Context) ([]GetSettingsRow, error) {

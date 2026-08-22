@@ -9,20 +9,23 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/luke/hive/control-plane/internal/api/common"
-	apimiddleware "github.com/luke/hive/control-plane/internal/api/middleware"
+	apicxt "github.com/luke/hive/control-plane/internal/api/ctx"
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves project management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns a project Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// ListProjects lists projects for the organization.
 func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -63,6 +66,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateProject creates a new project.
 func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name string `json:"name"`
@@ -71,7 +75,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message":"invalid payload"}`, http.StatusBadRequest)
 		return
 	}
-	claims, ok := apimiddleware.ClaimsFromContext(r.Context())
+	claims, ok := apicxt.ClaimsFromContext(r.Context())
 	if !ok {
 		http.Error(w, `{"message":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -96,6 +100,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]any{"id": id, "name": req.Name, "createdAt": createdAt})
 }
 
+// GetProject returns a single project by ID.
 func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember)
 	if !ok {
@@ -115,6 +120,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"id": id, "name": name, "createdAt": createdAt})
 }
 
+// UpdateProject updates an existing project.
 func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {
@@ -143,6 +149,7 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"id": id, "name": req.Name})
 }
 
+// DeleteProject removes a project.
 func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin)
 	if !ok {

@@ -5,16 +5,18 @@ import (
 	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/luke/hive/control-plane/internal/deploy"
 	"github.com/riverqueue/river"
-	swarmclient "github.com/luke/hive/control-plane/internal/swarm"
 )
 
+// PreviewCleanupWorker removes expired preview deployments.
 type PreviewCleanupWorker struct {
 	river.WorkerDefaults[PreviewCleanupJobArgs]
 	Pool  *pgxpool.Pool
-	Swarm *swarmclient.Client
+	Swarm deploy.SwarmStack
 }
 
+// Work processes a preview cleanup job.
 func (w *PreviewCleanupWorker) Work(ctx context.Context, job *river.Job[PreviewCleanupJobArgs]) error {
 	// Mark expired previews in DB.
 	_, err := w.Pool.Exec(ctx, `

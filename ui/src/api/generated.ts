@@ -1037,7 +1037,7 @@ export interface paths {
         post?: never;
         /**
          * Remove node from swarm
-         * @description Drains workloads and removes the node from the Swarm cluster.
+         * @description Drains workloads and removes the node from the Swarm cluster. Refuses to remove the last manager node with a 409 response.
          */
         delete: operations["removeNode"];
         options?: never;
@@ -1057,8 +1057,8 @@ export interface paths {
         };
         get?: never;
         /**
-         * Replace node labels
-         * @description Replaces the node's label set with the provided labels.
+         * Update node labels
+         * @description Merges the provided labels into the node's current label set; existing keys not present in the request are preserved, and provided keys overwrite their previous values.
          */
         put: operations["updateNodeLabels"];
         post?: never;
@@ -1150,6 +1150,74 @@ export interface paths {
          */
         get: operations["getClusterResources"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tunnels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cloudflare tunnels
+         * @description Retrieve tunnels
+         */
+        get: operations["listTunnels"];
+        put?: never;
+        /**
+         * Create and deploy a Cloudflare tunnel
+         * @description Creates a Cloudflare tunnel via the Cloudflare API, stores the connector credential encrypted, deploys a cloudflared service on the cluster, and publishes DNS routes for every ingress hostname (CNAME to the tunnel).
+         */
+        post: operations["createTunnel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tunnels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get tunnel
+         * @description Retrieve a tunnel including live Cloudflare and connector status.
+         */
+        get: operations["getTunnel"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete tunnel
+         * @description Deletes the tunnel from Cloudflare, removes its DNS routes, connector service and stored credentials.
+         */
+        delete: operations["deleteTunnel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tunnels/{id}/ingress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace tunnel ingress rules
+         * @description Replaces the ingress rule list; wildcards are supported (`*.example.com`).
+         */
+        put: operations["updateTunnelIngress"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1474,7 +1542,7 @@ export interface paths {
         get?: never;
         /**
          * Update secret
-         * @description Replaces a Swarm secret's data.
+         * @description Swarm secrets are immutable, so this removes the secret and creates a replacement with the same name; the replacement has a DIFFERENT secret ID. Any service still referencing the old ID must be updated. Returns 409 if the secret is in use by one or more services.
          */
         put: operations["updateSecret"];
         post?: never;
@@ -1502,7 +1570,7 @@ export interface paths {
         put?: never;
         /**
          * Rotate secret
-         * @description Replaces the secret's payload with a new value (rotation without changing the secret's identity).
+         * @description Rotates the secret's payload. Because Swarm secrets are immutable, rotation creates a versioned successor secret with a NEW secret ID, re-points the services that referenced the old secret, and removes the old secret.
          */
         post: operations["rotateSecret"];
         delete?: never;
@@ -1548,7 +1616,7 @@ export interface paths {
         get?: never;
         /**
          * Update config
-         * @description Replaces a Swarm config's data.
+         * @description Swarm configs are immutable, so this removes the config and creates a replacement with the same name; the replacement has a DIFFERENT config ID. Any service still referencing the old ID must be updated. Returns 409 if the config is in use by one or more services.
          */
         put: operations["updateConfig"];
         post?: never;
@@ -1597,11 +1665,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /**
-         * Update network
-         * @description Updates an existing Swarm network's settings.
-         */
-        put: operations["updateNetwork"];
+        put?: never;
         post?: never;
         /**
          * Delete network
@@ -3335,6 +3399,115 @@ export interface components {
             /** @description Compose content. */
             composeContent: string;
         };
+        /**
+         * @description Cloudflare tunnel managed by Hive.
+         * @example {
+         *       "id": "550e8400-e29b-41d4-a716-446655440010",
+         *       "name": "prod-edge",
+         *       "cloudflareTunnelId": "f1e2d3c4-b5a6-4789-8abc-def012345678",
+         *       "status": "deployed",
+         *       "ingress": [
+         *         {
+         *           "hostname": "app.example.com",
+         *           "service": "http://traefik:80"
+         *         },
+         *         {
+         *           "hostname": "*.example.com",
+         *           "service": "http://traefik:80"
+         *         }
+         *       ],
+         *       "createdAt": "2026-08-21T12:00:00Z",
+         *       "updatedAt": "2026-08-21T12:05:00Z"
+         *     }
+         */
+        Tunnel: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description UUID assigned by Cloudflare. */
+            cloudflareTunnelId: string;
+            /**
+             * @description Hive lifecycle status. Live connector health is under `connector`.
+             * @enum {string}
+             */
+            status: "creating" | "deployed" | "error" | "deleting";
+            ingress: components["schemas"]["TunnelIngressRule"][];
+            connector?: components["schemas"]["TunnelConnectorStatus"];
+            errorMessage?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        /**
+         * @description One cloudflared ingress rule. Hostnames may be exact or wildcard (`*.zone`); the catch-all rule is implicit.
+         * @example {
+         *       "hostname": "*.example.com",
+         *       "service": "http://traefik:80"
+         *     }
+         */
+        TunnelIngressRule: {
+            /** @description Exact hostname or `*.`-prefixed wildcard. */
+            hostname: string;
+            /** @description Optional path prefix for this rule. */
+            path?: string;
+            /** @description Origin URL, usually `http://traefik:80` so Traefik router labels keep applying. */
+            service: string;
+        };
+        /**
+         * @description Live connector health from the swarm service.
+         * @example {
+         *       "desiredReplicas": 1,
+         *       "runningReplicas": 1,
+         *       "cloudflareStatus": "healthy"
+         *     }
+         */
+        TunnelConnectorStatus: {
+            desiredReplicas: number;
+            runningReplicas: number;
+            /** @description Cloudflare-reported tunnel status (e.g. `healthy`, `down`). */
+            cloudflareStatus?: string;
+        };
+        /**
+         * @description CreateTunnelRequest schema.
+         * @example {
+         *       "name": "prod-edge",
+         *       "accountId": "7f9c3a2b1d4e5f6a7b8c9d0e1f2a3b4c",
+         *       "zoneId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+         *       "apiToken": "cf-token-secret",
+         *       "ingress": [
+         *         {
+         *           "hostname": "app.example.com",
+         *           "service": "http://traefik:80"
+         *         }
+         *       ]
+         *     }
+         */
+        CreateTunnelRequest: {
+            /** @description Unique tunnel name (also used for the swarm service name). */
+            name: string;
+            /** @description Cloudflare account ID. */
+            accountId: string;
+            /** @description Cloudflare zone ID for automatic DNS CNAME routes. Omit to skip DNS publishing. */
+            zoneId?: string;
+            /** @description Cloudflare API token (stored encrypted; never returned). */
+            apiToken: string;
+            ingress: components["schemas"]["TunnelIngressRule"][];
+        };
+        /**
+         * @description UpdateTunnelIngressRequest schema.
+         * @example {
+         *       "ingress": [
+         *         {
+         *           "hostname": "*.example.com",
+         *           "service": "http://traefik:80"
+         *         }
+         *       ]
+         *     }
+         */
+        UpdateTunnelIngressRequest: {
+            ingress: components["schemas"]["TunnelIngressRule"][];
+        };
         /** @description Domain schema. */
         Domain: {
             /**
@@ -3349,6 +3522,17 @@ export interface components {
             applicationId: string;
             /** @description System hostname. */
             hostname: string;
+            /**
+             * @description Routing mode. `host` matches the exact hostname, `wildcard` matches any single-label subdomain of the wildcard hostname (`*.example.com`), `path` adds a PathPrefix condition to the host match.
+             * @enum {string}
+             */
+            routeType?: "host" | "wildcard" | "path";
+            /** @description Path prefix for `path` route types (e.g. `/api`). Ignored otherwise. */
+            pathPrefix?: string;
+            /** @description When true and routeType is `path`, strip the matched path prefix before forwarding. */
+            stripPrefix?: boolean;
+            /** @description Traefik router priority override. Omit for automatic priority. */
+            priority?: number;
             /** @description Tls enabled. */
             tlsEnabled: boolean;
             /**
@@ -3378,6 +3562,17 @@ export interface components {
              * @default true
              */
             tlsEnabled: boolean;
+            /**
+             * @description Routing mode. `wildcard` hostnames must start with `*.`; they match any single-label subdomain via Traefik HostRegexp. `path` adds a PathPrefix condition.
+             * @enum {string}
+             */
+            routeType?: "host" | "wildcard" | "path";
+            /** @description Path prefix for `path` route types (e.g. `/api`). */
+            pathPrefix?: string;
+            /** @description Strip the matched path prefix before forwarding (path routes only). */
+            stripPrefix?: boolean;
+            /** @description Traefik router priority override. */
+            priority?: number;
         };
         /**
          * @description UpdateDomainRequest schema.
@@ -3389,6 +3584,17 @@ export interface components {
         UpdateDomainRequest: {
             /** @description System hostname. */
             hostname?: string;
+            /**
+             * @description Routing mode (see Domain.routeType).
+             * @enum {string}
+             */
+            routeType?: "host" | "wildcard" | "path";
+            /** @description Path prefix for `path` route types. */
+            pathPrefix?: string;
+            /** @description Strip matched path prefix before forwarding. */
+            stripPrefix?: boolean;
+            /** @description Traefik router priority override. */
+            priority?: number;
             /** @description Tls enabled. */
             tlsEnabled?: boolean;
         };
@@ -4693,23 +4899,7 @@ export interface components {
             };
         };
         /**
-         * @description Request to update a Swarm network.
-         * @example {
-         *       "attachable": true
-         *     }
-         */
-        UpdateNetworkRequest: {
-            /** @description Whether the network is internal. */
-            internal?: boolean;
-            /** @description Whether containers can attach to the network. */
-            attachable?: boolean;
-            /** @description Key-value labels. */
-            labels?: {
-                [key: string]: string;
-            };
-        };
-        /**
-         * @description Request to replace a node's labels.
+         * @description Request to update a node's labels. Labels are merged into the existing set; keys absent from the request are preserved.
          * @example {
          *       "labels": {
          *         "role": "edge",
@@ -4718,7 +4908,7 @@ export interface components {
          *     }
          */
         UpdateNodeLabelsRequest: {
-            /** @description Full replacement label set. */
+            /** @description Labels to merge into the node's label set. */
             labels: {
                 [key: string]: string;
             };
@@ -6347,7 +6537,10 @@ export interface operations {
     };
     removeNode: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Forcefully remove the node even if it is unreachable (for example, a permanently powered-off worker). Defaults to false. */
+                force?: boolean;
+            };
             header?: never;
             path: {
                 /** @description Node ID. */
@@ -6374,6 +6567,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             502: components["responses"]["BadGateway"];
         };
     };
@@ -6523,6 +6717,134 @@ export interface operations {
                     "application/json": components["schemas"]["ClusterResources"];
                 };
             };
+        };
+    };
+    listTunnels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tunnel list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Tunnel"][];
+                    };
+                };
+            };
+            500: components["responses"]["InternalServerError"];
+        };
+    };
+    createTunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTunnelRequest"];
+            };
+        };
+        responses: {
+            /** @description Tunnel created and connector deployed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tunnel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    getTunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tunnel with live status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tunnel"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tunnel deleted (Cloudflare tunnel, DNS routes and connector service removed) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+            502: components["responses"]["BadGateway"];
+        };
+    };
+    updateTunnelIngress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTunnelIngressRequest"];
+            };
+        };
+        responses: {
+            /** @description Ingress updated and connector redeployed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tunnel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
     listDomains: {
@@ -7380,39 +7702,6 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
-        };
-    };
-    updateNetwork: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Network ID. */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateNetworkRequest"];
-            };
-        };
-        responses: {
-            /** @description Network updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StatusResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            502: components["responses"]["BadGateway"];
         };
     };
     deleteNetwork: {

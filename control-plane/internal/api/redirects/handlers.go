@@ -10,15 +10,18 @@ import (
 	dbgen "github.com/luke/hive/control-plane/internal/db/generated"
 )
 
+// Handler serves redirect management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 	Q    *dbgen.Queries
 }
 
+// NewHandler returns a redirect Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool, Q: dbgen.New(pool)}
 }
 
+// ListRedirects lists redirects for the organization.
 func (h *Handler) ListRedirects(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -37,6 +40,7 @@ func (h *Handler) ListRedirects(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// GetRedirect returns a single redirect by ID.
 func (h *Handler) GetRedirect(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -60,6 +64,7 @@ func (h *Handler) GetRedirect(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, item)
 }
 
+// CreateRedirect creates a new redirect.
 func (h *Handler) CreateRedirect(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -101,6 +106,7 @@ func (h *Handler) CreateRedirect(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
+// UpdateRedirect updates an existing redirect.
 func (h *Handler) UpdateRedirect(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {
@@ -147,6 +153,7 @@ func (h *Handler) UpdateRedirect(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]string{"id": chi.URLParam(r, "id")})
 }
 
+// DeleteRedirect removes a redirect.
 func (h *Handler) DeleteRedirect(w http.ResponseWriter, r *http.Request) {
 	orgID, ok := common.RequireOrgAccess(w, r, h.Pool)
 	if !ok {

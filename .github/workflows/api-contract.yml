@@ -28,6 +28,12 @@ jobs:
         run: |
           go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
           oapi-codegen -generate types,chi-server -o /tmp/hive-openapi-types.go -package api api/openapi.yaml
+      - name: Check embedded spec drift
+        run: |
+          if ! diff -u control-plane/internal/apispec/openapi.yaml api/openapi.yaml; then
+            echo "::error::control-plane/internal/apispec/openapi.yaml is out of date with api/openapi.yaml. Run 'make apispec' and commit the result."
+            exit 1
+          fi
       - name: Breaking change check (main vs PR)
         run: |
           BASE_REF="${{ github.base_ref || 'main' }}"

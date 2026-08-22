@@ -10,14 +10,17 @@ import (
 	"github.com/luke/hive/control-plane/internal/rbac"
 )
 
+// Handler serves git provider management endpoints.
 type Handler struct {
 	Pool *pgxpool.Pool
 }
 
+// NewHandler returns a git provider Handler backed by the given pool.
 func NewHandler(pool *pgxpool.Pool) *Handler {
 	return &Handler{Pool: pool}
 }
 
+// ListGitProviders lists the configured git providers.
 func (h *Handler) ListGitProviders(w http.ResponseWriter, r *http.Request) {
 	if _, ok := common.RequireOrgAccess(w, r, h.Pool, rbac.RoleOwner, rbac.RoleAdmin, rbac.RoleMember); !ok {
 		return
@@ -41,6 +44,7 @@ func (h *Handler) ListGitProviders(w http.ResponseWriter, r *http.Request) {
 	common.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// CreateGitProvider adds a new git provider configuration.
 func (h *Handler) CreateGitProvider(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Type            string `json:"type"`

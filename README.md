@@ -19,12 +19,13 @@
 
 Hive is an open-source, self-hosted platform for deploying applications, databases, and services on **Docker Swarm**. It gives you the ease of a cloud PaaS with the control of your own infrastructure.
 
-- **Deploy anything** — Git repos, Docker images, or Compose stacks
+- **Deploy anything** — Git repos (Dockerfile builds), Docker images, or Compose stacks
 - **Automatic HTTPS** — Traefik handles certificates via Let's Encrypt
-- **Preview deployments** — Every pull request gets its own URL
-- **Built-in CI/CD** — Build images with Buildkit and push to your own registry
+- **Preview deployments** — Every pull request gets its own URL, with cleanup on close
+- **Built-in CI/CD** — BuildKit builds from Dockerfiles, pushed to your own registry
 - **Self-updating** — Update the platform itself from the UI with zero downtime
 - **Team-ready** — Organizations, RBAC, invitations, and API keys out of the box
+- **mTLS everywhere** — Control plane ↔ agent traffic is mutually authenticated TLS by default
 
 No vendor lock-in. All configurations live on your servers. If you stop using Hive, your services keep running.
 
@@ -96,16 +97,20 @@ After enabling, open **Runtime / Nodes → a node** to check packages or run mai
 |---------|-------------|
 | 🐳 **Swarm-Native** | Built for Docker Swarm with replicated control-plane, global agents, and rolling updates |
 | 🔒 **Automatic HTTPS** | Traefik with Let's Encrypt — zero config TLS for every domain |
-| 🏗️ **Git & Image Deploys** | Deploy from Git repos (with webhooks) or push Docker images directly |
+| 🔐 **mTLS Agents** | Internal CA with per-node agent certificates, TLS 1.3, 72h certs, auto-renewal |
+| 🏗️ **Git & Image Deploys** | Deploy from Git repos (Dockerfile builds via BuildKit, with webhooks) or push Docker images directly; Compose stack deploys with preview diff |
 | 🧪 **Preview Deployments** | Auto-deploy PRs with cleanup on merge/close |
-| 🛡️ **Security Rules** | IP allowlists, blocklists, header security, and rate limiting via Traefik middleware |
-| 🔑 **Encrypted Secrets** | AES-256-GCM secrets stored in PostgreSQL with HKDF key derivation |
-| 👥 **Team Management** | Organizations, member roles, email invitations, API keys |
+| 🛡️ **Security Rules** | IP allowlists, header security, and rate limiting via Traefik middleware (blocklists and country block require an external plugin/WAF — see [docs/security.md](docs/security.md#known-limitations)) |
+| 🔑 **Encrypted Secrets** | AES-256-GCM secrets stored in PostgreSQL with HKDF key derivation from a master key |
+| 👥 **Team Management** | Organizations, member roles (`owner`/`admin`/`member`), email invitations, API keys |
 | 📊 **Monitoring** | Real-time metrics, build logs, container logs, and WebSocket event streams |
-| 🔄 **Self-Updating** | Check for releases and trigger zero-downtime Swarm rolling updates from the UI |
-| 🗄️ **Database Services** | One-click Postgres, MySQL, Redis, MongoDB with backups |
-| ⏰ **Scheduled Jobs** | Cron-based backups, maintenance, and custom tasks via River queue |
-| 🌐 **Multi-Node** | Scale across multiple Swarm nodes with automatic service placement |
+| 🔄 **Self-Updating** | Check for GitHub releases and trigger zero-downtime Swarm rolling updates from the UI or `hivectl update`; downgrades are not supported ([upgrade guide](docs/operations/upgrade.md)) |
+| 🗄️ **Database Services** | One-click Postgres, MySQL, MariaDB, MongoDB, Redis with backups and restore |
+| ⏰ **Scheduled Jobs** | Cron-based backups, cert renewal, and cleanup via the River queue (leader-elected) |
+| 🌐 **Multi-Node** | Scale across multiple Swarm nodes with label-based service placement ([production guide](docs/deployment/production.md)) |
+
+> Not yet built (tracked in the roadmap): nixpacks/buildpacks build strategies,
+> country-based blocking, hosted interactive API spec.
 
 ---
 
@@ -224,7 +229,15 @@ cd tests/e2e && npx playwright test # E2E tests
 |-------|----------|
 | Architecture Overview | [`docs/architecture/overview.md`](docs/architecture/overview.md) |
 | Deployment Quickstart | [`docs/deployment/quickstart.md`](docs/deployment/quickstart.md) |
+| Production Deployment | [`docs/deployment/production.md`](docs/deployment/production.md) |
+| Patroni HA Overlay | [`docs/deployment/patroni-ha.md`](docs/deployment/patroni-ha.md) |
+| External Services | [`docs/deployment/external-services.md`](docs/deployment/external-services.md) |
+| Cloud Provider Notes | [`docs/deployment/cloud.md`](docs/deployment/cloud.md) |
+| API Reference | [`docs/api.md`](docs/api.md) |
+| Security Guide | [`docs/security.md`](docs/security.md) |
 | Operations Runbook | [`docs/operations/runbook.md`](docs/operations/runbook.md) |
+| Upgrade Guide | [`docs/operations/upgrade.md`](docs/operations/upgrade.md) |
+| Storage Model | [`docs/operations/storage.md`](docs/operations/storage.md) |
 | ADRs | [`docs/adr/`](docs/adr/) |
 
 ---

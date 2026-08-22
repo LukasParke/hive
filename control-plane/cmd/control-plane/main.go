@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -16,12 +18,11 @@ import (
 	"github.com/luke/hive/control-plane/internal/api"
 	"github.com/luke/hive/control-plane/internal/auth"
 	backupruntime "github.com/luke/hive/control-plane/internal/backup"
+	"github.com/luke/hive/control-plane/internal/bootstrap"
 	buildruntime "github.com/luke/hive/control-plane/internal/build"
 	"github.com/luke/hive/control-plane/internal/ca"
 	"github.com/luke/hive/control-plane/internal/config"
 	"github.com/luke/hive/control-plane/internal/db"
-	"github.com/luke/hive/control-plane/internal/jobs"
-	buildjobs "github.com/luke/hive/control-plane/internal/jobs/build"
 	"github.com/luke/hive/control-plane/internal/jobs/riverjobs"
 	"github.com/luke/hive/control-plane/internal/leader"
 	"github.com/luke/hive/control-plane/internal/notify"
@@ -30,51 +31,76 @@ import (
 	"github.com/luke/hive/control-plane/internal/secrets"
 	"github.com/luke/hive/control-plane/internal/swarm"
 	"github.com/luke/hive/control-plane/internal/updater"
+	"github.com/riverqueue/river/rivertype"
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
 	ctx := context.Background()
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
-		log.Fatalf("config: %v", err)
+		return fmt.Errorf("config: %w", err)
 	}
 	var initialized atomic.Bool
 
 	pool, err := db.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer pool.Close()
 	if err := db.WaitForPing(ctx, pool, 30*time.Second); err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if err := db.ApplyMigrations(ctx, pool, os.DirFS("internal/db/migrations")); err != nil {
-		log.Fatal(err)
-	}
-	if err := db.MigrateRiver(ctx, pool); err != nil {
-		log.Fatal(err)
+	// First-boot initialization with race protection: exactly one replica
+	// runs migrations and seeds settings while peers wait for the settings
+	// record (plan P7.3). The self-register admin flow is kept instead of
+	// the plan's generated admin — documented deviation.
+	if err := bootstrap.Run(ctx, bootstrap.NewLockClient(pool), func(mctx context.Context) error {
+		if err := db.ApplyMigrations(mctx, pool, os.DirFS("internal/db/migrations")); err != nil {
+			return err
+		}
+		return db.MigrateRiver(mctx, pool)
+	}, bootstrap.Options{}); err != nil {
+		return err
 	}
 
 	sw, err := swarm.New(cfg.DockerHost)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	caAuthority, err := ca.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	// Construct the secrets store once and install it as the process-wide
+	// runtime. Without a master key file the store stays nil (dev flows);
+	// the CA then runs ephemeral instead of persisted.
 	key, err := os.ReadFile(cfg.MasterKeyFile)
-	if err == nil {
-		if _, err := secrets.NewStore(pool, []byte(strings.TrimSpace(string(key)))); err != nil {
-			log.Printf("secrets store disabled: %v", err)
-		}
+	if err != nil {
+		log.Printf("secrets store disabled: %v", err)
+	} else if store, err := secrets.NewStore(pool, []byte(strings.TrimSpace(string(key)))); err != nil {
+		log.Printf("secrets store disabled: %v", err)
+	} else {
+		secrets.SetRuntime(store)
 	}
 
-	fanout := db.NewFanout(pool)
+	caAuthority, err := ca.LoadOrCreate(ctx, secrets.Runtime())
+	if err != nil {
+		return err
+	}
+
+	// Publish the CA certificate as a Swarm config so agents can mount it
+	// for mTLS verification. Best-effort: dev flows without a Swarm cluster
+	// must not crash here.
+	if err := sw.EnsureConfig(ctx, "hive-agent-ca", caAuthority.CertPEM()); err != nil {
+		log.Printf("warning: could not publish hive-agent-ca swarm config: %v", err)
+	}
+
+	fanout := db.NewFanoutWithListenURL(pool, cfg.ListenDatabaseURL)
 	hub := realtime.NewHub()
 	events := fanout.Subscribe("system", 100)
 	go func() {
@@ -90,12 +116,13 @@ func main() {
 
 	notifier := notify.NewDispatcher(pool)
 	buildClient := buildruntime.NewClient(cfg.BuildkitAddr)
-	riverClient, err := riverjobs.NewClient(pool, cfg.RegistryAddr, sw, buildClient, notifier)
+	riverClient, err := riverjobs.NewClient(pool, cfg.RegistryAddr, sw, buildClient, notifier,
+		riverjobs.WithCertRenewer(&agentclient.ControlPlaneCertRenewer{Authority: caAuthority, Store: secrets.Runtime()}))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := riverClient.Start(ctx); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer func() {
 		if err := riverClient.Stop(ctx); err != nil {
@@ -103,24 +130,34 @@ func main() {
 		}
 	}()
 
-	legacyBuildWorker := jobs.NewWorker(pool)
-	legacyBuildWorker.Register("api", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
-	legacyBuildWorker.Register("webhook", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
-	legacyBuildWorker.Register("retry", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
-	legacyBuildWorker.Register("rollback", buildjobs.NewHandler(pool, cfg.RegistryAddr, sw, buildClient, notifier).Handle)
-	go func() {
-		for ctx.Err() == nil {
-			if err := legacyBuildWorker.Run(ctx); err != nil && ctx.Err() == nil {
-				log.Printf("legacy build worker stopped: %v", err)
-				time.Sleep(2 * time.Second)
-			}
-		}
-	}()
-
 	watcher := reconcile.NewWatcher(sw, fanout, pool)
-	elector := leader.New(pool, func(lctx context.Context) {
-		watcher.Run(lctx)
-	}, func() {})
+
+	// Leader-only work: the swarm event watcher singleton and River periodic
+	// job scheduling. Everything else (fanout, river workers, backup runner,
+	// updater) keeps running on every replica.
+	var (
+		periodicMu      sync.Mutex
+		periodicHandles []rivertype.PeriodicJobHandle
+	)
+	elector := leader.New(pool,
+		func(lctx context.Context) {
+			go func() {
+				if err := watcher.Run(lctx); err != nil {
+					log.Printf("swarm watcher exited: %v", err)
+				}
+			}()
+			periodicMu.Lock()
+			defer periodicMu.Unlock()
+			periodicHandles = riverjobs.StartPeriodicJobs(riverClient)
+		},
+		func() {
+			periodicMu.Lock()
+			defer periodicMu.Unlock()
+			// Remove handles so re-acquisition cannot duplicate schedules.
+			riverClient.PeriodicJobs().RemoveMany(periodicHandles)
+			periodicHandles = nil
+		},
+	)
 	go elector.Run(ctx)
 
 	backupRunner := backupruntime.NewRunner(pool, notifier)
@@ -130,33 +167,39 @@ func main() {
 		}
 	}()
 
-	agentDialer, err := agentclient.NewDialer(caAuthority)
+	cpCert, err := agentclient.LoadOrCreateClientCert(ctx, caAuthority, secrets.Runtime())
 	if err != nil {
-		log.Fatalf("agent dialer: %v", err)
+		return fmt.Errorf("control-plane client certificate: %w", err)
+	}
+	agentDialer, err := agentclient.NewDialer(caAuthority, cpCert, cfg.AgentMTLSEnabled)
+	if err != nil {
+		return fmt.Errorf("agent dialer: %w", err)
 	}
 
 	updaterInstance := updater.New(sw)
 	go updaterInstance.Run(ctx)
 
 	server := &api.Server{
-		Pool:           pool,
-		Swarm:          sw,
-		Authority:      caAuthority,
-		Auth:           auth.NewService(pool, cfg.JWTSecret),
-		Hub:            hub,
-		AgentDialer:    agentDialer,
-		RiverClient:    riverClient,
-		BootstrapToken: cfg.AgentBootstrapKey,
-		Initialized: func() bool {
-			return initialized.Load()
-		},
-		Updater: updaterInstance,
+		Pool:                   pool,
+		Swarm:                  sw,
+		Authority:              caAuthority,
+		Auth:                   auth.NewService(pool, cfg.JWTSecret),
+		Hub:                    hub,
+		AgentDialer:            agentDialer,
+		RiverClient:            riverClient,
+		BootstrapToken:         cfg.AgentBootstrapKey,
+		Initialized:            initialized.Load,
+		Updater:                updaterInstance,
+		Elector:                elector,
+		AuthRateLimitPerMin:    cfg.AuthRateLimitPerMin,
+		WebhookRateLimitPerMin: cfg.WebhookRateLimitPerMin,
 	}
 	initialized.Store(true)
 
 	srv := &http.Server{
-		Addr:    cfg.HTTPAddr,
-		Handler: server.Router(),
+		Addr:              cfg.HTTPAddr,
+		Handler:           server.Router(),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
@@ -176,4 +219,6 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("shutdown error: %v", err)
 	}
+
+	return nil
 }
